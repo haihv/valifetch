@@ -54,6 +54,10 @@ export function mergeOptions(
         ...(instanceOptions.hooks?.afterResponse ?? []),
         ...(requestOptions.hooks?.afterResponse ?? []),
       ],
+      afterParseResponse: [
+        ...(instanceOptions.hooks?.afterParseResponse ?? []),
+        ...(requestOptions.hooks?.afterParseResponse ?? []),
+      ],
     },
     prefixUrl: requestOptions.prefixUrl ?? instanceOptions.prefixUrl,
     timeout: requestOptions.timeout ?? instanceOptions.timeout,

@@ -328,6 +328,10 @@ function mergeInstanceOptions(
         ...(parent.hooks?.afterResponse ?? []),
         ...(child.hooks?.afterResponse ?? []),
       ],
+      afterParseResponse: [
+        ...(parent.hooks?.afterParseResponse ?? []),
+        ...(child.hooks?.afterParseResponse ?? []),
+      ],
     },
   };
 }

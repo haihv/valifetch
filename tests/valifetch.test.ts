@@ -631,6 +631,95 @@ describe('core/valifetch', () => {
         expect(afterResponseHook).toHaveBeenCalled();
       });
     });
+
+    describe('afterParseResponse', () => {
+      it('should call afterParseResponse hook with parsed data', async () => {
+        // Arrange
+        mockFetch({ id: 1, name: 'John' });
+        const afterParseHook = vi.fn((data) => data);
+        const api = valifetch.create({
+          prefixUrl: 'https://api.example.com',
+          hooks: {
+            afterParseResponse: [afterParseHook],
+          },
+        });
+
+        // Act
+        await api.get('/users/1');
+
+        // Assert
+        expect(afterParseHook).toHaveBeenCalledWith(
+          { id: 1, name: 'John' },
+          expect.any(Response),
+          expect.any(Request)
+        );
+      });
+
+      it('should transform data with afterParseResponse hook', async () => {
+        // Arrange
+        mockFetch({ data: { id: 1 }, meta: { total: 1 } });
+        const unwrapHook = (data: any) => data.data;
+        const api = valifetch.create({
+          prefixUrl: 'https://api.example.com',
+          hooks: {
+            afterParseResponse: [unwrapHook],
+          },
+        });
+
+        // Act
+        const result = await api.get('/users/1');
+
+        // Assert
+        expect(result).toEqual({ id: 1 });
+      });
+
+      it('should chain multiple afterParseResponse hooks', async () => {
+        // Arrange
+        mockFetch({ value: 1 });
+        const hook1 = (data: any) => ({ ...data, step1: true });
+        const hook2 = (data: any) => ({ ...data, step2: true });
+        const api = valifetch.create({
+          prefixUrl: 'https://api.example.com',
+          hooks: {
+            afterParseResponse: [hook1, hook2],
+          },
+        });
+
+        // Act
+        const result = await api.get('/test');
+
+        // Assert
+        expect(result).toEqual({ value: 1, step1: true, step2: true });
+      });
+
+      it('should merge afterParseResponse hooks when extending instance', async () => {
+        // Arrange
+        mockFetch({ value: 1 });
+        const hook1 = (data: any) => ({ ...data, fromBase: true });
+        const hook2 = (data: any) => ({ ...data, fromExtended: true });
+        const baseApi = valifetch.create({
+          prefixUrl: 'https://api.example.com',
+          hooks: {
+            afterParseResponse: [hook1],
+          },
+        });
+        const extendedApi = baseApi.extend({
+          hooks: {
+            afterParseResponse: [hook2],
+          },
+        });
+
+        // Act
+        const result = await extendedApi.get('/test');
+
+        // Assert
+        expect(result).toEqual({
+          value: 1,
+          fromBase: true,
+          fromExtended: true,
+        });
+      });
+    });
   });
 
   describe('create instance', () => {
