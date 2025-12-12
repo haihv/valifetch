@@ -1,7 +1,11 @@
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
-  entry: ['src/index.ts'],
+  entry: {
+    index: 'src/index.ts',
+    error: 'src/error.ts',
+    types: 'src/types.ts',
+  },
   format: ['cjs', 'esm'],
   dts: true,
   clean: true,
@@ -10,7 +14,7 @@ export default defineConfig({
   target: 'es2022',
   outDir: 'dist',
   treeshake: true,
-  splitting: false,
+  splitting: true,
   external: ['valibot'],
   outExtension({ format }) {
     return {

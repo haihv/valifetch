@@ -361,6 +361,28 @@ await valifetch.get('/users/:id/posts/:postId', {
 });
 ```
 
+## Tree-Shaking & Subpath Imports
+
+Valifetch is fully tree-shakeable. For minimal bundle size, you can import just what you need:
+
+```typescript
+// Main import - includes everything
+import valifetch, { ValifetchError } from 'valifetch';
+
+// Subpath import - just the error class
+import { ValifetchError } from 'valifetch/error';
+
+// Subpath import - just types (no runtime code)
+import type {
+  ValifetchOptions,
+  RetryOptions,
+  BeforeRequestHook,
+  AfterResponseHook,
+} from 'valifetch/types';
+```
+
+The package uses code splitting internally, so shared code between entry points is only loaded once.
+
 ## Requirements
 
 - Node.js >= 18.0.0 (uses native fetch)

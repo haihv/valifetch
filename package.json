@@ -16,6 +16,26 @@
         "types": "./dist/index.d.cts",
         "default": "./dist/index.cjs"
       }
+    },
+    "./error": {
+      "import": {
+        "types": "./dist/error.d.ts",
+        "default": "./dist/error.js"
+      },
+      "require": {
+        "types": "./dist/error.d.cts",
+        "default": "./dist/error.cjs"
+      }
+    },
+    "./types": {
+      "import": {
+        "types": "./dist/types.d.ts",
+        "default": "./dist/types.js"
+      },
+      "require": {
+        "types": "./dist/types.d.cts",
+        "default": "./dist/types.cjs"
+      }
     }
   },
   "files": [
