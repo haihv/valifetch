@@ -68,12 +68,16 @@
     "api",
     "rest"
   ],
-  "author": "",
+  "author": "haihv",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": ""
+    "url": "git+https://github.com/haihv/valifetch.git"
   },
+  "bugs": {
+    "url": "https://github.com/haihv/valifetch/issues"
+  },
+  "homepage": "https://github.com/haihv/valifetch#readme",
   "peerDependencies": {
     "valibot": ">=1.0.0"
   },
