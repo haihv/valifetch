@@ -16,7 +16,7 @@ A type-safe HTTP client built on native `fetch` with [Valibot](https://valibot.d
 - **Path Parameters** - Support for `/users/:id` syntax with validation
 - **Retry Logic** - Exponential backoff with jitter for failed requests
 - **Timeout & Cancellation** - AbortController support with configurable timeout
-- **Hooks** - `beforeRequest` and `afterResponse` interceptors
+- **Hooks** - `beforeRequest`, `afterResponse`, and `afterParseResponse` interceptors
 - **Instances** - Create configured instances with `create()` and `extend()`
 - **Minimal** - Tree-shakeable, valibot as peer dependency, ~17KB bundle
 
@@ -91,6 +91,7 @@ type Options = {
   hooks?: {
     beforeRequest?: BeforeRequestHook[];
     afterResponse?: AfterResponseHook[];
+    afterParseResponse?: AfterParseResponseHook[];
   };
 
   // Standard fetch options
@@ -247,6 +248,17 @@ const api = valifetch.create({
         return response;
       },
     ],
+    afterParseResponse: [
+      // Transform parsed data - unwrap nested response
+      (data) => data.data,
+      // Add metadata from response headers
+      (data, response) => ({
+        ...data,
+        _meta: {
+          totalCount: response.headers.get('X-Total-Count'),
+        },
+      }),
+    ],
   },
 });
 ```
@@ -383,6 +395,7 @@ import type {
   RetryOptions,
   BeforeRequestHook,
   AfterResponseHook,
+  AfterParseResponseHook,
 } from 'valifetch/types';
 ```
 

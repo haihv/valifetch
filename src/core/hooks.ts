@@ -1,6 +1,7 @@
 import type {
   BeforeRequestHook,
   AfterResponseHook,
+  AfterParseResponseHook,
   NormalizedOptions,
 } from '../types';
 
@@ -51,4 +52,23 @@ export async function runAfterResponseHooks(
   }
 
   return currentResponse;
+}
+
+export async function runAfterParseResponseHooks<T>(
+  data: T,
+  response: Response,
+  request: Request,
+  hooks?: AfterParseResponseHook[]
+): Promise<T> {
+  if (!hooks || hooks.length === 0) {
+    return data;
+  }
+
+  let currentData = data;
+
+  for (const hook of hooks) {
+    currentData = (await hook(currentData, response, request)) as T;
+  }
+
+  return currentData;
 }

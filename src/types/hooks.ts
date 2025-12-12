@@ -10,7 +10,7 @@ export type BeforeRequestHook = (
 ) => Request | Response | void | Promise<Request | Response | void>;
 
 /**
- * Hook called after each response
+ * Hook called after each response (before parsing)
  * Can modify response or return a new one
  */
 export type AfterResponseHook = (
@@ -20,9 +20,20 @@ export type AfterResponseHook = (
 ) => Response | void | Promise<Response | void>;
 
 /**
+ * Hook called after response is parsed
+ * Can transform the parsed data
+ */
+export type AfterParseResponseHook<T = unknown> = (
+  data: T,
+  response: Response,
+  request: Request
+) => T | Promise<T>;
+
+/**
  * All available hooks
  */
 export type Hooks = {
   beforeRequest?: BeforeRequestHook[];
   afterResponse?: AfterResponseHook[];
+  afterParseResponse?: AfterParseResponseHook[];
 };

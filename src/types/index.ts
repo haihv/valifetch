@@ -4,7 +4,12 @@ export type {
   HasPathParams,
 } from './params';
 
-export type { BeforeRequestHook, AfterResponseHook, Hooks } from './hooks';
+export type {
+  BeforeRequestHook,
+  AfterResponseHook,
+  AfterParseResponseHook,
+  Hooks,
+} from './hooks';
 
 export type {
   HttpMethod,

@@ -7,11 +7,16 @@ import type {
   RetryOptions,
   SearchParamsInit,
   Hooks,
+  AfterParseResponseHook,
 } from '../types';
 import { ValifetchError } from '../errors/ValifetchError';
 import { buildRequest } from './request';
 import { parseJsonResponse, checkResponseStatus } from './response';
-import { runBeforeRequestHooks, runAfterResponseHooks } from './hooks';
+import {
+  runBeforeRequestHooks,
+  runAfterResponseHooks,
+  runAfterParseResponseHooks,
+} from './hooks';
 import {
   normalizeRetryOptions,
   shouldRetry,
@@ -76,7 +81,8 @@ function createInstance(
         options,
         responseSchema,
         validateResponse,
-        throwHttpErrors
+        throwHttpErrors,
+        normalizedOptions.hooks?.afterParseResponse
       );
     }
 
@@ -158,7 +164,8 @@ function createInstance(
           options,
           responseSchema,
           validateResponse,
-          throwHttpErrors
+          throwHttpErrors,
+          normalizedOptions.hooks?.afterParseResponse
         );
       } catch (error) {
         clearTimeoutIfSet();
@@ -216,37 +223,52 @@ function createInstance(
     options: InternalOptions,
     responseSchema: GenericSchema | undefined,
     validateResponse: boolean,
-    throwHttpErrors: boolean
+    throwHttpErrors: boolean,
+    afterParseResponseHooks?: AfterParseResponseHook[]
   ): Promise<T> {
     const responseType = options.responseType ?? 'json';
     checkResponseStatus(response, request, throwHttpErrors);
+
+    let data: T;
 
     switch (responseType) {
       case 'raw':
         return response as T;
 
       case 'text':
-        return (await response.text()) as T;
+        data = (await response.text()) as T;
+        break;
 
       case 'blob':
-        return (await response.blob()) as T;
+        data = (await response.blob()) as T;
+        break;
 
       case 'arrayBuffer':
-        return (await response.arrayBuffer()) as T;
+        data = (await response.arrayBuffer()) as T;
+        break;
 
       case 'formData':
-        return (await response.formData()) as T;
+        data = (await response.formData()) as T;
+        break;
 
       case 'json':
       default:
-        return (await parseJsonResponse({
+        data = (await parseJsonResponse({
           response,
           request,
           responseSchema,
           validateResponse,
           throwHttpErrors,
         })) as T;
+        break;
     }
+
+    return runAfterParseResponseHooks(
+      data,
+      response,
+      request,
+      afterParseResponseHooks
+    );
   }
 
   // Build the instance object

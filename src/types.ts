@@ -7,6 +7,7 @@ export type {
   // Hooks
   BeforeRequestHook,
   AfterResponseHook,
+  AfterParseResponseHook,
   Hooks,
   // Options
   HttpMethod,
