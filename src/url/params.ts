@@ -5,16 +5,21 @@ export function replacePathParams(
   path: string,
   params: Record<string, string | number>
 ): string {
-  return path.replace(/:([a-zA-Z_][a-zA-Z0-9_]*)/g, (_match, paramName: string) => {
-    if (!(paramName in params)) {
-      throw new Error(`Missing required path parameter: ${paramName}`);
+  return path.replace(
+    /:([a-zA-Z_][a-zA-Z0-9_]*)/g,
+    (_match, paramName: string) => {
+      if (!(paramName in params)) {
+        throw new Error(`Missing required path parameter: ${paramName}`);
+      }
+      const value = params[paramName];
+      if (value === undefined || value === null) {
+        throw new Error(
+          `Path parameter "${paramName}" cannot be null or undefined`
+        );
+      }
+      return encodeURIComponent(String(value));
     }
-    const value = params[paramName];
-    if (value === undefined || value === null) {
-      throw new Error(`Path parameter "${paramName}" cannot be null or undefined`);
-    }
-    return encodeURIComponent(String(value));
-  });
+  );
 }
 
 /**

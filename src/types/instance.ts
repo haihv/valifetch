@@ -1,13 +1,16 @@
 import type { GenericSchema, InferOutput } from 'valibot';
-import type {
-  ValifetchOptions,
-  ValifetchInstanceOptions,
-} from './options';
+import type { ValifetchOptions, ValifetchInstanceOptions } from './options';
 
 /**
  * Response format options
  */
-export type ResponseType = 'json' | 'text' | 'blob' | 'arrayBuffer' | 'formData' | 'raw';
+export type ResponseType =
+  | 'json'
+  | 'text'
+  | 'blob'
+  | 'arrayBuffer'
+  | 'formData'
+  | 'raw';
 
 /**
  * Options for GET-like methods (no body)
@@ -16,9 +19,15 @@ export type GetOptions<
   TPath extends string = string,
   TResponseSchema extends GenericSchema | undefined = undefined,
   TParamsSchema extends GenericSchema | undefined = undefined,
-  TSearchSchema extends GenericSchema | undefined = undefined
+  TSearchSchema extends GenericSchema | undefined = undefined,
 > = Omit<
-  ValifetchOptions<TPath, TResponseSchema, undefined, TParamsSchema, TSearchSchema>,
+  ValifetchOptions<
+    TPath,
+    TResponseSchema,
+    undefined,
+    TParamsSchema,
+    TSearchSchema
+  >,
   'json' | 'bodySchema'
 > & {
   /** Response format - defaults to 'json' */
@@ -33,8 +42,14 @@ export type PostOptions<
   TResponseSchema extends GenericSchema | undefined = undefined,
   TBodySchema extends GenericSchema | undefined = undefined,
   TParamsSchema extends GenericSchema | undefined = undefined,
-  TSearchSchema extends GenericSchema | undefined = undefined
-> = ValifetchOptions<TPath, TResponseSchema, TBodySchema, TParamsSchema, TSearchSchema> & {
+  TSearchSchema extends GenericSchema | undefined = undefined,
+> = ValifetchOptions<
+  TPath,
+  TResponseSchema,
+  TBodySchema,
+  TParamsSchema,
+  TSearchSchema
+> & {
   /** Response format - defaults to 'json' */
   responseType?: ResponseType;
 };
@@ -43,9 +58,7 @@ export type PostOptions<
  * Infer response type: schema > generic > unknown
  */
 type ResolveResponseType<TData, TResponseSchema> =
-  TResponseSchema extends GenericSchema
-    ? InferOutput<TResponseSchema>
-    : TData;
+  TResponseSchema extends GenericSchema ? InferOutput<TResponseSchema> : TData;
 
 /**
  * The main valifetch instance type
@@ -60,7 +73,7 @@ export type ValifetchInstance = {
     TPath extends string = string,
     TResponseSchema extends GenericSchema | undefined = undefined,
     TParamsSchema extends GenericSchema | undefined = undefined,
-    TSearchSchema extends GenericSchema | undefined = undefined
+    TSearchSchema extends GenericSchema | undefined = undefined,
   >(
     url: TPath,
     options?: GetOptions<TPath, TResponseSchema, TParamsSchema, TSearchSchema>
@@ -76,10 +89,16 @@ export type ValifetchInstance = {
     TResponseSchema extends GenericSchema | undefined = undefined,
     TBodySchema extends GenericSchema | undefined = undefined,
     TParamsSchema extends GenericSchema | undefined = undefined,
-    TSearchSchema extends GenericSchema | undefined = undefined
+    TSearchSchema extends GenericSchema | undefined = undefined,
   >(
     url: TPath,
-    options?: PostOptions<TPath, TResponseSchema, TBodySchema, TParamsSchema, TSearchSchema>
+    options?: PostOptions<
+      TPath,
+      TResponseSchema,
+      TBodySchema,
+      TParamsSchema,
+      TSearchSchema
+    >
   ): Promise<ResolveResponseType<TData, TResponseSchema>>;
 
   /**
@@ -92,10 +111,16 @@ export type ValifetchInstance = {
     TResponseSchema extends GenericSchema | undefined = undefined,
     TBodySchema extends GenericSchema | undefined = undefined,
     TParamsSchema extends GenericSchema | undefined = undefined,
-    TSearchSchema extends GenericSchema | undefined = undefined
+    TSearchSchema extends GenericSchema | undefined = undefined,
   >(
     url: TPath,
-    options?: PostOptions<TPath, TResponseSchema, TBodySchema, TParamsSchema, TSearchSchema>
+    options?: PostOptions<
+      TPath,
+      TResponseSchema,
+      TBodySchema,
+      TParamsSchema,
+      TSearchSchema
+    >
   ): Promise<ResolveResponseType<TData, TResponseSchema>>;
 
   /**
@@ -108,10 +133,16 @@ export type ValifetchInstance = {
     TResponseSchema extends GenericSchema | undefined = undefined,
     TBodySchema extends GenericSchema | undefined = undefined,
     TParamsSchema extends GenericSchema | undefined = undefined,
-    TSearchSchema extends GenericSchema | undefined = undefined
+    TSearchSchema extends GenericSchema | undefined = undefined,
   >(
     url: TPath,
-    options?: PostOptions<TPath, TResponseSchema, TBodySchema, TParamsSchema, TSearchSchema>
+    options?: PostOptions<
+      TPath,
+      TResponseSchema,
+      TBodySchema,
+      TParamsSchema,
+      TSearchSchema
+    >
   ): Promise<ResolveResponseType<TData, TResponseSchema>>;
 
   /**
@@ -123,7 +154,7 @@ export type ValifetchInstance = {
     TPath extends string = string,
     TResponseSchema extends GenericSchema | undefined = undefined,
     TParamsSchema extends GenericSchema | undefined = undefined,
-    TSearchSchema extends GenericSchema | undefined = undefined
+    TSearchSchema extends GenericSchema | undefined = undefined,
   >(
     url: TPath,
     options?: GetOptions<TPath, TResponseSchema, TParamsSchema, TSearchSchema>
@@ -133,10 +164,13 @@ export type ValifetchInstance = {
   head<
     TPath extends string = string,
     TParamsSchema extends GenericSchema | undefined = undefined,
-    TSearchSchema extends GenericSchema | undefined = undefined
+    TSearchSchema extends GenericSchema | undefined = undefined,
   >(
     url: TPath,
-    options?: Omit<GetOptions<TPath, undefined, TParamsSchema, TSearchSchema>, 'responseSchema' | 'responseType'>
+    options?: Omit<
+      GetOptions<TPath, undefined, TParamsSchema, TSearchSchema>,
+      'responseSchema' | 'responseType'
+    >
   ): Promise<void>;
 
   /**
@@ -148,7 +182,7 @@ export type ValifetchInstance = {
     TPath extends string = string,
     TResponseSchema extends GenericSchema | undefined = undefined,
     TParamsSchema extends GenericSchema | undefined = undefined,
-    TSearchSchema extends GenericSchema | undefined = undefined
+    TSearchSchema extends GenericSchema | undefined = undefined,
   >(
     url: TPath,
     options?: GetOptions<TPath, TResponseSchema, TParamsSchema, TSearchSchema>

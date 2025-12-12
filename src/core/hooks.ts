@@ -1,4 +1,8 @@
-import type { BeforeRequestHook, AfterResponseHook, NormalizedOptions } from '../types';
+import type {
+  BeforeRequestHook,
+  AfterResponseHook,
+  NormalizedOptions,
+} from '../types';
 
 export async function runBeforeRequestHooks(
   request: Request,

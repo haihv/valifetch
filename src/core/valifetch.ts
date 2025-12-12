@@ -4,22 +4,30 @@ import type {
   ValifetchInstanceOptions,
   ValifetchInstance,
   ResponseType,
+  RetryOptions,
+  SearchParamsInit,
+  Hooks,
 } from '../types';
 import { ValifetchError } from '../errors/ValifetchError';
 import { buildRequest } from './request';
 import { parseJsonResponse, checkResponseStatus } from './response';
 import { runBeforeRequestHooks, runAfterResponseHooks } from './hooks';
-import { normalizeRetryOptions, shouldRetry, calculateRetryDelay, sleep } from './retry';
+import {
+  normalizeRetryOptions,
+  shouldRetry,
+  calculateRetryDelay,
+  sleep,
+} from './retry';
 
 type InternalOptions = {
   prefixUrl?: string;
   timeout?: number;
-  searchParams?: unknown;
+  searchParams?: SearchParamsInit;
   validateResponse?: boolean;
   validateRequest?: boolean;
   throwHttpErrors?: boolean;
-  retry?: unknown;
-  hooks?: unknown;
+  retry?: RetryOptions | number | false;
+  hooks?: Hooks;
   headers?: HeadersInit;
   signal?: AbortSignal | null;
   responseSchema?: GenericSchema;
@@ -39,7 +47,9 @@ type InternalOptions = {
   responseType?: ResponseType;
 };
 
-function createInstance(instanceOptions: ValifetchInstanceOptions = {}): ValifetchInstance {
+function createInstance(
+  instanceOptions: ValifetchInstanceOptions = {}
+): ValifetchInstance {
   async function executeRequest<T>(
     url: string,
     method: HttpMethod,
@@ -51,7 +61,7 @@ function createInstance(instanceOptions: ValifetchInstanceOptions = {}): Valifet
       responseSchema,
       validateResponse,
       throwHttpErrors,
-    } = await buildRequest(url, method, options as any, instanceOptions);
+    } = await buildRequest(url, method, options, instanceOptions);
 
     const hookResult = await runBeforeRequestHooks(
       initialRequest,
@@ -60,13 +70,20 @@ function createInstance(instanceOptions: ValifetchInstanceOptions = {}): Valifet
     );
 
     if (hookResult instanceof Response) {
-      return handleResponse<T>(hookResult, initialRequest, options, responseSchema, validateResponse, throwHttpErrors);
+      return handleResponse<T>(
+        hookResult,
+        initialRequest,
+        options,
+        responseSchema,
+        validateResponse,
+        throwHttpErrors
+      );
     }
 
     const request = hookResult;
 
     const retryOptions = normalizeRetryOptions(
-      options.retry !== undefined ? options.retry as any : instanceOptions.retry
+      options.retry !== undefined ? options.retry : instanceOptions.retry
     );
 
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -100,7 +117,8 @@ function createInstance(instanceOptions: ValifetchInstanceOptions = {}): Valifet
 
     let lastError: Error | undefined;
     let attemptCount = 0;
-    const maxAttempts = retryOptions === false ? 1 : (retryOptions.limit ?? 2) + 1;
+    const maxAttempts =
+      retryOptions === false ? 1 : (retryOptions.limit ?? 2) + 1;
 
     while (attemptCount < maxAttempts) {
       try {
@@ -134,14 +152,26 @@ function createInstance(instanceOptions: ValifetchInstanceOptions = {}): Valifet
           normalizedOptions.hooks?.afterResponse
         );
 
-        return handleResponse<T>(finalResponse, request, options, responseSchema, validateResponse, throwHttpErrors);
+        return handleResponse<T>(
+          finalResponse,
+          request,
+          options,
+          responseSchema,
+          validateResponse,
+          throwHttpErrors
+        );
       } catch (error) {
         clearTimeoutIfSet();
 
         if (error instanceof Error) {
-          if (error.name === 'AbortError' || timeoutController?.signal.aborted) {
-            const isTimeout = error.message === 'Request timed out' ||
-              (timeoutController?.signal.reason as Error)?.message === 'Request timed out';
+          if (
+            error.name === 'AbortError' ||
+            timeoutController?.signal.aborted
+          ) {
+            const isTimeout =
+              error.message === 'Request timed out' ||
+              (timeoutController?.signal.reason as Error)?.message ===
+                'Request timed out';
 
             throw new ValifetchError({
               message: isTimeout ? 'Request timed out' : 'Request was aborted',
@@ -196,26 +226,26 @@ function createInstance(instanceOptions: ValifetchInstanceOptions = {}): Valifet
         return response as T;
 
       case 'text':
-        return await response.text() as T;
+        return (await response.text()) as T;
 
       case 'blob':
-        return await response.blob() as T;
+        return (await response.blob()) as T;
 
       case 'arrayBuffer':
-        return await response.arrayBuffer() as T;
+        return (await response.arrayBuffer()) as T;
 
       case 'formData':
-        return await response.formData() as T;
+        return (await response.formData()) as T;
 
       case 'json':
       default:
-        return await parseJsonResponse({
+        return (await parseJsonResponse({
           response,
           request,
           responseSchema,
           validateResponse,
           throwHttpErrors,
-        }) as T;
+        })) as T;
     }
   }
 
@@ -237,7 +267,10 @@ function createInstance(instanceOptions: ValifetchInstanceOptions = {}): Valifet
       executeRequest(url, 'DELETE', (options ?? {}) as InternalOptions),
 
     head: (url, options) =>
-      executeRequest(url, 'HEAD', { ...(options ?? {}), responseType: 'raw' } as InternalOptions).then(() => undefined),
+      executeRequest(url, 'HEAD', {
+        ...(options ?? {}),
+        responseType: 'raw',
+      } as InternalOptions).then(() => undefined),
 
     options: (url, options) =>
       executeRequest(url, 'OPTIONS', (options ?? {}) as InternalOptions),
@@ -277,10 +310,7 @@ function mergeInstanceOptions(
   };
 }
 
-function mergeHeaders(
-  parent?: HeadersInit,
-  child?: HeadersInit
-): Headers {
+function mergeHeaders(parent?: HeadersInit, child?: HeadersInit): Headers {
   const headers = new Headers();
 
   if (parent) {

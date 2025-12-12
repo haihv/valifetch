@@ -21,7 +21,9 @@ describe('core/response', () => {
         const request = createRequest();
 
         // Act & Assert
-        expect(() => checkResponseStatus(response, request, true)).not.toThrow();
+        expect(() =>
+          checkResponseStatus(response, request, true)
+        ).not.toThrow();
       });
 
       it('should not throw for 201 status', () => {
@@ -30,7 +32,9 @@ describe('core/response', () => {
         const request = createRequest();
 
         // Act & Assert
-        expect(() => checkResponseStatus(response, request, true)).not.toThrow();
+        expect(() =>
+          checkResponseStatus(response, request, true)
+        ).not.toThrow();
       });
 
       it('should not throw for 204 status', () => {
@@ -39,50 +43,75 @@ describe('core/response', () => {
         const request = createRequest();
 
         // Act & Assert
-        expect(() => checkResponseStatus(response, request, true)).not.toThrow();
+        expect(() =>
+          checkResponseStatus(response, request, true)
+        ).not.toThrow();
       });
     });
 
     describe('when response is not OK and throwHttpErrors is true', () => {
       it('should throw ValifetchError for 400 status', () => {
         // Arrange
-        const response = new Response('Bad Request', { status: 400, statusText: 'Bad Request' });
+        const response = new Response('Bad Request', {
+          status: 400,
+          statusText: 'Bad Request',
+        });
         const request = createRequest();
 
         // Act & Assert
-        expect(() => checkResponseStatus(response, request, true)).toThrow(ValifetchError);
+        expect(() => checkResponseStatus(response, request, true)).toThrow(
+          ValifetchError
+        );
       });
 
       it('should throw ValifetchError for 401 status', () => {
         // Arrange
-        const response = new Response('Unauthorized', { status: 401, statusText: 'Unauthorized' });
+        const response = new Response('Unauthorized', {
+          status: 401,
+          statusText: 'Unauthorized',
+        });
         const request = createRequest();
 
         // Act & Assert
-        expect(() => checkResponseStatus(response, request, true)).toThrow(ValifetchError);
+        expect(() => checkResponseStatus(response, request, true)).toThrow(
+          ValifetchError
+        );
       });
 
       it('should throw ValifetchError for 404 status', () => {
         // Arrange
-        const response = new Response('Not Found', { status: 404, statusText: 'Not Found' });
+        const response = new Response('Not Found', {
+          status: 404,
+          statusText: 'Not Found',
+        });
         const request = createRequest();
 
         // Act & Assert
-        expect(() => checkResponseStatus(response, request, true)).toThrow(ValifetchError);
+        expect(() => checkResponseStatus(response, request, true)).toThrow(
+          ValifetchError
+        );
       });
 
       it('should throw ValifetchError for 500 status', () => {
         // Arrange
-        const response = new Response('Internal Server Error', { status: 500, statusText: 'Internal Server Error' });
+        const response = new Response('Internal Server Error', {
+          status: 500,
+          statusText: 'Internal Server Error',
+        });
         const request = createRequest();
 
         // Act & Assert
-        expect(() => checkResponseStatus(response, request, true)).toThrow(ValifetchError);
+        expect(() => checkResponseStatus(response, request, true)).toThrow(
+          ValifetchError
+        );
       });
 
       it('should include correct error code', () => {
         // Arrange
-        const response = new Response('Not Found', { status: 404, statusText: 'Not Found' });
+        const response = new Response('Not Found', {
+          status: 404,
+          statusText: 'Not Found',
+        });
         const request = createRequest();
 
         // Act & Assert
@@ -124,7 +153,10 @@ describe('core/response', () => {
 
       it('should include status in error message', () => {
         // Arrange
-        const response = new Response('Not Found', { status: 404, statusText: 'Not Found' });
+        const response = new Response('Not Found', {
+          status: 404,
+          statusText: 'Not Found',
+        });
         const request = createRequest();
 
         // Act & Assert
@@ -145,7 +177,9 @@ describe('core/response', () => {
         const request = createRequest();
 
         // Act & Assert
-        expect(() => checkResponseStatus(response, request, false)).not.toThrow();
+        expect(() =>
+          checkResponseStatus(response, request, false)
+        ).not.toThrow();
       });
 
       it('should not throw for 500 status', () => {
@@ -154,7 +188,9 @@ describe('core/response', () => {
         const request = createRequest();
 
         // Act & Assert
-        expect(() => checkResponseStatus(response, request, false)).not.toThrow();
+        expect(() =>
+          checkResponseStatus(response, request, false)
+        ).not.toThrow();
       });
     });
   });
@@ -163,7 +199,9 @@ describe('core/response', () => {
     describe('successful parsing', () => {
       it('should parse valid JSON response', async () => {
         // Arrange
-        const response = new Response('{"id": 1, "name": "John"}', { status: 200 });
+        const response = new Response('{"id": 1, "name": "John"}', {
+          status: 200,
+        });
         const request = createRequest();
 
         // Act
@@ -216,7 +254,9 @@ describe('core/response', () => {
     describe('with schema validation', () => {
       it('should validate and return data when valid', async () => {
         // Arrange
-        const response = new Response('{"id": 1, "name": "John"}', { status: 200 });
+        const response = new Response('{"id": 1, "name": "John"}', {
+          status: 200,
+        });
         const request = createRequest();
         const responseSchema = v.object({
           id: v.number(),
@@ -238,7 +278,9 @@ describe('core/response', () => {
 
       it('should throw ValifetchError when validation fails', async () => {
         // Arrange
-        const response = new Response('{"id": "not-a-number"}', { status: 200 });
+        const response = new Response('{"id": "not-a-number"}', {
+          status: 200,
+        });
         const request = createRequest();
         const responseSchema = v.object({
           id: v.number(),
@@ -258,7 +300,9 @@ describe('core/response', () => {
 
       it('should skip validation when validateResponse is false', async () => {
         // Arrange
-        const response = new Response('{"id": "not-a-number"}', { status: 200 });
+        const response = new Response('{"id": "not-a-number"}', {
+          status: 200,
+        });
         const request = createRequest();
         const responseSchema = v.object({
           id: v.number(),
@@ -311,7 +355,9 @@ describe('core/response', () => {
           expect.fail('Should have thrown');
         } catch (error) {
           expect((error as ValifetchError).code).toBe('NETWORK_ERROR');
-          expect((error as ValifetchError).message).toContain('Failed to parse response as JSON');
+          expect((error as ValifetchError).message).toContain(
+            'Failed to parse response as JSON'
+          );
         }
       });
 
@@ -361,7 +407,10 @@ describe('core/response', () => {
     describe('HTTP errors', () => {
       it('should check status before parsing', async () => {
         // Arrange
-        const response = new Response('{"error": "Not Found"}', { status: 404, statusText: 'Not Found' });
+        const response = new Response('{"error": "Not Found"}', {
+          status: 404,
+          statusText: 'Not Found',
+        });
         const request = createRequest();
 
         // Act & Assert
@@ -392,11 +441,16 @@ describe('core/response', () => {
 
     it('should throw for non-OK response when throwHttpErrors is true', async () => {
       // Arrange
-      const response = new Response('Not Found', { status: 404, statusText: 'Not Found' });
+      const response = new Response('Not Found', {
+        status: 404,
+        statusText: 'Not Found',
+      });
       const request = createRequest();
 
       // Act & Assert
-      await expect(parseTextResponse(response, request, true)).rejects.toThrow(ValifetchError);
+      await expect(parseTextResponse(response, request, true)).rejects.toThrow(
+        ValifetchError
+      );
     });
 
     it('should not throw for non-OK response when throwHttpErrors is false', async () => {
@@ -429,11 +483,16 @@ describe('core/response', () => {
 
     it('should throw for non-OK response when throwHttpErrors is true', async () => {
       // Arrange
-      const response = new Response('Error', { status: 500, statusText: 'Error' });
+      const response = new Response('Error', {
+        status: 500,
+        statusText: 'Error',
+      });
       const request = createRequest();
 
       // Act & Assert
-      await expect(parseArrayBufferResponse(response, request, true)).rejects.toThrow(ValifetchError);
+      await expect(
+        parseArrayBufferResponse(response, request, true)
+      ).rejects.toThrow(ValifetchError);
     });
   });
 
@@ -454,11 +513,16 @@ describe('core/response', () => {
 
     it('should throw for non-OK response when throwHttpErrors is true', async () => {
       // Arrange
-      const response = new Response('Error', { status: 500, statusText: 'Error' });
+      const response = new Response('Error', {
+        status: 500,
+        statusText: 'Error',
+      });
       const request = createRequest();
 
       // Act & Assert
-      await expect(parseBlobResponse(response, request, true)).rejects.toThrow(ValifetchError);
+      await expect(parseBlobResponse(response, request, true)).rejects.toThrow(
+        ValifetchError
+      );
     });
   });
 
@@ -482,11 +546,16 @@ describe('core/response', () => {
 
     it('should throw for non-OK response when throwHttpErrors is true', async () => {
       // Arrange
-      const response = new Response('Error', { status: 500, statusText: 'Error' });
+      const response = new Response('Error', {
+        status: 500,
+        statusText: 'Error',
+      });
       const request = createRequest();
 
       // Act & Assert
-      await expect(parseFormDataResponse(response, request, true)).rejects.toThrow(ValifetchError);
+      await expect(
+        parseFormDataResponse(response, request, true)
+      ).rejects.toThrow(ValifetchError);
     });
   });
 });

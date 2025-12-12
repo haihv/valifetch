@@ -44,7 +44,9 @@ export function validate<T extends GenericSchema>(
 export function safeValidate<T extends GenericSchema>(
   schema: T,
   data: unknown
-): { success: true; data: InferOutput<T> } | { success: false; issues: unknown[] } {
+):
+  | { success: true; data: InferOutput<T> }
+  | { success: false; issues: unknown[] } {
   const result = safeParse(schema, data);
 
   if (result.success) {

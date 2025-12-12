@@ -82,7 +82,9 @@ describe('core/retry', () => {
       expect(result).not.toBe(false);
       expect((result as any).limit).toBe(DEFAULT_RETRY_OPTIONS.limit);
       expect((result as any).methods).toEqual(DEFAULT_RETRY_OPTIONS.methods);
-      expect((result as any).statusCodes).toEqual(DEFAULT_RETRY_OPTIONS.statusCodes);
+      expect((result as any).statusCodes).toEqual(
+        DEFAULT_RETRY_OPTIONS.statusCodes
+      );
     });
 
     it('should set limit when retry is a number', () => {
@@ -109,7 +111,9 @@ describe('core/retry', () => {
       expect(result).not.toBe(false);
       expect((result as any).limit).toBe(10);
       expect((result as any).methods).toEqual(['GET', 'POST']);
-      expect((result as any).statusCodes).toEqual(DEFAULT_RETRY_OPTIONS.statusCodes);
+      expect((result as any).statusCodes).toEqual(
+        DEFAULT_RETRY_OPTIONS.statusCodes
+      );
     });
 
     it('should allow custom delay function', () => {

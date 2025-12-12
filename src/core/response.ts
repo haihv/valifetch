@@ -28,7 +28,13 @@ export function checkResponseStatus(
 export async function parseJsonResponse<T extends GenericSchema>(
   options: HandleResponseOptions
 ): Promise<InferOutput<T>> {
-  const { response, request, responseSchema, validateResponse, throwHttpErrors } = options;
+  const {
+    response,
+    request,
+    responseSchema,
+    validateResponse,
+    throwHttpErrors,
+  } = options;
 
   checkResponseStatus(response, request, throwHttpErrors);
 

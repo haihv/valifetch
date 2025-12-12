@@ -4,7 +4,10 @@ export { valifetch as default } from './core/valifetch';
 
 // Error class
 export { ValifetchError } from './errors/ValifetchError';
-export type { ValidationErrorInfo, ValifetchErrorOptions } from './errors/ValifetchError';
+export type {
+  ValidationErrorInfo,
+  ValifetchErrorOptions,
+} from './errors/ValifetchError';
 
 // Types
 export type {

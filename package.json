@@ -49,9 +49,12 @@
     "dev": "tsup --watch",
     "test": "vitest",
     "test:coverage": "vitest --coverage",
-    "lint": "eslint src --ext .ts",
+    "lint": "eslint src --quiet",
+    "format": "prettier --write . --log-level warn",
+    "format:check": "prettier --check . --log-level warn",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "prepare": "husky"
   },
   "keywords": [
     "fetch",
@@ -75,14 +78,29 @@
     "valibot": ">=1.0.0"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
+    "@eslint/js": "^9.39.1",
+    "@types/node": "^24.10.3",
     "@vitest/coverage-v8": "^4.0.15",
+    "eslint": "^9.39.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
+    "prettier": "^3.7.4",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
+    "typescript-eslint": "^8.49.0",
     "valibot": "^1.2.0",
     "vitest": "^4.0.15"
   },
   "engines": {
     "node": ">=20.0.0"
+  },
+  "lint-staged": {
+    "*.{ts,js}": [
+      "eslint --quiet --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
   }
 }

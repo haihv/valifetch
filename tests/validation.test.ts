@@ -146,7 +146,9 @@ describe('validation/validate', () => {
           expect.fail('Should have thrown');
         } catch (error) {
           expect(error).toBeInstanceOf(ValifetchError);
-          expect((error as ValifetchError).validation?.issues.length).toBeGreaterThan(0);
+          expect(
+            (error as ValifetchError).validation?.issues.length
+          ).toBeGreaterThan(0);
         }
       });
 
@@ -208,7 +210,9 @@ describe('validation/validate', () => {
           expect.fail('Should have thrown');
         } catch (error) {
           expect(error).toBeInstanceOf(ValifetchError);
-          expect((error as ValifetchError).message).toBe('Validation failed for response');
+          expect((error as ValifetchError).message).toBe(
+            'Validation failed for response'
+          );
         }
       });
     });
@@ -287,7 +291,10 @@ describe('validation/validate', () => {
 
       it('should transform data in success result', () => {
         // Arrange
-        const schema = v.pipe(v.string(), v.transform((s) => s.toUpperCase()));
+        const schema = v.pipe(
+          v.string(),
+          v.transform((s) => s.toUpperCase())
+        );
         const data = 'hello';
 
         // Act

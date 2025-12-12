@@ -1,12 +1,22 @@
 import type { GenericSchema } from 'valibot';
 import type {
   HttpMethod,
-  ValifetchOptions,
   ValifetchInstanceOptions,
   NormalizedOptions,
+  ValifetchBaseOptions,
+  SearchParamsInit,
 } from '../types';
 import { buildUrl } from '../url/builder';
 import { validate } from '../validation/validate';
+
+type RequestOptions = ValifetchBaseOptions & {
+  responseSchema?: GenericSchema;
+  bodySchema?: GenericSchema;
+  paramsSchema?: GenericSchema;
+  searchSchema?: GenericSchema;
+  json?: unknown;
+  params?: Record<string, string | number>;
+};
 
 function mergeHeaders(
   instanceHeaders?: HeadersInit,
@@ -29,8 +39,8 @@ function mergeHeaders(
 
 export function mergeOptions(
   instanceOptions: ValifetchInstanceOptions,
-  requestOptions: ValifetchOptions
-): ValifetchOptions & { headers: Headers } {
+  requestOptions: RequestOptions
+): RequestOptions & { headers: Headers } {
   return {
     ...instanceOptions,
     ...requestOptions,
@@ -47,12 +57,18 @@ export function mergeOptions(
     },
     prefixUrl: requestOptions.prefixUrl ?? instanceOptions.prefixUrl,
     timeout: requestOptions.timeout ?? instanceOptions.timeout,
-    validateResponse: requestOptions.validateResponse ?? instanceOptions.validateResponse ?? true,
-    validateRequest: requestOptions.validateRequest ?? instanceOptions.validateRequest ?? true,
-    throwHttpErrors: requestOptions.throwHttpErrors ?? instanceOptions.throwHttpErrors ?? true,
-    retry: requestOptions.retry !== undefined
-      ? requestOptions.retry
-      : instanceOptions.retry,
+    validateResponse:
+      requestOptions.validateResponse ??
+      instanceOptions.validateResponse ??
+      true,
+    validateRequest:
+      requestOptions.validateRequest ?? instanceOptions.validateRequest ?? true,
+    throwHttpErrors:
+      requestOptions.throwHttpErrors ?? instanceOptions.throwHttpErrors ?? true,
+    retry:
+      requestOptions.retry !== undefined
+        ? requestOptions.retry
+        : instanceOptions.retry,
   };
 }
 
@@ -67,19 +83,19 @@ export type BuildRequestResult = {
 export async function buildRequest(
   url: string,
   method: HttpMethod,
-  options: ValifetchOptions,
+  options: RequestOptions,
   instanceOptions: ValifetchInstanceOptions
 ): Promise<BuildRequestResult> {
   const merged = mergeOptions(instanceOptions, options);
   const shouldValidateRequest = merged.validateRequest !== false;
 
-  let validatedParams = options.params as Record<string, string | number> | undefined;
+  let validatedParams = options.params;
   if (options.paramsSchema && options.params && shouldValidateRequest) {
     validatedParams = validate({
       schema: options.paramsSchema,
       data: options.params,
       target: 'params',
-    });
+    }) as Record<string, string | number>;
   }
 
   let validatedSearch = options.searchParams;
@@ -88,7 +104,7 @@ export async function buildRequest(
       schema: options.searchSchema,
       data: options.searchParams,
       target: 'search',
-    });
+    }) as SearchParamsInit;
   }
 
   const finalUrl = buildUrl({
@@ -102,7 +118,7 @@ export async function buildRequest(
 
   let body: BodyInit | undefined;
   if (options.json !== undefined) {
-    let jsonData = options.json;
+    let jsonData: unknown = options.json;
     if (options.bodySchema && shouldValidateRequest) {
       jsonData = validate({
         schema: options.bodySchema,
@@ -111,7 +127,7 @@ export async function buildRequest(
       });
     }
 
-    body = JSON.stringify(jsonData);
+    body = JSON.stringify(jsonData as object);
     if (!headers.has('Content-Type')) {
       headers.set('Content-Type', 'application/json');
     }

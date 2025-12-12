@@ -20,7 +20,10 @@ describe('errors/ValifetchError', () => {
     it('should create error with all options', () => {
       // Arrange
       const request = new Request('https://api.example.com');
-      const response = new Response('{}', { status: 404, statusText: 'Not Found' });
+      const response = new Response('{}', {
+        status: 404,
+        statusText: 'Not Found',
+      });
       const cause = new Error('Original error');
       const validation = {
         target: 'response' as ValidationTarget,
@@ -75,7 +78,12 @@ describe('errors/ValifetchError', () => {
 
       it('should return false for other error codes', () => {
         // Arrange
-        const errorCodes: ErrorCode[] = ['NETWORK_ERROR', 'HTTP_ERROR', 'TIMEOUT_ERROR', 'ABORT_ERROR'];
+        const errorCodes: ErrorCode[] = [
+          'NETWORK_ERROR',
+          'HTTP_ERROR',
+          'TIMEOUT_ERROR',
+          'ABORT_ERROR',
+        ];
 
         for (const code of errorCodes) {
           // Act
@@ -101,7 +109,12 @@ describe('errors/ValifetchError', () => {
 
       it('should return false for other error codes', () => {
         // Arrange
-        const errorCodes: ErrorCode[] = ['NETWORK_ERROR', 'VALIDATION_ERROR', 'TIMEOUT_ERROR', 'ABORT_ERROR'];
+        const errorCodes: ErrorCode[] = [
+          'NETWORK_ERROR',
+          'VALIDATION_ERROR',
+          'TIMEOUT_ERROR',
+          'ABORT_ERROR',
+        ];
 
         for (const code of errorCodes) {
           // Act
@@ -127,7 +140,12 @@ describe('errors/ValifetchError', () => {
 
       it('should return false for other error codes', () => {
         // Arrange
-        const errorCodes: ErrorCode[] = ['NETWORK_ERROR', 'HTTP_ERROR', 'VALIDATION_ERROR', 'ABORT_ERROR'];
+        const errorCodes: ErrorCode[] = [
+          'NETWORK_ERROR',
+          'HTTP_ERROR',
+          'VALIDATION_ERROR',
+          'ABORT_ERROR',
+        ];
 
         for (const code of errorCodes) {
           // Act
@@ -153,7 +171,12 @@ describe('errors/ValifetchError', () => {
 
       it('should return false for other error codes', () => {
         // Arrange
-        const errorCodes: ErrorCode[] = ['TIMEOUT_ERROR', 'HTTP_ERROR', 'VALIDATION_ERROR', 'ABORT_ERROR'];
+        const errorCodes: ErrorCode[] = [
+          'TIMEOUT_ERROR',
+          'HTTP_ERROR',
+          'VALIDATION_ERROR',
+          'ABORT_ERROR',
+        ];
 
         for (const code of errorCodes) {
           // Act
@@ -179,7 +202,12 @@ describe('errors/ValifetchError', () => {
 
       it('should return false for other error codes', () => {
         // Arrange
-        const errorCodes: ErrorCode[] = ['TIMEOUT_ERROR', 'HTTP_ERROR', 'VALIDATION_ERROR', 'NETWORK_ERROR'];
+        const errorCodes: ErrorCode[] = [
+          'TIMEOUT_ERROR',
+          'HTTP_ERROR',
+          'VALIDATION_ERROR',
+          'NETWORK_ERROR',
+        ];
 
         for (const code of errorCodes) {
           // Act
@@ -196,7 +224,10 @@ describe('errors/ValifetchError', () => {
     describe('issues', () => {
       it('should return validation issues when present', () => {
         // Arrange
-        const issues = [{ message: 'Issue 1' }, { message: 'Issue 2' }] as any[];
+        const issues = [
+          { message: 'Issue 1' },
+          { message: 'Issue 2' },
+        ] as any[];
         const error = new ValifetchError({
           message: 'Validation failed',
           code: 'VALIDATION_ERROR',
@@ -252,7 +283,10 @@ describe('errors/ValifetchError', () => {
     describe('statusText', () => {
       it('should return response statusText when present', () => {
         // Arrange
-        const response = new Response('{}', { status: 404, statusText: 'Not Found' });
+        const response = new Response('{}', {
+          status: 404,
+          statusText: 'Not Found',
+        });
         const error = new ValifetchError({
           message: 'Not found',
           code: 'HTTP_ERROR',

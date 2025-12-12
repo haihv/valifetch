@@ -23,7 +23,9 @@ export function buildUrl(options: BuildUrlOptions): URL {
   if (prefixUrl) {
     // Ensure proper joining of prefix and path
     const base = prefixUrl.endsWith('/') ? prefixUrl.slice(0, -1) : prefixUrl;
-    const pathPart = processedPath.startsWith('/') ? processedPath : `/${processedPath}`;
+    const pathPart = processedPath.startsWith('/')
+      ? processedPath
+      : `/${processedPath}`;
     url = new URL(base + pathPart);
   } else {
     // Path must be absolute URL if no prefix
@@ -44,7 +46,9 @@ export function buildUrl(options: BuildUrlOptions): URL {
 function appendSearchParams(url: URL, params: SearchParamsInit): void {
   if (typeof params === 'string') {
     // Parse string as URLSearchParams
-    new URLSearchParams(params).forEach((v, k) => url.searchParams.append(k, v));
+    new URLSearchParams(params).forEach((v, k) =>
+      url.searchParams.append(k, v)
+    );
   } else if (params instanceof URLSearchParams) {
     // Copy from URLSearchParams
     params.forEach((v, k) => url.searchParams.append(k, v));

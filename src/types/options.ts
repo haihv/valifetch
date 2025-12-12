@@ -5,7 +5,14 @@ import type { ExtractPathParams, PathParamsRecord } from './params';
 /**
  * HTTP methods supported by valifetch
  */
-export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS';
+export type HttpMethod =
+  | 'GET'
+  | 'POST'
+  | 'PUT'
+  | 'PATCH'
+  | 'DELETE'
+  | 'HEAD'
+  | 'OPTIONS';
 
 /**
  * Search params can be various formats
@@ -80,21 +87,22 @@ export type NormalizedOptions = ValifetchBaseOptions & {
  */
 export type ParamsOption<
   TPath extends string,
-  TParamsSchema extends GenericSchema | undefined
-> = ExtractPathParams<TPath> extends never
-  ? {
-      params?: undefined;
-      paramsSchema?: undefined;
-    }
-  : TParamsSchema extends GenericSchema
+  TParamsSchema extends GenericSchema | undefined,
+> =
+  ExtractPathParams<TPath> extends never
     ? {
-        params: InferInput<TParamsSchema>;
-        paramsSchema: TParamsSchema;
-      }
-    : {
-        params: PathParamsRecord<TPath>;
+        params?: undefined;
         paramsSchema?: undefined;
-      };
+      }
+    : TParamsSchema extends GenericSchema
+      ? {
+          params: InferInput<TParamsSchema>;
+          paramsSchema: TParamsSchema;
+        }
+      : {
+          params: PathParamsRecord<TPath>;
+          paramsSchema?: undefined;
+        };
 
 /**
  * Schema-aware options with full type inference
@@ -104,7 +112,7 @@ export type ValifetchOptions<
   TResponseSchema extends GenericSchema | undefined = undefined,
   TBodySchema extends GenericSchema | undefined = undefined,
   TParamsSchema extends GenericSchema | undefined = undefined,
-  TSearchSchema extends GenericSchema | undefined = undefined
+  TSearchSchema extends GenericSchema | undefined = undefined,
 > = ValifetchBaseOptions & {
   /** Schema to validate response body */
   responseSchema?: TResponseSchema;

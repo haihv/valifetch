@@ -1,4 +1,8 @@
-export type { ExtractPathParams, PathParamsRecord, HasPathParams } from './params';
+export type {
+  ExtractPathParams,
+  PathParamsRecord,
+  HasPathParams,
+} from './params';
 
 export type { BeforeRequestHook, AfterResponseHook, Hooks } from './hooks';
 

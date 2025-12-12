@@ -3,7 +3,11 @@ import {
   runBeforeRequestHooks,
   runAfterResponseHooks,
 } from '../src/core/hooks';
-import type { NormalizedOptions, BeforeRequestHook, AfterResponseHook } from '../src/types';
+import type {
+  NormalizedOptions,
+  BeforeRequestHook,
+  AfterResponseHook,
+} from '../src/types';
 
 describe('core/hooks', () => {
   const createMockOptions = (): NormalizedOptions => ({
@@ -62,18 +66,24 @@ describe('core/hooks', () => {
         const options = createMockOptions();
         const callOrder: number[] = [];
 
-        const hook1: BeforeRequestHook = vi.fn().mockImplementation(async () => {
-          callOrder.push(1);
-          return undefined;
-        });
-        const hook2: BeforeRequestHook = vi.fn().mockImplementation(async () => {
-          callOrder.push(2);
-          return undefined;
-        });
-        const hook3: BeforeRequestHook = vi.fn().mockImplementation(async () => {
-          callOrder.push(3);
-          return undefined;
-        });
+        const hook1: BeforeRequestHook = vi
+          .fn()
+          .mockImplementation(async () => {
+            callOrder.push(1);
+            return undefined;
+          });
+        const hook2: BeforeRequestHook = vi
+          .fn()
+          .mockImplementation(async () => {
+            callOrder.push(2);
+            return undefined;
+          });
+        const hook3: BeforeRequestHook = vi
+          .fn()
+          .mockImplementation(async () => {
+            callOrder.push(3);
+            return undefined;
+          });
 
         // Act
         await runBeforeRequestHooks(request, options, [hook1, hook2, hook3]);
@@ -91,10 +101,14 @@ describe('core/hooks', () => {
           headers: { 'X-Custom': 'value' },
         });
         const options = createMockOptions();
-        const hook: BeforeRequestHook = vi.fn().mockResolvedValue(modifiedRequest);
+        const hook: BeforeRequestHook = vi
+          .fn()
+          .mockResolvedValue(modifiedRequest);
 
         // Act
-        const result = await runBeforeRequestHooks(originalRequest, options, [hook]);
+        const result = await runBeforeRequestHooks(originalRequest, options, [
+          hook,
+        ]);
 
         // Assert
         expect(result).toBe(modifiedRequest);
@@ -106,7 +120,9 @@ describe('core/hooks', () => {
         const modifiedRequest = new Request('https://api.example.com/v2/users');
         const options = createMockOptions();
 
-        const hook1: BeforeRequestHook = vi.fn().mockResolvedValue(modifiedRequest);
+        const hook1: BeforeRequestHook = vi
+          .fn()
+          .mockResolvedValue(modifiedRequest);
         const hook2: BeforeRequestHook = vi.fn().mockResolvedValue(undefined);
 
         // Act
@@ -124,11 +140,16 @@ describe('core/hooks', () => {
         const mockResponse = new Response('{"cached": true}', { status: 200 });
         const options = createMockOptions();
 
-        const hook1: BeforeRequestHook = vi.fn().mockResolvedValue(mockResponse);
+        const hook1: BeforeRequestHook = vi
+          .fn()
+          .mockResolvedValue(mockResponse);
         const hook2: BeforeRequestHook = vi.fn();
 
         // Act
-        const result = await runBeforeRequestHooks(request, options, [hook1, hook2]);
+        const result = await runBeforeRequestHooks(request, options, [
+          hook1,
+          hook2,
+        ]);
 
         // Assert
         expect(result).toBe(mockResponse);
@@ -142,11 +163,17 @@ describe('core/hooks', () => {
         const options = createMockOptions();
 
         const hook1: BeforeRequestHook = vi.fn().mockResolvedValue(undefined);
-        const hook2: BeforeRequestHook = vi.fn().mockResolvedValue(mockResponse);
+        const hook2: BeforeRequestHook = vi
+          .fn()
+          .mockResolvedValue(mockResponse);
         const hook3: BeforeRequestHook = vi.fn();
 
         // Act
-        const result = await runBeforeRequestHooks(request, options, [hook1, hook2, hook3]);
+        const result = await runBeforeRequestHooks(request, options, [
+          hook1,
+          hook2,
+          hook3,
+        ]);
 
         // Assert
         expect(result).toBe(mockResponse);
@@ -187,7 +214,12 @@ describe('core/hooks', () => {
         const options = createMockOptions();
 
         // Act
-        const result = await runAfterResponseHooks(request, options, response, undefined);
+        const result = await runAfterResponseHooks(
+          request,
+          options,
+          response,
+          undefined
+        );
 
         // Assert
         expect(result).toBe(response);
@@ -200,7 +232,12 @@ describe('core/hooks', () => {
         const options = createMockOptions();
 
         // Act
-        const result = await runAfterResponseHooks(request, options, response, []);
+        const result = await runAfterResponseHooks(
+          request,
+          options,
+          response,
+          []
+        );
 
         // Assert
         expect(result).toBe(response);
@@ -216,7 +253,9 @@ describe('core/hooks', () => {
         const hook: AfterResponseHook = vi.fn().mockResolvedValue(undefined);
 
         // Act
-        const result = await runAfterResponseHooks(request, options, response, [hook]);
+        const result = await runAfterResponseHooks(request, options, response, [
+          hook,
+        ]);
 
         // Assert
         expect(result).toBe(response);
@@ -230,14 +269,18 @@ describe('core/hooks', () => {
         const options = createMockOptions();
         const callOrder: number[] = [];
 
-        const hook1: AfterResponseHook = vi.fn().mockImplementation(async () => {
-          callOrder.push(1);
-          return undefined;
-        });
-        const hook2: AfterResponseHook = vi.fn().mockImplementation(async () => {
-          callOrder.push(2);
-          return undefined;
-        });
+        const hook1: AfterResponseHook = vi
+          .fn()
+          .mockImplementation(async () => {
+            callOrder.push(1);
+            return undefined;
+          });
+        const hook2: AfterResponseHook = vi
+          .fn()
+          .mockImplementation(async () => {
+            callOrder.push(2);
+            return undefined;
+          });
 
         // Act
         await runAfterResponseHooks(request, options, response, [hook1, hook2]);
@@ -252,12 +295,21 @@ describe('core/hooks', () => {
         // Arrange
         const request = new Request('https://api.example.com/users');
         const originalResponse = new Response('{}', { status: 200 });
-        const modifiedResponse = new Response('{"modified": true}', { status: 200 });
+        const modifiedResponse = new Response('{"modified": true}', {
+          status: 200,
+        });
         const options = createMockOptions();
-        const hook: AfterResponseHook = vi.fn().mockResolvedValue(modifiedResponse);
+        const hook: AfterResponseHook = vi
+          .fn()
+          .mockResolvedValue(modifiedResponse);
 
         // Act
-        const result = await runAfterResponseHooks(request, options, originalResponse, [hook]);
+        const result = await runAfterResponseHooks(
+          request,
+          options,
+          originalResponse,
+          [hook]
+        );
 
         // Assert
         expect(result).toBe(modifiedResponse);
@@ -267,14 +319,21 @@ describe('core/hooks', () => {
         // Arrange
         const request = new Request('https://api.example.com/users');
         const originalResponse = new Response('{}', { status: 200 });
-        const modifiedResponse = new Response('{"modified": true}', { status: 200 });
+        const modifiedResponse = new Response('{"modified": true}', {
+          status: 200,
+        });
         const options = createMockOptions();
 
-        const hook1: AfterResponseHook = vi.fn().mockResolvedValue(modifiedResponse);
+        const hook1: AfterResponseHook = vi
+          .fn()
+          .mockResolvedValue(modifiedResponse);
         const hook2: AfterResponseHook = vi.fn().mockResolvedValue(undefined);
 
         // Act
-        await runAfterResponseHooks(request, options, originalResponse, [hook1, hook2]);
+        await runAfterResponseHooks(request, options, originalResponse, [
+          hook1,
+          hook2,
+        ]);
 
         // Assert
         expect(hook2).toHaveBeenCalledWith(request, options, modifiedResponse);
@@ -292,7 +351,12 @@ describe('core/hooks', () => {
         const hook2: AfterResponseHook = vi.fn().mockResolvedValue(response3);
 
         // Act
-        const result = await runAfterResponseHooks(request, options, response1, [hook1, hook2]);
+        const result = await runAfterResponseHooks(
+          request,
+          options,
+          response1,
+          [hook1, hook2]
+        );
 
         // Assert
         expect(result).toBe(response3);

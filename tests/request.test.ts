@@ -8,7 +8,7 @@ describe('core/request', () => {
     it('should merge instance and request headers', () => {
       // Arrange
       const instanceOptions = {
-        headers: { 'Authorization': 'Bearer token' },
+        headers: { Authorization: 'Bearer token' },
       };
       const requestOptions = {
         headers: { 'X-Custom': 'value' },
@@ -25,10 +25,10 @@ describe('core/request', () => {
     it('should override instance headers with request headers', () => {
       // Arrange
       const instanceOptions = {
-        headers: { 'Authorization': 'Bearer old-token' },
+        headers: { Authorization: 'Bearer old-token' },
       };
       const requestOptions = {
-        headers: { 'Authorization': 'Bearer new-token' },
+        headers: { Authorization: 'Bearer new-token' },
       };
 
       // Act
@@ -216,7 +216,12 @@ describe('core/request', () => {
         const instanceOptions = { prefixUrl: 'https://api.example.com' };
 
         // Act
-        const result = await buildRequest(url, method, options as any, instanceOptions);
+        const result = await buildRequest(
+          url,
+          method,
+          options as any,
+          instanceOptions
+        );
 
         // Assert
         expect(result.request.url).toBe('https://api.example.com/users/123');
@@ -230,7 +235,12 @@ describe('core/request', () => {
         const instanceOptions = { prefixUrl: 'https://api.example.com' };
 
         // Act
-        const result = await buildRequest(url, method, options as any, instanceOptions);
+        const result = await buildRequest(
+          url,
+          method,
+          options as any,
+          instanceOptions
+        );
 
         // Assert
         expect(result.request.url).toContain('page=1');
@@ -253,7 +263,12 @@ describe('core/request', () => {
         const instanceOptions = { prefixUrl: 'https://api.example.com' };
 
         // Act
-        const result = await buildRequest(url, method, options as any, instanceOptions);
+        const result = await buildRequest(
+          url,
+          method,
+          options as any,
+          instanceOptions
+        );
 
         // Assert
         expect(result.request.url).toBe('https://api.example.com/users/5');
@@ -293,10 +308,17 @@ describe('core/request', () => {
         const instanceOptions = { prefixUrl: 'https://api.example.com' };
 
         // Act
-        const result = await buildRequest(url, method, options as any, instanceOptions);
+        const result = await buildRequest(
+          url,
+          method,
+          options as any,
+          instanceOptions
+        );
 
         // Assert
-        expect(result.request.url).toBe('https://api.example.com/users/string-value');
+        expect(result.request.url).toBe(
+          'https://api.example.com/users/string-value'
+        );
       });
     });
 
@@ -316,7 +338,12 @@ describe('core/request', () => {
         const instanceOptions = { prefixUrl: 'https://api.example.com' };
 
         // Act
-        const result = await buildRequest(url, method, options as any, instanceOptions);
+        const result = await buildRequest(
+          url,
+          method,
+          options as any,
+          instanceOptions
+        );
 
         // Assert
         expect(result.request.url).toContain('page=1');
@@ -354,13 +381,23 @@ describe('core/request', () => {
         const instanceOptions = { prefixUrl: 'https://api.example.com' };
 
         // Act
-        const result = await buildRequest(url, method, options as any, instanceOptions);
+        const result = await buildRequest(
+          url,
+          method,
+          options as any,
+          instanceOptions
+        );
 
         // Assert
-        expect(result.request.headers.get('Content-Type')).toBe('application/json');
+        expect(result.request.headers.get('Content-Type')).toBe(
+          'application/json'
+        );
         expect(result.request.headers.get('Accept')).toBe('application/json');
         const body = await result.request.text();
-        expect(JSON.parse(body)).toEqual({ name: 'John', email: 'john@example.com' });
+        expect(JSON.parse(body)).toEqual({
+          name: 'John',
+          email: 'john@example.com',
+        });
       });
 
       it('should validate body against schema', async () => {
@@ -378,11 +415,19 @@ describe('core/request', () => {
         const instanceOptions = { prefixUrl: 'https://api.example.com' };
 
         // Act
-        const result = await buildRequest(url, method, options as any, instanceOptions);
+        const result = await buildRequest(
+          url,
+          method,
+          options as any,
+          instanceOptions
+        );
 
         // Assert
         const body = await result.request.text();
-        expect(JSON.parse(body)).toEqual({ name: 'John', email: 'john@example.com' });
+        expect(JSON.parse(body)).toEqual({
+          name: 'John',
+          email: 'john@example.com',
+        });
       });
 
       it('should throw ValifetchError for invalid body', async () => {
@@ -415,10 +460,17 @@ describe('core/request', () => {
         const instanceOptions = { prefixUrl: 'https://api.example.com' };
 
         // Act
-        const result = await buildRequest(url, method, options as any, instanceOptions);
+        const result = await buildRequest(
+          url,
+          method,
+          options as any,
+          instanceOptions
+        );
 
         // Assert
-        expect(result.request.headers.get('Content-Type')).toBe('application/json; charset=utf-8');
+        expect(result.request.headers.get('Content-Type')).toBe(
+          'application/json; charset=utf-8'
+        );
       });
 
       it('should not override existing Accept header', async () => {
@@ -427,15 +479,22 @@ describe('core/request', () => {
         const method = 'POST';
         const options = {
           json: { data: 'test' },
-          headers: { 'Accept': 'application/json; charset=utf-8' },
+          headers: { Accept: 'application/json; charset=utf-8' },
         };
         const instanceOptions = { prefixUrl: 'https://api.example.com' };
 
         // Act
-        const result = await buildRequest(url, method, options as any, instanceOptions);
+        const result = await buildRequest(
+          url,
+          method,
+          options as any,
+          instanceOptions
+        );
 
         // Assert
-        expect(result.request.headers.get('Accept')).toBe('application/json; charset=utf-8');
+        expect(result.request.headers.get('Accept')).toBe(
+          'application/json; charset=utf-8'
+        );
       });
     });
 

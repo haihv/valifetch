@@ -152,9 +152,12 @@ describe('core/valifetch', () => {
         mockFetch({ id: 1, name: 'John Patched' });
 
         // Act
-        const result = await valifetch.patch('https://api.example.com/users/1', {
-          json: { name: 'John Patched' },
-        });
+        const result = await valifetch.patch(
+          'https://api.example.com/users/1',
+          {
+            json: { name: 'John Patched' },
+          }
+        );
 
         // Assert
         const [request] = fetchSpy.mock.calls[0] as [Request, RequestInit];
@@ -169,7 +172,9 @@ describe('core/valifetch', () => {
         mockFetch({ success: true });
 
         // Act
-        const result = await valifetch.delete('https://api.example.com/users/1');
+        const result = await valifetch.delete(
+          'https://api.example.com/users/1'
+        );
 
         // Assert
         const [request] = fetchSpy.mock.calls[0] as [Request, RequestInit];
@@ -363,9 +368,12 @@ describe('core/valifetch', () => {
         mockFetch({ error: 'Not Found' }, 404, 'Not Found');
 
         // Act
-        const result = await valifetch.get('https://api.example.com/users/999', {
-          throwHttpErrors: false,
-        });
+        const result = await valifetch.get(
+          'https://api.example.com/users/999',
+          {
+            throwHttpErrors: false,
+          }
+        );
 
         // Assert
         expect(result).toEqual({ error: 'Not Found' });
@@ -379,7 +387,9 @@ describe('core/valifetch', () => {
 
         // Act & Assert
         try {
-          await valifetch.get('https://api.example.com/users', { retry: false });
+          await valifetch.get('https://api.example.com/users', {
+            retry: false,
+          });
           expect.fail('Should have thrown');
         } catch (error) {
           expect(error).toBeInstanceOf(ValifetchError);
@@ -395,12 +405,19 @@ describe('core/valifetch', () => {
           if (callCount < 2) {
             return Promise.reject(new Error('Network error'));
           }
-          return Promise.resolve(new Response('{"success": true}', { status: 200 }));
+          return Promise.resolve(
+            new Response('{"success": true}', { status: 200 })
+          );
         });
 
         // Act
         const result = await valifetch.get('https://api.example.com/unstable', {
-          retry: { limit: 3, methods: ['GET'], statusCodes: [500], delay: () => 1 },
+          retry: {
+            limit: 3,
+            methods: ['GET'],
+            statusCodes: [500],
+            delay: () => 1,
+          },
         });
 
         // Assert
@@ -457,7 +474,9 @@ describe('core/valifetch', () => {
       const controller = new AbortController();
       fetchSpy.mockImplementation(() => {
         controller.abort(new Error('User aborted'));
-        return Promise.reject(Object.assign(new Error('Aborted'), { name: 'AbortError' }));
+        return Promise.reject(
+          Object.assign(new Error('Aborted'), { name: 'AbortError' })
+        );
       });
 
       // Act & Assert
@@ -508,12 +527,19 @@ describe('core/valifetch', () => {
         if (callCount < 3) {
           return Promise.resolve(new Response('Error', { status: 500 }));
         }
-        return Promise.resolve(new Response('{"success": true}', { status: 200 }));
+        return Promise.resolve(
+          new Response('{"success": true}', { status: 200 })
+        );
       });
 
       // Act
       const result = await valifetch.get('https://api.example.com/unstable', {
-        retry: { limit: 3, methods: ['GET'], statusCodes: [500], delay: () => 1 },
+        retry: {
+          limit: 3,
+          methods: ['GET'],
+          statusCodes: [500],
+          delay: () => 1,
+        },
       });
 
       // Assert
@@ -566,7 +592,9 @@ describe('core/valifetch', () => {
 
       it('should allow hook to return cached Response', async () => {
         // Arrange
-        const cachedResponse = new Response('{"cached": true}', { status: 200 });
+        const cachedResponse = new Response('{"cached": true}', {
+          status: 200,
+        });
         const beforeRequestHook = vi.fn().mockReturnValue(cachedResponse);
         const api = valifetch.create({
           prefixUrl: 'https://api.example.com',
@@ -612,7 +640,7 @@ describe('core/valifetch', () => {
       const api = valifetch.create({
         prefixUrl: 'https://api.example.com',
         headers: {
-          'Authorization': 'Bearer token123',
+          Authorization: 'Bearer token123',
         },
       });
 
@@ -633,7 +661,7 @@ describe('core/valifetch', () => {
       const baseApi = valifetch.create({
         prefixUrl: 'https://api.example.com',
         headers: {
-          'Authorization': 'Bearer token123',
+          Authorization: 'Bearer token123',
         },
       });
       const extendedApi = baseApi.extend({
