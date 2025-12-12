@@ -1,5 +1,10 @@
 # Valifetch
 
+[![npm version](https://img.shields.io/npm/v/valifetch.svg)](https://www.npmjs.com/package/valifetch)
+[![npm downloads](https://img.shields.io/npm/dm/valifetch.svg)](https://www.npmjs.com/package/valifetch)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![CI](https://github.com/haihv/valifetch/actions/workflows/ci.yml/badge.svg)](https://github.com/haihv/valifetch/actions/workflows/ci.yml)
+
 A type-safe HTTP client built on native `fetch` with [Valibot](https://valibot.dev) schema validation. Like [ky](https://github.com/sindresorhus/ky), but with built-in request/response validation.
 
 ## Features
@@ -47,13 +52,13 @@ const user = await valifetch.get('https://api.example.com/users/1', {
 ### HTTP Methods
 
 ```typescript
-valifetch.get(url, options)
-valifetch.post(url, options)
-valifetch.put(url, options)
-valifetch.patch(url, options)
-valifetch.delete(url, options)
-valifetch.head(url, options)
-valifetch.options(url, options)
+valifetch.get(url, options);
+valifetch.post(url, options);
+valifetch.put(url, options);
+valifetch.patch(url, options);
+valifetch.delete(url, options);
+valifetch.head(url, options);
+valifetch.options(url, options);
 ```
 
 ### Options
@@ -61,26 +66,26 @@ valifetch.options(url, options)
 ```typescript
 type Options = {
   // Schema validation
-  responseSchema?: Schema;    // Validate response JSON
-  bodySchema?: Schema;        // Validate request body
-  paramsSchema?: Schema;      // Validate path parameters
-  searchSchema?: Schema;      // Validate search/query parameters
+  responseSchema?: Schema; // Validate response JSON
+  bodySchema?: Schema; // Validate request body
+  paramsSchema?: Schema; // Validate path parameters
+  searchSchema?: Schema; // Validate search/query parameters
 
   // Request data
-  json?: object;              // JSON body (auto-stringified)
-  params?: object;            // Path parameters for :param replacement
-  searchParams?: object;      // Query string parameters
+  json?: object; // JSON body (auto-stringified)
+  params?: object; // Path parameters for :param replacement
+  searchParams?: object; // Query string parameters
 
   // Response format
   responseType?: 'json' | 'text' | 'blob' | 'arrayBuffer' | 'formData' | 'raw';
 
   // Configuration
-  prefixUrl?: string;         // Base URL prefix
-  timeout?: number;           // Request timeout in ms
-  retry?: RetryOptions | number | false;  // Retry configuration
+  prefixUrl?: string; // Base URL prefix
+  timeout?: number; // Request timeout in ms
+  retry?: RetryOptions | number | false; // Retry configuration
   validateResponse?: boolean; // Enable response validation (default: true)
-  validateRequest?: boolean;  // Enable request validation (default: true)
-  throwHttpErrors?: boolean;  // Throw on non-2xx status (default: true)
+  validateRequest?: boolean; // Enable request validation (default: true)
+  throwHttpErrors?: boolean; // Throw on non-2xx status (default: true)
 
   // Hooks
   hooks?: {
@@ -187,7 +192,7 @@ const api = valifetch.create({
   prefixUrl: 'https://api.example.com',
   timeout: 10000,
   headers: {
-    'Authorization': 'Bearer token123',
+    Authorization: 'Bearer token123',
   },
   retry: {
     limit: 3,
@@ -215,7 +220,7 @@ const authApi = api.extend((options) => ({
   ...options,
   headers: {
     ...options.headers,
-    'Authorization': `Bearer ${getToken()}`,
+    Authorization: `Bearer ${getToken()}`,
   },
 }));
 ```
@@ -251,10 +256,10 @@ const api = valifetch.create({
 ```typescript
 const api = valifetch.create({
   retry: {
-    limit: 3,                    // Max retry attempts
-    methods: ['GET', 'PUT'],     // Methods to retry
-    statusCodes: [408, 429, 500, 502, 503, 504],  // Status codes to retry
-    delay: (attempt) => Math.min(1000 * 2 ** attempt, 30000),  // Backoff
+    limit: 3, // Max retry attempts
+    methods: ['GET', 'PUT'], // Methods to retry
+    statusCodes: [408, 429, 500, 502, 503, 504], // Status codes to retry
+    delay: (attempt) => Math.min(1000 * 2 ** attempt, 30000), // Backoff
   },
 });
 
@@ -357,7 +362,7 @@ const user2 = await valifetch.get<User>('/users/1');
 
 // Path params are type-checked
 await valifetch.get('/users/:id/posts/:postId', {
-  params: { id: 1, postId: 2 },  // TypeScript knows these are required
+  params: { id: 1, postId: 2 }, // TypeScript knows these are required
 });
 ```
 
@@ -385,9 +390,13 @@ The package uses code splitting internally, so shared code between entry points 
 
 ## Requirements
 
-- Node.js >= 18.0.0 (uses native fetch)
+- Node.js >= 20.0.0 (uses native fetch)
 - valibot >= 1.0.0
+
+## Contributing
+
+Issues and PRs welcome!
 
 ## License
 
-MIT
+[MIT](LICENSE)
