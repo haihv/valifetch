@@ -10,9 +10,6 @@ export type HandleResponseOptions = {
   throwHttpErrors: boolean;
 };
 
-/**
- * Check if response is OK, throw if not and throwHttpErrors is enabled
- */
 export function checkResponseStatus(
   response: Response,
   request: Request,
@@ -28,18 +25,13 @@ export function checkResponseStatus(
   }
 }
 
-/**
- * Parse and optionally validate JSON response
- */
 export async function parseJsonResponse<T extends GenericSchema>(
   options: HandleResponseOptions
 ): Promise<InferOutput<T>> {
   const { response, request, responseSchema, validateResponse, throwHttpErrors } = options;
 
-  // Check status first
   checkResponseStatus(response, request, throwHttpErrors);
 
-  // Parse JSON
   let data: unknown;
   try {
     data = await response.json();
@@ -53,7 +45,6 @@ export async function parseJsonResponse<T extends GenericSchema>(
     });
   }
 
-  // Validate response if schema provided and validation enabled
   if (responseSchema && validateResponse) {
     return validate({
       schema: responseSchema,
@@ -67,9 +58,6 @@ export async function parseJsonResponse<T extends GenericSchema>(
   return data as InferOutput<T>;
 }
 
-/**
- * Parse response as text
- */
 export async function parseTextResponse(
   response: Response,
   request: Request,
@@ -79,9 +67,6 @@ export async function parseTextResponse(
   return response.text();
 }
 
-/**
- * Parse response as ArrayBuffer
- */
 export async function parseArrayBufferResponse(
   response: Response,
   request: Request,
@@ -91,9 +76,6 @@ export async function parseArrayBufferResponse(
   return response.arrayBuffer();
 }
 
-/**
- * Parse response as Blob
- */
 export async function parseBlobResponse(
   response: Response,
   request: Request,
@@ -103,9 +85,6 @@ export async function parseBlobResponse(
   return response.blob();
 }
 
-/**
- * Parse response as FormData
- */
 export async function parseFormDataResponse(
   response: Response,
   request: Request,

@@ -1,9 +1,5 @@
 import type { BeforeRequestHook, AfterResponseHook, NormalizedOptions } from '../types';
 
-/**
- * Run all beforeRequest hooks in sequence
- * Returns modified Request or Response (to skip fetch)
- */
 export async function runBeforeRequestHooks(
   request: Request,
   options: NormalizedOptions,
@@ -19,24 +15,17 @@ export async function runBeforeRequestHooks(
     const result = await hook(currentRequest, options);
 
     if (result instanceof Response) {
-      // Hook returned a Response, skip remaining hooks and fetch
       return result;
     }
 
     if (result instanceof Request) {
-      // Hook returned a modified Request
       currentRequest = result;
     }
-    // If result is void/undefined, continue with current request
   }
 
   return currentRequest;
 }
 
-/**
- * Run all afterResponse hooks in sequence
- * Returns modified Response
- */
 export async function runAfterResponseHooks(
   request: Request,
   options: NormalizedOptions,
@@ -53,10 +42,8 @@ export async function runAfterResponseHooks(
     const result = await hook(request, options, currentResponse);
 
     if (result instanceof Response) {
-      // Hook returned a modified Response
       currentResponse = result;
     }
-    // If result is void/undefined, continue with current response
   }
 
   return currentResponse;

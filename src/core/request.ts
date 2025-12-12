@@ -8,22 +8,17 @@ import type {
 import { buildUrl } from '../url/builder';
 import { validate } from '../validation/validate';
 
-/**
- * Merge headers from various sources
- */
 function mergeHeaders(
   instanceHeaders?: HeadersInit,
   requestHeaders?: HeadersInit
 ): Headers {
   const headers = new Headers();
 
-  // Add instance headers first
   if (instanceHeaders) {
     const source = new Headers(instanceHeaders);
     source.forEach((value, key) => headers.set(key, value));
   }
 
-  // Override with request headers
   if (requestHeaders) {
     const source = new Headers(requestHeaders);
     source.forEach((value, key) => headers.set(key, value));
@@ -32,9 +27,6 @@ function mergeHeaders(
   return headers;
 }
 
-/**
- * Deep merge instance options with request options
- */
 export function mergeOptions(
   instanceOptions: ValifetchInstanceOptions,
   requestOptions: ValifetchOptions
@@ -43,7 +35,6 @@ export function mergeOptions(
     ...instanceOptions,
     ...requestOptions,
     headers: mergeHeaders(instanceOptions.headers, requestOptions.headers),
-    // Merge hooks
     hooks: {
       beforeRequest: [
         ...(instanceOptions.hooks?.beforeRequest ?? []),
@@ -54,7 +45,6 @@ export function mergeOptions(
         ...(requestOptions.hooks?.afterResponse ?? []),
       ],
     },
-    // Use request-level values if provided, otherwise instance values
     prefixUrl: requestOptions.prefixUrl ?? instanceOptions.prefixUrl,
     timeout: requestOptions.timeout ?? instanceOptions.timeout,
     validateResponse: requestOptions.validateResponse ?? instanceOptions.validateResponse ?? true,
@@ -74,20 +64,15 @@ export type BuildRequestResult = {
   throwHttpErrors: boolean;
 };
 
-/**
- * Build a Request object from URL and options
- */
 export async function buildRequest(
   url: string,
   method: HttpMethod,
   options: ValifetchOptions,
   instanceOptions: ValifetchInstanceOptions
 ): Promise<BuildRequestResult> {
-  // Merge options
   const merged = mergeOptions(instanceOptions, options);
   const shouldValidateRequest = merged.validateRequest !== false;
 
-  // Validate params if schema provided
   let validatedParams = options.params as Record<string, string | number> | undefined;
   if (options.paramsSchema && options.params && shouldValidateRequest) {
     validatedParams = validate({
@@ -97,7 +82,6 @@ export async function buildRequest(
     });
   }
 
-  // Validate search params if schema provided
   let validatedSearch = options.searchParams;
   if (options.searchSchema && options.searchParams && shouldValidateRequest) {
     validatedSearch = validate({
@@ -107,7 +91,6 @@ export async function buildRequest(
     });
   }
 
-  // Build URL
   const finalUrl = buildUrl({
     prefixUrl: merged.prefixUrl,
     path: url,
@@ -115,13 +98,10 @@ export async function buildRequest(
     searchParams: validatedSearch,
   });
 
-  // Build headers
   const headers = merged.headers;
 
-  // Handle JSON body
   let body: BodyInit | undefined;
   if (options.json !== undefined) {
-    // Validate body if schema provided
     let jsonData = options.json;
     if (options.bodySchema && shouldValidateRequest) {
       jsonData = validate({
@@ -140,7 +120,6 @@ export async function buildRequest(
     }
   }
 
-  // Extract fetch-compatible options
   const fetchOptions: RequestInit = {
     method,
     headers,
@@ -158,7 +137,6 @@ export async function buildRequest(
 
   const request = new Request(finalUrl.toString(), fetchOptions);
 
-  // Build normalized options for hooks
   const normalizedOptions: NormalizedOptions = {
     ...merged,
     method,

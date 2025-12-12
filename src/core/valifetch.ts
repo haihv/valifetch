@@ -11,9 +11,6 @@ import { parseJsonResponse, checkResponseStatus } from './response';
 import { runBeforeRequestHooks, runAfterResponseHooks } from './hooks';
 import { normalizeRetryOptions, shouldRetry, calculateRetryDelay, sleep } from './retry';
 
-/**
- * Internal options type for request execution
- */
 type InternalOptions = {
   prefixUrl?: string;
   timeout?: number;
@@ -42,19 +39,12 @@ type InternalOptions = {
   responseType?: ResponseType;
 };
 
-/**
- * Create a valifetch instance with optional default options
- */
 function createInstance(instanceOptions: ValifetchInstanceOptions = {}): ValifetchInstance {
-  /**
-   * Execute a request and return parsed response
-   */
   async function executeRequest<T>(
     url: string,
     method: HttpMethod,
     options: InternalOptions = {}
   ): Promise<T> {
-    // Build the request
     const {
       request: initialRequest,
       normalizedOptions,
@@ -63,26 +53,22 @@ function createInstance(instanceOptions: ValifetchInstanceOptions = {}): Valifet
       throwHttpErrors,
     } = await buildRequest(url, method, options as any, instanceOptions);
 
-    // Run beforeRequest hooks
     const hookResult = await runBeforeRequestHooks(
       initialRequest,
       normalizedOptions,
       normalizedOptions.hooks?.beforeRequest
     );
 
-    // If hook returned a Response, process it directly
     if (hookResult instanceof Response) {
       return handleResponse<T>(hookResult, initialRequest, options, responseSchema, validateResponse, throwHttpErrors);
     }
 
     const request = hookResult;
 
-    // Normalize retry options
     const retryOptions = normalizeRetryOptions(
       options.retry !== undefined ? options.retry as any : instanceOptions.retry
     );
 
-    // Setup timeout if specified
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
     let timeoutController: AbortController | undefined;
 
@@ -92,7 +78,6 @@ function createInstance(instanceOptions: ValifetchInstanceOptions = {}): Valifet
 
       timeoutController = new AbortController();
 
-      // Combine with existing signal if provided
       if (options.signal) {
         options.signal.addEventListener('abort', () => {
           timeoutController?.abort((options.signal as AbortSignal).reason);
@@ -113,7 +98,6 @@ function createInstance(instanceOptions: ValifetchInstanceOptions = {}): Valifet
       }
     };
 
-    // Execute fetch with retry logic
     let lastError: Error | undefined;
     let attemptCount = 0;
     const maxAttempts = retryOptions === false ? 1 : (retryOptions.limit ?? 2) + 1;
@@ -121,8 +105,6 @@ function createInstance(instanceOptions: ValifetchInstanceOptions = {}): Valifet
     while (attemptCount < maxAttempts) {
       try {
         const signal = setupTimeout();
-
-        // Clone request for retry (body can only be consumed once)
         const requestToSend = attemptCount > 0 ? request.clone() : request;
 
         const fetchInit: RequestInit = {};
@@ -134,7 +116,6 @@ function createInstance(instanceOptions: ValifetchInstanceOptions = {}): Valifet
 
         clearTimeoutIfSet();
 
-        // Check if we should retry based on status code
         if (
           retryOptions !== false &&
           attemptCount < maxAttempts - 1 &&
@@ -146,7 +127,6 @@ function createInstance(instanceOptions: ValifetchInstanceOptions = {}): Valifet
           continue;
         }
 
-        // Run afterResponse hooks
         const finalResponse = await runAfterResponseHooks(
           request,
           normalizedOptions,
@@ -154,12 +134,10 @@ function createInstance(instanceOptions: ValifetchInstanceOptions = {}): Valifet
           normalizedOptions.hooks?.afterResponse
         );
 
-        // Parse and return response based on responseType
         return handleResponse<T>(finalResponse, request, options, responseSchema, validateResponse, throwHttpErrors);
       } catch (error) {
         clearTimeoutIfSet();
 
-        // Handle abort/timeout errors
         if (error instanceof Error) {
           if (error.name === 'AbortError' || timeoutController?.signal.aborted) {
             const isTimeout = error.message === 'Request timed out' ||
@@ -175,7 +153,6 @@ function createInstance(instanceOptions: ValifetchInstanceOptions = {}): Valifet
 
           lastError = error;
 
-          // Don't retry on non-retryable errors
           if (retryOptions === false || attemptCount >= maxAttempts - 1) {
             throw new ValifetchError({
               message: error.message || 'Network request failed',
@@ -195,7 +172,6 @@ function createInstance(instanceOptions: ValifetchInstanceOptions = {}): Valifet
       }
     }
 
-    // Should not reach here, but just in case
     throw new ValifetchError({
       message: lastError?.message || 'Request failed after retries',
       code: 'NETWORK_ERROR',
@@ -204,9 +180,6 @@ function createInstance(instanceOptions: ValifetchInstanceOptions = {}): Valifet
     });
   }
 
-  /**
-   * Handle response based on responseType option
-   */
   async function handleResponse<T>(
     response: Response,
     request: Request,
@@ -216,8 +189,6 @@ function createInstance(instanceOptions: ValifetchInstanceOptions = {}): Valifet
     throwHttpErrors: boolean
   ): Promise<T> {
     const responseType = options.responseType ?? 'json';
-
-    // Check status first
     checkResponseStatus(response, request, throwHttpErrors);
 
     switch (responseType) {
@@ -285,9 +256,6 @@ function createInstance(instanceOptions: ValifetchInstanceOptions = {}): Valifet
   return instance;
 }
 
-/**
- * Merge instance options for extend()
- */
 function mergeInstanceOptions(
   parent: ValifetchInstanceOptions,
   child: ValifetchInstanceOptions
@@ -309,9 +277,6 @@ function mergeInstanceOptions(
   };
 }
 
-/**
- * Merge headers from parent and child
- */
 function mergeHeaders(
   parent?: HeadersInit,
   child?: HeadersInit
@@ -331,5 +296,4 @@ function mergeHeaders(
   return headers;
 }
 
-// Create and export the default instance
 export const valifetch = createInstance();
