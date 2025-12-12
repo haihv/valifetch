@@ -330,6 +330,9 @@ try {
       case 'ABORT_ERROR':
         console.log('Request was cancelled');
         break;
+      case 'PARSE_ERROR':
+        console.log('Failed to parse response:', error.message);
+        break;
     }
   }
 }

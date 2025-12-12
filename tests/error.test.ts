@@ -83,6 +83,7 @@ describe('errors/ValifetchError', () => {
           'HTTP_ERROR',
           'TIMEOUT_ERROR',
           'ABORT_ERROR',
+          'PARSE_ERROR',
         ];
 
         for (const code of errorCodes) {
@@ -114,6 +115,7 @@ describe('errors/ValifetchError', () => {
           'VALIDATION_ERROR',
           'TIMEOUT_ERROR',
           'ABORT_ERROR',
+          'PARSE_ERROR',
         ];
 
         for (const code of errorCodes) {
@@ -145,6 +147,7 @@ describe('errors/ValifetchError', () => {
           'HTTP_ERROR',
           'VALIDATION_ERROR',
           'ABORT_ERROR',
+          'PARSE_ERROR',
         ];
 
         for (const code of errorCodes) {
@@ -176,6 +179,7 @@ describe('errors/ValifetchError', () => {
           'HTTP_ERROR',
           'VALIDATION_ERROR',
           'ABORT_ERROR',
+          'PARSE_ERROR',
         ];
 
         for (const code of errorCodes) {
@@ -207,6 +211,7 @@ describe('errors/ValifetchError', () => {
           'HTTP_ERROR',
           'VALIDATION_ERROR',
           'NETWORK_ERROR',
+          'PARSE_ERROR',
         ];
 
         for (const code of errorCodes) {
@@ -215,6 +220,38 @@ describe('errors/ValifetchError', () => {
 
           // Assert
           expect(error.isAbortError).toBe(false);
+        }
+      });
+    });
+
+    describe('isParseError', () => {
+      it('should return true for PARSE_ERROR', () => {
+        // Arrange
+        const error = new ValifetchError({
+          message: 'Failed to parse',
+          code: 'PARSE_ERROR',
+        });
+
+        // Act & Assert
+        expect(error.isParseError).toBe(true);
+      });
+
+      it('should return false for other error codes', () => {
+        // Arrange
+        const errorCodes: ErrorCode[] = [
+          'TIMEOUT_ERROR',
+          'HTTP_ERROR',
+          'VALIDATION_ERROR',
+          'NETWORK_ERROR',
+          'ABORT_ERROR',
+        ];
+
+        for (const code of errorCodes) {
+          // Act
+          const error = new ValifetchError({ message: 'Test', code });
+
+          // Assert
+          expect(error.isParseError).toBe(false);
         }
       });
     });

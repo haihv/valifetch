@@ -84,6 +84,11 @@ export class ValifetchError extends Error {
     return this.code === 'ABORT_ERROR';
   }
 
+  /** Check if this is a parse error (e.g., invalid JSON) */
+  get isParseError(): boolean {
+    return this.code === 'PARSE_ERROR';
+  }
+
   /** Get flattened validation issues (convenience) */
   get issues(): BaseIssue<unknown>[] {
     return this.validation?.issues ?? [];

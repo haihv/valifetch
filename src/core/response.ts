@@ -28,15 +28,7 @@ export function checkResponseStatus(
 export async function parseJsonResponse<T extends GenericSchema>(
   options: HandleResponseOptions
 ): Promise<InferOutput<T>> {
-  const {
-    response,
-    request,
-    responseSchema,
-    validateResponse,
-    throwHttpErrors,
-  } = options;
-
-  checkResponseStatus(response, request, throwHttpErrors);
+  const { response, request, responseSchema, validateResponse } = options;
 
   let data: unknown;
   try {
@@ -44,7 +36,7 @@ export async function parseJsonResponse<T extends GenericSchema>(
   } catch (error) {
     throw new ValifetchError({
       message: 'Failed to parse response as JSON',
-      code: 'NETWORK_ERROR',
+      code: 'PARSE_ERROR',
       request,
       response,
       cause: error instanceof Error ? error : undefined,

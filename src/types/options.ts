@@ -45,7 +45,8 @@ export type ErrorCode =
   | 'TIMEOUT_ERROR'
   | 'VALIDATION_ERROR'
   | 'HTTP_ERROR'
-  | 'ABORT_ERROR';
+  | 'ABORT_ERROR'
+  | 'PARSE_ERROR';
 
 /**
  * Validation target types

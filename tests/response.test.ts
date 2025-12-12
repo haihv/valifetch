@@ -339,7 +339,7 @@ describe('core/response', () => {
         ).rejects.toThrow(ValifetchError);
       });
 
-      it('should have NETWORK_ERROR code for JSON parse error', async () => {
+      it('should have PARSE_ERROR code for JSON parse error', async () => {
         // Arrange
         const response = new Response('invalid', { status: 200 });
         const request = createRequest();
@@ -354,7 +354,7 @@ describe('core/response', () => {
           });
           expect.fail('Should have thrown');
         } catch (error) {
-          expect((error as ValifetchError).code).toBe('NETWORK_ERROR');
+          expect((error as ValifetchError).code).toBe('PARSE_ERROR');
           expect((error as ValifetchError).message).toContain(
             'Failed to parse response as JSON'
           );
@@ -405,23 +405,24 @@ describe('core/response', () => {
     });
 
     describe('HTTP errors', () => {
-      it('should check status before parsing', async () => {
-        // Arrange
+      it('should parse JSON even for non-OK status (status check is done by caller)', async () => {
+        // Arrange - parseJsonResponse only parses JSON, status check is handled by handleResponse
         const response = new Response('{"error": "Not Found"}', {
           status: 404,
           statusText: 'Not Found',
         });
         const request = createRequest();
 
-        // Act & Assert
-        await expect(
-          parseJsonResponse({
-            response,
-            request,
-            validateResponse: false,
-            throwHttpErrors: true,
-          })
-        ).rejects.toThrow(ValifetchError);
+        // Act
+        const result = await parseJsonResponse({
+          response,
+          request,
+          validateResponse: false,
+          throwHttpErrors: true,
+        });
+
+        // Assert - it should parse the JSON body regardless of status
+        expect(result).toEqual({ error: 'Not Found' });
       });
     });
   });
