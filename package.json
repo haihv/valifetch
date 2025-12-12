@@ -76,6 +76,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "@vitest/coverage-v8": "^4.0.15",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
     "valibot": "^1.2.0",
