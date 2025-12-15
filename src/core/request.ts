@@ -5,6 +5,7 @@ import type {
   NormalizedOptions,
   ValifetchBaseOptions,
   SearchParamsInit,
+  Hooks,
 } from '../types';
 import { buildUrl } from '../url/builder';
 import { validate } from '../validation/validate';
@@ -18,47 +19,97 @@ type RequestOptions = ValifetchBaseOptions & {
   params?: Record<string, string | number>;
 };
 
+/**
+ * Merge headers from instance and request options
+ * Request headers take precedence over instance headers
+ */
 function mergeHeaders(
   instanceHeaders?: HeadersInit,
   requestHeaders?: HeadersInit
 ): Headers {
-  const headers = new Headers();
-
-  if (instanceHeaders) {
-    const source = new Headers(instanceHeaders);
-    source.forEach((value, key) => headers.set(key, value));
+  if (!instanceHeaders && !requestHeaders) {
+    return new Headers();
   }
 
-  if (requestHeaders) {
-    const source = new Headers(requestHeaders);
-    source.forEach((value, key) => headers.set(key, value));
+  if (!instanceHeaders) {
+    return new Headers(requestHeaders);
+  }
+
+  if (!requestHeaders) {
+    return new Headers(instanceHeaders);
+  }
+
+  // Both have headers - merge them (instance first, then request overrides)
+  const headers = new Headers(instanceHeaders);
+
+  if (requestHeaders instanceof Headers) {
+    requestHeaders.forEach((value, key) => headers.set(key, value));
+  } else if (Array.isArray(requestHeaders)) {
+    for (const [key, value] of requestHeaders) {
+      headers.set(key, value);
+    }
+  } else {
+    for (const [key, value] of Object.entries(requestHeaders)) {
+      headers.set(key, value);
+    }
   }
 
   return headers;
 }
 
+/**
+ * Merge hooks from instance and request options
+ * Hooks are concatenated (instance hooks run first, then request hooks)
+ */
+function mergeHooks(
+  instanceHooks?: Hooks,
+  requestHooks?: Hooks
+): Hooks | undefined {
+  if (!instanceHooks && !requestHooks) return undefined;
+  if (!instanceHooks) return requestHooks;
+  if (!requestHooks) return instanceHooks;
+
+  // Both have hooks - merge them
+  return {
+    beforeRequest:
+      instanceHooks.beforeRequest || requestHooks.beforeRequest
+        ? [
+            ...(instanceHooks.beforeRequest ?? []),
+            ...(requestHooks.beforeRequest ?? []),
+          ]
+        : undefined,
+    afterResponse:
+      instanceHooks.afterResponse || requestHooks.afterResponse
+        ? [
+            ...(instanceHooks.afterResponse ?? []),
+            ...(requestHooks.afterResponse ?? []),
+          ]
+        : undefined,
+    afterParseResponse:
+      instanceHooks.afterParseResponse || requestHooks.afterParseResponse
+        ? [
+            ...(instanceHooks.afterParseResponse ?? []),
+            ...(requestHooks.afterParseResponse ?? []),
+          ]
+        : undefined,
+  };
+}
+
+/**
+ * Merge instance options with request options
+ * Request options take precedence over instance options
+ */
 export function mergeOptions(
   instanceOptions: ValifetchInstanceOptions,
   requestOptions: RequestOptions
 ): RequestOptions & { headers: Headers } {
+  const mergedHooks = mergeHooks(instanceOptions.hooks, requestOptions.hooks);
+
   return {
     ...instanceOptions,
     ...requestOptions,
     headers: mergeHeaders(instanceOptions.headers, requestOptions.headers),
-    hooks: {
-      beforeRequest: [
-        ...(instanceOptions.hooks?.beforeRequest ?? []),
-        ...(requestOptions.hooks?.beforeRequest ?? []),
-      ],
-      afterResponse: [
-        ...(instanceOptions.hooks?.afterResponse ?? []),
-        ...(requestOptions.hooks?.afterResponse ?? []),
-      ],
-      afterParseResponse: [
-        ...(instanceOptions.hooks?.afterParseResponse ?? []),
-        ...(requestOptions.hooks?.afterParseResponse ?? []),
-      ],
-    },
+    hooks: mergedHooks ?? {},
     prefixUrl: requestOptions.prefixUrl ?? instanceOptions.prefixUrl,
     timeout: requestOptions.timeout ?? instanceOptions.timeout,
     validateResponse:
@@ -84,6 +135,9 @@ export type BuildRequestResult = {
   throwHttpErrors: boolean;
 };
 
+/**
+ * Build a Request object from URL, method, and options
+ */
 export async function buildRequest(
   url: string,
   method: HttpMethod,
@@ -93,6 +147,7 @@ export async function buildRequest(
   const merged = mergeOptions(instanceOptions, options);
   const shouldValidateRequest = merged.validateRequest !== false;
 
+  // Validate path params if schema provided
   let validatedParams = options.params;
   if (options.paramsSchema && options.params && shouldValidateRequest) {
     validatedParams = validate({
@@ -102,6 +157,7 @@ export async function buildRequest(
     }) as Record<string, string | number>;
   }
 
+  // Validate search params if schema provided
   let validatedSearch = options.searchParams;
   if (options.searchSchema && options.searchParams && shouldValidateRequest) {
     validatedSearch = validate({
@@ -111,6 +167,7 @@ export async function buildRequest(
     }) as SearchParamsInit;
   }
 
+  // Build the final URL
   const finalUrl = buildUrl({
     prefixUrl: merged.prefixUrl,
     path: url,
@@ -120,9 +177,12 @@ export async function buildRequest(
 
   const headers = merged.headers;
 
+  // Handle JSON body
   let body: BodyInit | undefined;
   if (options.json !== undefined) {
     let jsonData: unknown = options.json;
+
+    // Validate body if schema provided
     if (options.bodySchema && shouldValidateRequest) {
       jsonData = validate({
         schema: options.bodySchema,
@@ -132,6 +192,8 @@ export async function buildRequest(
     }
 
     body = JSON.stringify(jsonData as object);
+
+    // Set default headers for JSON
     if (!headers.has('Content-Type')) {
       headers.set('Content-Type', 'application/json');
     }
@@ -140,19 +202,20 @@ export async function buildRequest(
     }
   }
 
+  // Build fetch options (use merged to include instance-level options)
   const fetchOptions: RequestInit = {
     method,
     headers,
     body,
     signal: options.signal,
-    credentials: options.credentials,
-    cache: options.cache,
-    redirect: options.redirect,
-    referrer: options.referrer,
-    referrerPolicy: options.referrerPolicy,
-    integrity: options.integrity,
-    keepalive: options.keepalive,
-    mode: options.mode,
+    credentials: merged.credentials,
+    cache: merged.cache,
+    redirect: merged.redirect,
+    referrer: merged.referrer,
+    referrerPolicy: merged.referrerPolicy,
+    integrity: merged.integrity,
+    keepalive: merged.keepalive,
+    mode: merged.mode,
   };
 
   const request = new Request(finalUrl.toString(), fetchOptions);

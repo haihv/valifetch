@@ -22,6 +22,46 @@ describe('core/request', () => {
       expect(result.headers.get('X-Custom')).toBe('value');
     });
 
+    it('should merge headers when request headers is Headers instance', () => {
+      // Arrange
+      const instanceOptions = {
+        headers: { Authorization: 'Bearer token' },
+      };
+      const requestHeaders = new Headers();
+      requestHeaders.set('X-Custom', 'value');
+      const requestOptions = {
+        headers: requestHeaders,
+      };
+
+      // Act
+      const result = mergeOptions(instanceOptions, requestOptions as any);
+
+      // Assert
+      expect(result.headers.get('Authorization')).toBe('Bearer token');
+      expect(result.headers.get('X-Custom')).toBe('value');
+    });
+
+    it('should merge headers when request headers is array of tuples', () => {
+      // Arrange
+      const instanceOptions = {
+        headers: { Authorization: 'Bearer token' },
+      };
+      const requestOptions = {
+        headers: [
+          ['X-Custom', 'value'],
+          ['X-Another', 'another-value'],
+        ] as [string, string][],
+      };
+
+      // Act
+      const result = mergeOptions(instanceOptions, requestOptions as any);
+
+      // Assert
+      expect(result.headers.get('Authorization')).toBe('Bearer token');
+      expect(result.headers.get('X-Custom')).toBe('value');
+      expect(result.headers.get('X-Another')).toBe('another-value');
+    });
+
     it('should override instance headers with request headers', () => {
       // Arrange
       const instanceOptions = {
@@ -174,9 +214,92 @@ describe('core/request', () => {
       // Act
       const result = mergeOptions(instanceOptions, requestOptions as any);
 
+      // Assert - hooks returns empty object when no hooks provided (memory optimization)
+      expect(result.hooks).toEqual({});
+      expect(result.hooks?.beforeRequest).toBeUndefined();
+      expect(result.hooks?.afterResponse).toBeUndefined();
+    });
+
+    it('should use request hooks when instance has no hooks', () => {
+      // Arrange
+      const requestHook = () => undefined;
+      const instanceOptions = {};
+      const requestOptions = {
+        hooks: {
+          beforeRequest: [requestHook],
+        },
+      };
+
+      // Act
+      const result = mergeOptions(instanceOptions, requestOptions as any);
+
       // Assert
-      expect(result.hooks?.beforeRequest).toEqual([]);
-      expect(result.hooks?.afterResponse).toEqual([]);
+      expect(result.hooks?.beforeRequest).toEqual([requestHook]);
+    });
+
+    it('should use instance hooks when request has no hooks', () => {
+      // Arrange
+      const instanceHook = () => undefined;
+      const instanceOptions = {
+        hooks: {
+          afterResponse: [instanceHook],
+        },
+      };
+      const requestOptions = {};
+
+      // Act
+      const result = mergeOptions(instanceOptions, requestOptions as any);
+
+      // Assert
+      expect(result.hooks?.afterResponse).toEqual([instanceHook]);
+    });
+
+    it('should handle partial hooks in both instance and request', () => {
+      // Arrange - instance has beforeRequest, request has afterResponse
+      const instanceHook = () => undefined;
+      const requestHook = () => undefined;
+      const instanceOptions = {
+        hooks: {
+          beforeRequest: [instanceHook],
+        },
+      };
+      const requestOptions = {
+        hooks: {
+          afterResponse: [requestHook],
+        },
+      };
+
+      // Act
+      const result = mergeOptions(instanceOptions, requestOptions as any);
+
+      // Assert
+      expect(result.hooks?.beforeRequest).toEqual([instanceHook]);
+      expect(result.hooks?.afterResponse).toEqual([requestHook]);
+    });
+
+    it('should handle afterParseResponse hooks merge', () => {
+      // Arrange
+      const instanceHook = () => undefined;
+      const requestHook = () => undefined;
+      const instanceOptions = {
+        hooks: {
+          afterParseResponse: [instanceHook],
+        },
+      };
+      const requestOptions = {
+        hooks: {
+          afterParseResponse: [requestHook],
+        },
+      };
+
+      // Act
+      const result = mergeOptions(instanceOptions, requestOptions as any);
+
+      // Assert
+      expect(result.hooks?.afterParseResponse).toEqual([
+        instanceHook,
+        requestHook,
+      ]);
     });
   });
 
