@@ -768,6 +768,50 @@ describe('core/valifetch', () => {
       expect(request.headers.get('X-Custom')).toBe('value');
     });
 
+    it('should extend instance with Headers instance', async () => {
+      // Arrange
+      mockFetch({ id: 1 });
+      const parentHeaders = new Headers();
+      parentHeaders.set('Authorization', 'Bearer token123');
+      const baseApi = valifetch.create({
+        prefixUrl: 'https://api.example.com',
+        headers: parentHeaders,
+      });
+      const childHeaders = new Headers();
+      childHeaders.set('X-Custom', 'value');
+      const extendedApi = baseApi.extend({
+        headers: childHeaders,
+      });
+
+      // Act
+      await extendedApi.get('/users/1');
+
+      // Assert
+      const [request] = fetchSpy.mock.calls[0] as [Request, RequestInit];
+      expect(request.headers.get('Authorization')).toBe('Bearer token123');
+      expect(request.headers.get('X-Custom')).toBe('value');
+    });
+
+    it('should extend instance with array headers', async () => {
+      // Arrange
+      mockFetch({ id: 1 });
+      const baseApi = valifetch.create({
+        prefixUrl: 'https://api.example.com',
+        headers: [['Authorization', 'Bearer token123']] as [string, string][],
+      });
+      const extendedApi = baseApi.extend({
+        headers: [['X-Custom', 'value']] as [string, string][],
+      });
+
+      // Act
+      await extendedApi.get('/users/1');
+
+      // Assert
+      const [request] = fetchSpy.mock.calls[0] as [Request, RequestInit];
+      expect(request.headers.get('Authorization')).toBe('Bearer token123');
+      expect(request.headers.get('X-Custom')).toBe('value');
+    });
+
     it('should extend instance with function', async () => {
       // Arrange
       mockFetch({ id: 1 });
@@ -813,6 +857,215 @@ describe('core/valifetch', () => {
       // Assert
       expect(parentHook).toHaveBeenCalled();
       expect(childHook).toHaveBeenCalled();
+    });
+
+    it('should extend with validateResponse option', async () => {
+      // Arrange
+      mockFetch({ id: 'not-a-number' });
+      const UserSchema = v.object({
+        id: v.number(),
+      });
+      const baseApi = valifetch.create({
+        prefixUrl: 'https://api.example.com',
+        validateResponse: true,
+      });
+      const extendedApi = baseApi.extend({
+        validateResponse: false,
+      });
+
+      // Act
+      const result = await extendedApi.get('/users/1', {
+        responseSchema: UserSchema,
+      });
+
+      // Assert
+      expect(result).toEqual({ id: 'not-a-number' });
+    });
+
+    it('should extend with validateRequest option', async () => {
+      // Arrange
+      mockFetch({ success: true });
+      const BodySchema = v.object({
+        name: v.pipe(v.string(), v.minLength(10)),
+      });
+      const baseApi = valifetch.create({
+        prefixUrl: 'https://api.example.com',
+        validateRequest: true,
+      });
+      const extendedApi = baseApi.extend({
+        validateRequest: false,
+      });
+
+      // Act
+      const result = await extendedApi.post('/users', {
+        json: { name: 'Jo' },
+        bodySchema: BodySchema,
+      });
+
+      // Assert
+      expect(result).toEqual({ success: true });
+    });
+
+    it('should extend with throwHttpErrors option', async () => {
+      // Arrange
+      mockFetch({ error: 'Not Found' }, 404);
+      const baseApi = valifetch.create({
+        prefixUrl: 'https://api.example.com',
+        throwHttpErrors: true,
+      });
+      const extendedApi = baseApi.extend({
+        throwHttpErrors: false,
+      });
+
+      // Act
+      const result = await extendedApi.get('/users/999');
+
+      // Assert
+      expect(result).toEqual({ error: 'Not Found' });
+    });
+
+    it('should extend with referrerPolicy option', async () => {
+      // Arrange
+      mockFetch({ id: 1 });
+      const baseApi = valifetch.create({
+        prefixUrl: 'https://api.example.com',
+      });
+      const extendedApi = baseApi.extend({
+        referrerPolicy: 'no-referrer',
+      });
+
+      // Act
+      await extendedApi.get('/users/1');
+
+      // Assert
+      const [request] = fetchSpy.mock.calls[0] as [Request, RequestInit];
+      expect(request.referrerPolicy).toBe('no-referrer');
+    });
+
+    it('should extend with credentials option', async () => {
+      // Arrange
+      mockFetch({ id: 1 });
+      const baseApi = valifetch.create({
+        prefixUrl: 'https://api.example.com',
+      });
+      const extendedApi = baseApi.extend({
+        credentials: 'include',
+      });
+
+      // Act
+      await extendedApi.get('/users/1');
+
+      // Assert
+      const [request] = fetchSpy.mock.calls[0] as [Request, RequestInit];
+      expect(request.credentials).toBe('include');
+    });
+
+    it('should extend with cache option', async () => {
+      // Arrange
+      mockFetch({ id: 1 });
+      const baseApi = valifetch.create({
+        prefixUrl: 'https://api.example.com',
+      });
+      const extendedApi = baseApi.extend({
+        cache: 'no-store',
+      });
+
+      // Act
+      await extendedApi.get('/users/1');
+
+      // Assert
+      const [request] = fetchSpy.mock.calls[0] as [Request, RequestInit];
+      expect(request.cache).toBe('no-store');
+    });
+
+    it('should extend with redirect option', async () => {
+      // Arrange
+      mockFetch({ id: 1 });
+      const baseApi = valifetch.create({
+        prefixUrl: 'https://api.example.com',
+      });
+      const extendedApi = baseApi.extend({
+        redirect: 'manual',
+      });
+
+      // Act
+      await extendedApi.get('/users/1');
+
+      // Assert
+      const [request] = fetchSpy.mock.calls[0] as [Request, RequestInit];
+      expect(request.redirect).toBe('manual');
+    });
+
+    it('should extend with integrity option', async () => {
+      // Arrange
+      mockFetch({ id: 1 });
+      const baseApi = valifetch.create({
+        prefixUrl: 'https://api.example.com',
+      });
+      const extendedApi = baseApi.extend({
+        integrity: 'sha256-abc123',
+      });
+
+      // Act
+      await extendedApi.get('/users/1');
+
+      // Assert
+      const [request] = fetchSpy.mock.calls[0] as [Request, RequestInit];
+      expect(request.integrity).toBe('sha256-abc123');
+    });
+
+    it('should extend with keepalive option', async () => {
+      // Arrange
+      mockFetch({ id: 1 });
+      const baseApi = valifetch.create({
+        prefixUrl: 'https://api.example.com',
+      });
+      const extendedApi = baseApi.extend({
+        keepalive: true,
+      });
+
+      // Act
+      await extendedApi.get('/users/1');
+
+      // Assert
+      const [request] = fetchSpy.mock.calls[0] as [Request, RequestInit];
+      expect(request.keepalive).toBe(true);
+    });
+
+    it('should extend with mode option', async () => {
+      // Arrange
+      mockFetch({ id: 1 });
+      const baseApi = valifetch.create({
+        prefixUrl: 'https://api.example.com',
+      });
+      const extendedApi = baseApi.extend({
+        mode: 'cors',
+      });
+
+      // Act
+      await extendedApi.get('/users/1');
+
+      // Assert
+      const [request] = fetchSpy.mock.calls[0] as [Request, RequestInit];
+      expect(request.mode).toBe('cors');
+    });
+
+    it('should extend with retry option', async () => {
+      // Arrange
+      mockFetch({ id: 1 });
+      const baseApi = valifetch.create({
+        prefixUrl: 'https://api.example.com',
+        retry: 3,
+      });
+      const extendedApi = baseApi.extend({
+        retry: false,
+      });
+
+      // Act
+      await extendedApi.get('/users/1');
+
+      // Assert
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
     });
   });
 

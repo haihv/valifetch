@@ -181,6 +181,30 @@ describe('url/params', () => {
         expect(result).toBe('');
       });
 
+      it('should preserve colon when followed by invalid param character', () => {
+        // Arrange - colon followed by special char (not valid param char)
+        const path = '/protocol://example.com';
+        const params = {};
+
+        // Act
+        const result = replacePathParams(path, params);
+
+        // Assert - colon is preserved as-is
+        expect(result).toBe('/protocol://example.com');
+      });
+
+      it('should preserve colon at end of path', () => {
+        // Arrange - colon at end with no following character
+        const path = '/protocol:';
+        const params = {};
+
+        // Act
+        const result = replacePathParams(path, params);
+
+        // Assert
+        expect(result).toBe('/protocol:');
+      });
+
       it('should handle param at the end', () => {
         // Arrange
         const path = '/api/users/:id';

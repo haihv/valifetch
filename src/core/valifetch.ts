@@ -24,7 +24,7 @@ import {
   sleep,
 } from './retry';
 
-type InternalOptions = {
+type RequestOptions = {
   prefixUrl?: string;
   timeout?: number;
   searchParams?: SearchParamsInit;
@@ -52,304 +52,400 @@ type InternalOptions = {
   responseType?: ResponseType;
 };
 
-function createInstance(
-  instanceOptions: ValifetchInstanceOptions = {}
-): ValifetchInstance {
-  async function executeRequest<T>(
-    url: string,
-    method: HttpMethod,
-    options: InternalOptions = {}
-  ): Promise<T> {
-    const {
-      request: initialRequest,
-      normalizedOptions,
+const EMPTY = {} as RequestOptions;
+
+async function handleResponse<T>(
+  response: Response,
+  request: Request,
+  options: RequestOptions,
+  responseSchema: GenericSchema | undefined,
+  validateResponse: boolean,
+  throwHttpErrors: boolean,
+  afterParseResponseHooks?: AfterParseResponseHook[]
+): Promise<T> {
+  const responseType = options.responseType ?? 'json';
+  checkResponseStatus(response, request, throwHttpErrors);
+
+  let data: T;
+
+  switch (responseType) {
+    case 'raw':
+      return response as T;
+    case 'text':
+      data = (await response.text()) as T;
+      break;
+    case 'blob':
+      data = (await response.blob()) as T;
+      break;
+    case 'arrayBuffer':
+      data = (await response.arrayBuffer()) as T;
+      break;
+    case 'formData':
+      data = (await response.formData()) as T;
+      break;
+    case 'json':
+    default:
+      data = (await parseJsonResponse({
+        response,
+        request,
+        responseSchema,
+        validateResponse,
+        throwHttpErrors,
+      })) as T;
+      break;
+  }
+
+  return runAfterParseResponseHooks(
+    data,
+    response,
+    request,
+    afterParseResponseHooks
+  );
+}
+
+async function executeRequest<T>(
+  url: string,
+  method: HttpMethod,
+  options: RequestOptions,
+  instanceOptions: ValifetchInstanceOptions
+): Promise<T> {
+  const {
+    request: initialRequest,
+    normalizedOptions,
+    responseSchema,
+    validateResponse,
+    throwHttpErrors,
+  } = await buildRequest(url, method, options, instanceOptions);
+
+  const hookResult = await runBeforeRequestHooks(
+    initialRequest,
+    normalizedOptions,
+    normalizedOptions.hooks?.beforeRequest
+  );
+
+  if (hookResult instanceof Response) {
+    return handleResponse<T>(
+      hookResult,
+      initialRequest,
+      options,
       responseSchema,
       validateResponse,
       throwHttpErrors,
-    } = await buildRequest(url, method, options, instanceOptions);
-
-    const hookResult = await runBeforeRequestHooks(
-      initialRequest,
-      normalizedOptions,
-      normalizedOptions.hooks?.beforeRequest
+      normalizedOptions.hooks?.afterParseResponse
     );
+  }
 
-    if (hookResult instanceof Response) {
+  const request = hookResult;
+  const retryOptions = normalizeRetryOptions(
+    options.retry !== undefined ? options.retry : instanceOptions.retry
+  );
+
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  let timeoutController: AbortController | undefined;
+
+  const setupTimeout = (): AbortSignal | null | undefined => {
+    const timeout = options.timeout ?? instanceOptions.timeout;
+    if (!timeout) return options.signal;
+
+    timeoutController = new AbortController();
+
+    if (options.signal) {
+      options.signal.addEventListener('abort', () => {
+        timeoutController?.abort((options.signal as AbortSignal).reason);
+      });
+    }
+
+    timeoutId = setTimeout(() => {
+      timeoutController?.abort(new Error('Request timed out'));
+    }, timeout);
+
+    return timeoutController.signal;
+  };
+
+  const clearTimeoutIfSet = (): void => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      timeoutId = undefined;
+    }
+  };
+
+  let lastError: Error | undefined;
+  let attemptCount = 0;
+  const maxAttempts =
+    retryOptions === false ? 1 : (retryOptions.limit ?? 2) + 1;
+
+  while (attemptCount < maxAttempts) {
+    try {
+      const signal = setupTimeout();
+      const requestToSend = attemptCount > 0 ? request.clone() : request;
+
+      const fetchInit: RequestInit = {};
+      if (signal !== undefined) {
+        fetchInit.signal = signal;
+      }
+
+      const response = await fetch(requestToSend, fetchInit);
+      clearTimeoutIfSet();
+
+      if (
+        retryOptions !== false &&
+        attemptCount < maxAttempts - 1 &&
+        shouldRetry(method, response.status, attemptCount, retryOptions)
+      ) {
+        attemptCount++;
+        await sleep(calculateRetryDelay(attemptCount - 1, retryOptions));
+        continue;
+      }
+
+      const finalResponse = await runAfterResponseHooks(
+        request,
+        normalizedOptions,
+        response,
+        normalizedOptions.hooks?.afterResponse
+      );
+
       return handleResponse<T>(
-        hookResult,
-        initialRequest,
+        finalResponse,
+        request,
         options,
         responseSchema,
         validateResponse,
         throwHttpErrors,
         normalizedOptions.hooks?.afterParseResponse
       );
+    } catch (error) {
+      clearTimeoutIfSet();
+
+      if (error instanceof Error) {
+        if (error.name === 'AbortError' || timeoutController?.signal.aborted) {
+          const isTimeout =
+            error.message === 'Request timed out' ||
+            (timeoutController?.signal.reason as Error)?.message ===
+              'Request timed out';
+
+          throw new ValifetchError({
+            message: isTimeout ? 'Request timed out' : 'Request was aborted',
+            code: isTimeout ? 'TIMEOUT_ERROR' : 'ABORT_ERROR',
+            request,
+            cause: error,
+          });
+        }
+
+        lastError = error;
+
+        if (retryOptions === false || attemptCount >= maxAttempts - 1) {
+          throw new ValifetchError({
+            message: error.message || 'Network request failed',
+            code: 'NETWORK_ERROR',
+            request,
+            cause: error,
+          });
+        }
+
+        attemptCount++;
+        await sleep(calculateRetryDelay(attemptCount - 1, retryOptions));
+        continue;
+      }
+
+      throw error;
     }
-
-    const request = hookResult;
-
-    const retryOptions = normalizeRetryOptions(
-      options.retry !== undefined ? options.retry : instanceOptions.retry
-    );
-
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
-    let timeoutController: AbortController | undefined;
-
-    const setupTimeout = (): AbortSignal | null | undefined => {
-      const timeout = options.timeout ?? instanceOptions.timeout;
-      if (!timeout) return options.signal;
-
-      timeoutController = new AbortController();
-
-      if (options.signal) {
-        options.signal.addEventListener('abort', () => {
-          timeoutController?.abort((options.signal as AbortSignal).reason);
-        });
-      }
-
-      timeoutId = setTimeout(() => {
-        timeoutController?.abort(new Error('Request timed out'));
-      }, timeout);
-
-      return timeoutController.signal;
-    };
-
-    const clearTimeoutIfSet = (): void => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-        timeoutId = undefined;
-      }
-    };
-
-    let lastError: Error | undefined;
-    let attemptCount = 0;
-    const maxAttempts =
-      retryOptions === false ? 1 : (retryOptions.limit ?? 2) + 1;
-
-    while (attemptCount < maxAttempts) {
-      try {
-        const signal = setupTimeout();
-        const requestToSend = attemptCount > 0 ? request.clone() : request;
-
-        const fetchInit: RequestInit = {};
-        if (signal !== undefined) {
-          fetchInit.signal = signal;
-        }
-
-        const response = await fetch(requestToSend, fetchInit);
-
-        clearTimeoutIfSet();
-
-        if (
-          retryOptions !== false &&
-          attemptCount < maxAttempts - 1 &&
-          shouldRetry(method, response.status, attemptCount, retryOptions)
-        ) {
-          attemptCount++;
-          const delay = calculateRetryDelay(attemptCount - 1, retryOptions);
-          await sleep(delay);
-          continue;
-        }
-
-        const finalResponse = await runAfterResponseHooks(
-          request,
-          normalizedOptions,
-          response,
-          normalizedOptions.hooks?.afterResponse
-        );
-
-        return handleResponse<T>(
-          finalResponse,
-          request,
-          options,
-          responseSchema,
-          validateResponse,
-          throwHttpErrors,
-          normalizedOptions.hooks?.afterParseResponse
-        );
-      } catch (error) {
-        clearTimeoutIfSet();
-
-        if (error instanceof Error) {
-          if (
-            error.name === 'AbortError' ||
-            timeoutController?.signal.aborted
-          ) {
-            const isTimeout =
-              error.message === 'Request timed out' ||
-              (timeoutController?.signal.reason as Error)?.message ===
-                'Request timed out';
-
-            throw new ValifetchError({
-              message: isTimeout ? 'Request timed out' : 'Request was aborted',
-              code: isTimeout ? 'TIMEOUT_ERROR' : 'ABORT_ERROR',
-              request,
-              cause: error,
-            });
-          }
-
-          lastError = error;
-
-          if (retryOptions === false || attemptCount >= maxAttempts - 1) {
-            throw new ValifetchError({
-              message: error.message || 'Network request failed',
-              code: 'NETWORK_ERROR',
-              request,
-              cause: error,
-            });
-          }
-
-          attemptCount++;
-          const delay = calculateRetryDelay(attemptCount - 1, retryOptions);
-          await sleep(delay);
-          continue;
-        }
-
-        throw error;
-      }
-    }
-
-    throw new ValifetchError({
-      message: lastError?.message || 'Request failed after retries',
-      code: 'NETWORK_ERROR',
-      request,
-      ...(lastError && { cause: lastError }),
-    });
   }
 
-  async function handleResponse<T>(
-    response: Response,
-    request: Request,
-    options: InternalOptions,
-    responseSchema: GenericSchema | undefined,
-    validateResponse: boolean,
-    throwHttpErrors: boolean,
-    afterParseResponseHooks?: AfterParseResponseHook[]
-  ): Promise<T> {
-    const responseType = options.responseType ?? 'json';
-    checkResponseStatus(response, request, throwHttpErrors);
-
-    let data: T;
-
-    switch (responseType) {
-      case 'raw':
-        return response as T;
-
-      case 'text':
-        data = (await response.text()) as T;
-        break;
-
-      case 'blob':
-        data = (await response.blob()) as T;
-        break;
-
-      case 'arrayBuffer':
-        data = (await response.arrayBuffer()) as T;
-        break;
-
-      case 'formData':
-        data = (await response.formData()) as T;
-        break;
-
-      case 'json':
-      default:
-        data = (await parseJsonResponse({
-          response,
-          request,
-          responseSchema,
-          validateResponse,
-          throwHttpErrors,
-        })) as T;
-        break;
-    }
-
-    return runAfterParseResponseHooks(
-      data,
-      response,
-      request,
-      afterParseResponseHooks
-    );
-  }
-
-  // Build the instance object
-  const instance: ValifetchInstance = {
-    get: (url, options) =>
-      executeRequest(url, 'GET', (options ?? {}) as InternalOptions),
-
-    post: (url, options) =>
-      executeRequest(url, 'POST', (options ?? {}) as InternalOptions),
-
-    put: (url, options) =>
-      executeRequest(url, 'PUT', (options ?? {}) as InternalOptions),
-
-    patch: (url, options) =>
-      executeRequest(url, 'PATCH', (options ?? {}) as InternalOptions),
-
-    delete: (url, options) =>
-      executeRequest(url, 'DELETE', (options ?? {}) as InternalOptions),
-
-    head: (url, options) =>
-      executeRequest(url, 'HEAD', {
-        ...(options ?? {}),
-        responseType: 'raw',
-      } as InternalOptions).then(() => undefined),
-
-    options: (url, options) =>
-      executeRequest(url, 'OPTIONS', (options ?? {}) as InternalOptions),
-
-    create: (opts) => createInstance(opts),
-
-    extend: (opts) => {
-      const newOptions =
-        typeof opts === 'function'
-          ? opts(instanceOptions)
-          : mergeInstanceOptions(instanceOptions, opts);
-      return createInstance(newOptions);
-    },
-  };
-
-  return instance;
+  throw new ValifetchError({
+    message: lastError?.message || 'Request failed after retries',
+    code: 'NETWORK_ERROR',
+    request,
+    ...(lastError && { cause: lastError }),
+  });
 }
 
-function mergeInstanceOptions(
+type Instance = ValifetchInstance & {
+  opts: ValifetchInstanceOptions;
+  parent: Instance | undefined;
+  merged: ValifetchInstanceOptions | undefined;
+};
+
+// Lazy merge: only compute merged options when actually needed
+const getInstanceOptions = (instance: Instance): ValifetchInstanceOptions =>
+  instance.merged ??
+  (instance.parent
+    ? (instance.merged = mergeOptions(
+        getInstanceOptions(instance.parent),
+        instance.opts
+      ))
+    : instance.opts);
+
+// Shared prototype avoids duplicating methods per instance
+const proto = {
+  get(this: Instance, url: string, options?: RequestOptions) {
+    return executeRequest(
+      url,
+      'GET',
+      options ?? EMPTY,
+      getInstanceOptions(this)
+    );
+  },
+  post(this: Instance, url: string, options?: RequestOptions) {
+    return executeRequest(
+      url,
+      'POST',
+      options ?? EMPTY,
+      getInstanceOptions(this)
+    );
+  },
+  put(this: Instance, url: string, options?: RequestOptions) {
+    return executeRequest(
+      url,
+      'PUT',
+      options ?? EMPTY,
+      getInstanceOptions(this)
+    );
+  },
+  patch(this: Instance, url: string, options?: RequestOptions) {
+    return executeRequest(
+      url,
+      'PATCH',
+      options ?? EMPTY,
+      getInstanceOptions(this)
+    );
+  },
+  delete(this: Instance, url: string, options?: RequestOptions) {
+    return executeRequest(
+      url,
+      'DELETE',
+      options ?? EMPTY,
+      getInstanceOptions(this)
+    );
+  },
+  head(this: Instance, url: string, options?: RequestOptions) {
+    return executeRequest(
+      url,
+      'HEAD',
+      { ...options, responseType: 'raw' },
+      getInstanceOptions(this)
+    ).then(() => undefined);
+  },
+  options(this: Instance, url: string, options?: RequestOptions) {
+    return executeRequest(
+      url,
+      'OPTIONS',
+      options ?? EMPTY,
+      getInstanceOptions(this)
+    );
+  },
+  create(newOptions?: ValifetchInstanceOptions) {
+    return makeInstance(newOptions ?? EMPTY);
+  },
+  extend(
+    this: Instance,
+    options:
+      | ValifetchInstanceOptions
+      | ((prev: ValifetchInstanceOptions) => ValifetchInstanceOptions)
+  ) {
+    return typeof options === 'function'
+      ? makeInstance(options(getInstanceOptions(this)))
+      : makeInstanceWithParent(options, this);
+  },
+} as unknown as Instance;
+
+function makeInstance(options: ValifetchInstanceOptions): Instance {
+  const inst = Object.create(proto) as Instance;
+  inst.opts = options;
+  return inst;
+}
+
+function makeInstanceWithParent(
+  options: ValifetchInstanceOptions,
+  parent: Instance
+): Instance {
+  const inst = Object.create(proto) as Instance;
+  inst.opts = options;
+  inst.parent = parent;
+  return inst;
+}
+
+function concatArrays<T>(first?: T[], second?: T[]): T[] | undefined {
+  if (!first && !second) return undefined;
+  if (!first) return second;
+  if (!second) return first;
+  return first.concat(second);
+}
+
+function mergeHooks(parent?: Hooks, child?: Hooks): Hooks | undefined {
+  if (!parent && !child) return undefined;
+  if (!parent) return child;
+  if (!child) return parent;
+
+  return {
+    beforeRequest: concatArrays(parent.beforeRequest, child.beforeRequest),
+    afterResponse: concatArrays(parent.afterResponse, child.afterResponse),
+    afterParseResponse: concatArrays(
+      parent.afterParseResponse,
+      child.afterParseResponse
+    ),
+  };
+}
+
+function copyHeaders(
+  source: HeadersInit,
+  target: Record<string, string>
+): void {
+  if (source instanceof Headers) {
+    source.forEach((value, key) => {
+      target[key] = value;
+    });
+  } else if (Array.isArray(source)) {
+    for (const [key, value] of source) target[key] = value;
+  } else {
+    Object.assign(target, source);
+  }
+}
+
+function mergeHeaders(
+  parent?: HeadersInit,
+  child?: HeadersInit
+): Record<string, string> | undefined {
+  if (!parent && !child) return undefined;
+
+  const result: Record<string, string> = {};
+  if (parent) copyHeaders(parent, result);
+  if (child) copyHeaders(child, result);
+
+  return result;
+}
+
+function mergeOptions(
   parent: ValifetchInstanceOptions,
   child: ValifetchInstanceOptions
 ): ValifetchInstanceOptions {
-  return {
-    ...parent,
-    ...child,
-    headers: mergeHeaders(parent.headers, child.headers),
-    hooks: {
-      beforeRequest: [
-        ...(parent.hooks?.beforeRequest ?? []),
-        ...(child.hooks?.beforeRequest ?? []),
-      ],
-      afterResponse: [
-        ...(parent.hooks?.afterResponse ?? []),
-        ...(child.hooks?.afterResponse ?? []),
-      ],
-      afterParseResponse: [
-        ...(parent.hooks?.afterParseResponse ?? []),
-        ...(child.hooks?.afterParseResponse ?? []),
-      ],
-    },
-  };
+  const result: ValifetchInstanceOptions = { ...parent };
+
+  // Only override if child explicitly defines the property
+  if (child.prefixUrl !== undefined) result.prefixUrl = child.prefixUrl;
+  if (child.timeout !== undefined) result.timeout = child.timeout;
+  if (child.validateResponse !== undefined)
+    result.validateResponse = child.validateResponse;
+  if (child.validateRequest !== undefined)
+    result.validateRequest = child.validateRequest;
+  if (child.throwHttpErrors !== undefined)
+    result.throwHttpErrors = child.throwHttpErrors;
+  if (child.retry !== undefined) result.retry = child.retry;
+  if (child.credentials !== undefined) result.credentials = child.credentials;
+  if (child.cache !== undefined) result.cache = child.cache;
+  if (child.redirect !== undefined) result.redirect = child.redirect;
+  if (child.referrer !== undefined) result.referrer = child.referrer;
+  if (child.referrerPolicy !== undefined)
+    result.referrerPolicy = child.referrerPolicy;
+  if (child.integrity !== undefined) result.integrity = child.integrity;
+  if (child.keepalive !== undefined) result.keepalive = child.keepalive;
+  if (child.mode !== undefined) result.mode = child.mode;
+
+  const mergedHooks = mergeHooks(parent.hooks, child.hooks);
+  const mergedHeaders = mergeHeaders(parent.headers, child.headers);
+  if (mergedHooks) result.hooks = mergedHooks;
+  if (mergedHeaders) result.headers = mergedHeaders;
+
+  return result;
 }
 
-function mergeHeaders(parent?: HeadersInit, child?: HeadersInit): Headers {
-  const headers = new Headers();
-
-  if (parent) {
-    const source = new Headers(parent);
-    source.forEach((value, key) => headers.set(key, value));
-  }
-
-  if (child) {
-    const source = new Headers(child);
-    source.forEach((value, key) => headers.set(key, value));
-  }
-
-  return headers;
-}
-
-export const valifetch = createInstance();
+export const valifetch = makeInstance({});
