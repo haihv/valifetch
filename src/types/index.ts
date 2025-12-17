@@ -29,4 +29,5 @@ export type {
   GetOptions,
   PostOptions,
   ValifetchInstance,
+  CallableInstance,
 } from './instance';

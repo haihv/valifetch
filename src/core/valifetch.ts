@@ -50,6 +50,7 @@ type RequestOptions = {
   keepalive?: boolean;
   mode?: RequestMode;
   responseType?: ResponseType;
+  method?: HttpMethod;
 };
 
 const EMPTY = {} as RequestOptions;
@@ -265,7 +266,6 @@ type Instance = ValifetchInstance & {
   merged: ValifetchInstanceOptions | undefined;
 };
 
-// Lazy merge: only compute merged options when actually needed
 const getInstanceOptions = (instance: Instance): ValifetchInstanceOptions =>
   instance.merged ??
   (instance.parent
@@ -275,7 +275,6 @@ const getInstanceOptions = (instance: Instance): ValifetchInstanceOptions =>
       ))
     : instance.opts);
 
-// Shared prototype avoids duplicating methods per instance
 const proto = {
   get(this: Instance, url: string, options?: RequestOptions) {
     return executeRequest(
@@ -334,7 +333,7 @@ const proto = {
     );
   },
   create(newOptions?: ValifetchInstanceOptions) {
-    return makeInstance(newOptions ?? EMPTY);
+    return createInstance(newOptions ?? EMPTY);
   },
   extend(
     this: Instance,
@@ -343,25 +342,63 @@ const proto = {
       | ((prev: ValifetchInstanceOptions) => ValifetchInstanceOptions)
   ) {
     return typeof options === 'function'
-      ? makeInstance(options(getInstanceOptions(this)))
-      : makeInstanceWithParent(options, this);
+      ? createInstance(options(getInstanceOptions(this)))
+      : createInstanceWithParent(options, this);
+  },
+  callable(this: Instance) {
+    return callable(this);
   },
 } as unknown as Instance;
 
-function makeInstance(options: ValifetchInstanceOptions): Instance {
+function createInstance(options: ValifetchInstanceOptions): ValifetchInstance {
   const inst = Object.create(proto) as Instance;
   inst.opts = options;
   return inst;
 }
 
-function makeInstanceWithParent(
+function createInstanceWithParent(
   options: ValifetchInstanceOptions,
   parent: Instance
-): Instance {
+): ValifetchInstance {
   const inst = Object.create(proto) as Instance;
   inst.opts = options;
   inst.parent = parent;
   return inst;
+}
+
+// Callable wrapper for ky-style syntax: api('/users') instead of api.get('/users')
+function callable(instance: ValifetchInstance) {
+  const inst = instance as Instance;
+
+  const fn = function <TData = unknown>(
+    url: string,
+    options?: RequestOptions
+  ): Promise<TData> {
+    return executeRequest<TData>(
+      url,
+      options?.method ?? 'GET',
+      options ?? EMPTY,
+      getInstanceOptions(inst)
+    );
+  };
+
+  fn.get = inst.get.bind(inst);
+  fn.post = inst.post.bind(inst);
+  fn.put = inst.put.bind(inst);
+  fn.patch = inst.patch.bind(inst);
+  fn.delete = inst.delete.bind(inst);
+  fn.head = inst.head.bind(inst);
+  fn.options = inst.options.bind(inst);
+
+  fn.create = (options?: ValifetchInstanceOptions) =>
+    callable(inst.create(options));
+  fn.extend = (
+    options:
+      | ValifetchInstanceOptions
+      | ((parent: ValifetchInstanceOptions) => ValifetchInstanceOptions)
+  ) => callable(inst.extend(options));
+
+  return fn;
 }
 
 function concatArrays<T>(first?: T[], second?: T[]): T[] | undefined {
@@ -420,7 +457,6 @@ function mergeOptions(
 ): ValifetchInstanceOptions {
   const result: ValifetchInstanceOptions = { ...parent };
 
-  // Only override if child explicitly defines the property
   if (child.prefixUrl !== undefined) result.prefixUrl = child.prefixUrl;
   if (child.timeout !== undefined) result.timeout = child.timeout;
   if (child.validateResponse !== undefined)
@@ -448,4 +484,4 @@ function mergeOptions(
   return result;
 }
 
-export const valifetch = makeInstance({});
+export const valifetch = createInstance({});

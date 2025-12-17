@@ -19,6 +19,8 @@ A type-safe HTTP client built on native `fetch` with [Valibot](https://valibot.d
 - **Hooks** - `beforeRequest`, `afterResponse`, and `afterParseResponse` interceptors
 - **Instances** - Create configured instances with `create()` and `extend()`
 - **Minimal** - Tree-shakeable, valibot as peer dependency, ~17KB bundle
+- **Lightweight Instances** - Shared prototype pattern: each instance has only 1-2 own properties
+- **Callable Syntax** - Optional ky-style `api('/users')` syntax via `callable()` wrapper
 
 ## Installation
 
@@ -61,6 +63,20 @@ valifetch.head(url, options);
 valifetch.options(url, options);
 ```
 
+### Instance Functions
+
+```typescript
+// Create a new instance
+valifetch.create(options);
+
+// Extend an instance
+instance.extend(options);
+instance.extend((parentOptions) => newOptions);
+
+// Wrap instance for callable syntax
+instance.callable();
+```
+
 ### Options
 
 ```typescript
@@ -75,6 +91,7 @@ type Options = {
   json?: object; // JSON body (auto-stringified)
   params?: object; // Path parameters for :param replacement
   searchParams?: object; // Query string parameters
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS'; // HTTP method (for callable syntax)
 
   // Response format
   responseType?: 'json' | 'text' | 'blob' | 'arrayBuffer' | 'formData' | 'raw';
@@ -224,6 +241,39 @@ const authApi = api.extend((options) => ({
     Authorization: `Bearer ${getToken()}`,
   },
 }));
+```
+
+### Callable Syntax
+
+For ky-style syntax where you can call the instance directly:
+
+```typescript
+import valifetch from 'valifetch';
+
+const api = valifetch
+  .create({
+    prefixUrl: 'https://api.example.com',
+  })
+  .callable();
+
+// Call directly - defaults to GET
+const users = await api('/users');
+
+// Specify method in options
+const newUser = await api('/users', {
+  method: 'POST',
+  json: { name: 'John' },
+});
+
+// Or use method shortcuts
+const user = await api.get('/users/1');
+const created = await api.post('/users', { json: { name: 'Jane' } });
+
+// Create and extend return callable instances
+const adminApi = api.extend({
+  headers: { 'X-Admin': 'true' },
+});
+await adminApi('/admin/stats');
 ```
 
 ### Hooks

@@ -36,3 +36,5 @@ export type {
   PostOptions,
   ValifetchInstance,
 } from './types';
+
+export type { CallableInstance } from './types/instance';
