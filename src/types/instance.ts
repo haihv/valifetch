@@ -61,6 +61,108 @@ type ResolveResponseType<TData, TResponseSchema> =
   TResponseSchema extends GenericSchema ? InferOutput<TResponseSchema> : TData;
 
 /**
+ * Callable instance type for ky-style syntax
+ */
+export type CallableInstance = {
+  <TData = unknown>(url: string, options?: ValifetchOptions): Promise<TData>;
+  get<
+    TData = unknown,
+    TPath extends string = string,
+    TResponseSchema extends GenericSchema | undefined = undefined,
+    TParamsSchema extends GenericSchema | undefined = undefined,
+    TSearchSchema extends GenericSchema | undefined = undefined,
+  >(
+    url: TPath,
+    options?: GetOptions<TPath, TResponseSchema, TParamsSchema, TSearchSchema>
+  ): Promise<ResolveResponseType<TData, TResponseSchema>>;
+  post<
+    TData = unknown,
+    TPath extends string = string,
+    TResponseSchema extends GenericSchema | undefined = undefined,
+    TBodySchema extends GenericSchema | undefined = undefined,
+    TParamsSchema extends GenericSchema | undefined = undefined,
+    TSearchSchema extends GenericSchema | undefined = undefined,
+  >(
+    url: TPath,
+    options?: PostOptions<
+      TPath,
+      TResponseSchema,
+      TBodySchema,
+      TParamsSchema,
+      TSearchSchema
+    >
+  ): Promise<ResolveResponseType<TData, TResponseSchema>>;
+  put<
+    TData = unknown,
+    TPath extends string = string,
+    TResponseSchema extends GenericSchema | undefined = undefined,
+    TBodySchema extends GenericSchema | undefined = undefined,
+    TParamsSchema extends GenericSchema | undefined = undefined,
+    TSearchSchema extends GenericSchema | undefined = undefined,
+  >(
+    url: TPath,
+    options?: PostOptions<
+      TPath,
+      TResponseSchema,
+      TBodySchema,
+      TParamsSchema,
+      TSearchSchema
+    >
+  ): Promise<ResolveResponseType<TData, TResponseSchema>>;
+  patch<
+    TData = unknown,
+    TPath extends string = string,
+    TResponseSchema extends GenericSchema | undefined = undefined,
+    TBodySchema extends GenericSchema | undefined = undefined,
+    TParamsSchema extends GenericSchema | undefined = undefined,
+    TSearchSchema extends GenericSchema | undefined = undefined,
+  >(
+    url: TPath,
+    options?: PostOptions<
+      TPath,
+      TResponseSchema,
+      TBodySchema,
+      TParamsSchema,
+      TSearchSchema
+    >
+  ): Promise<ResolveResponseType<TData, TResponseSchema>>;
+  delete<
+    TData = unknown,
+    TPath extends string = string,
+    TResponseSchema extends GenericSchema | undefined = undefined,
+    TParamsSchema extends GenericSchema | undefined = undefined,
+    TSearchSchema extends GenericSchema | undefined = undefined,
+  >(
+    url: TPath,
+    options?: GetOptions<TPath, TResponseSchema, TParamsSchema, TSearchSchema>
+  ): Promise<ResolveResponseType<TData, TResponseSchema>>;
+  head<
+    TPath extends string = string,
+    TParamsSchema extends GenericSchema | undefined = undefined,
+    TSearchSchema extends GenericSchema | undefined = undefined,
+  >(
+    url: TPath,
+    options?: GetOptions<TPath, undefined, TParamsSchema, TSearchSchema>
+  ): Promise<void>;
+  options<
+    TData = unknown,
+    TPath extends string = string,
+    TResponseSchema extends GenericSchema | undefined = undefined,
+    TParamsSchema extends GenericSchema | undefined = undefined,
+    TSearchSchema extends GenericSchema | undefined = undefined,
+  >(
+    url: TPath,
+    options?: GetOptions<TPath, TResponseSchema, TParamsSchema, TSearchSchema>
+  ): Promise<ResolveResponseType<TData, TResponseSchema>>;
+  create(options?: ValifetchInstanceOptions): CallableInstance;
+  extend(
+    options:
+      | ValifetchInstanceOptions
+      | ((parent: ValifetchInstanceOptions) => ValifetchInstanceOptions)
+  ): CallableInstance;
+};
+
+/**
  * The main valifetch instance type
  */
 export type ValifetchInstance = {
@@ -197,4 +299,7 @@ export type ValifetchInstance = {
       | ValifetchInstanceOptions
       | ((parent: ValifetchInstanceOptions) => ValifetchInstanceOptions)
   ): ValifetchInstance;
+
+  /** Wrap instance for callable ky-style syntax */
+  callable(): CallableInstance;
 };

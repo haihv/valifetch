@@ -1105,4 +1105,109 @@ describe('core/valifetch', () => {
       expect(result).toEqual({ success: true });
     });
   });
+
+  describe('callable wrapper', () => {
+    it('should make GET request when called as function', async () => {
+      // Arrange
+      mockFetch({ id: 1, name: 'John' });
+      const api = valifetch
+        .create({ prefixUrl: 'https://api.example.com' })
+        .callable();
+
+      // Act
+      const result = await api('/users/1');
+
+      // Assert
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      const [request] = fetchSpy.mock.calls[0] as [Request, RequestInit];
+      expect(request.method).toBe('GET');
+      expect(request.url).toBe('https://api.example.com/users/1');
+      expect(result).toEqual({ id: 1, name: 'John' });
+    });
+
+    it('should make POST request with method option', async () => {
+      // Arrange
+      mockFetch({ id: 1, name: 'John' });
+      const api = valifetch
+        .create({ prefixUrl: 'https://api.example.com' })
+        .callable();
+
+      // Act
+      const result = await api('/users', {
+        method: 'POST',
+        json: { name: 'John' },
+      });
+
+      // Assert
+      const [request] = fetchSpy.mock.calls[0] as [Request, RequestInit];
+      expect(request.method).toBe('POST');
+      expect(result).toEqual({ id: 1, name: 'John' });
+    });
+
+    it('should have HTTP method shortcuts', async () => {
+      // Arrange
+      mockFetch({ id: 1 });
+      const api = valifetch
+        .create({ prefixUrl: 'https://api.example.com' })
+        .callable();
+
+      // Act
+      await api.get('/users/1');
+
+      // Assert
+      const [request] = fetchSpy.mock.calls[0] as [Request, RequestInit];
+      expect(request.method).toBe('GET');
+    });
+
+    it('should return callable instance from create()', async () => {
+      // Arrange
+      mockFetch({ id: 1 });
+      const baseApi = valifetch.callable();
+      const api = baseApi.create({ prefixUrl: 'https://api.example.com' });
+
+      // Act
+      const result = await api('/users/1');
+
+      // Assert
+      expect(result).toEqual({ id: 1 });
+      expect(typeof api).toBe('function');
+    });
+
+    it('should return callable instance from extend()', async () => {
+      // Arrange
+      mockFetch({ id: 1 });
+      const baseApi = valifetch
+        .create({ prefixUrl: 'https://api.example.com' })
+        .callable();
+      const api = baseApi.extend({ headers: { 'X-Custom': 'value' } });
+
+      // Act
+      const result = await api('/users/1');
+
+      // Assert
+      expect(result).toEqual({ id: 1 });
+      expect(typeof api).toBe('function');
+      const [request] = fetchSpy.mock.calls[0] as [Request, RequestInit];
+      expect(request.headers.get('X-Custom')).toBe('value');
+    });
+
+    it('should extend with function', async () => {
+      // Arrange
+      mockFetch({ id: 1 });
+      const baseApi = valifetch
+        .create({ prefixUrl: 'https://api.example.com' })
+        .callable();
+      const api = baseApi.extend((parent) => ({
+        ...parent,
+        headers: { 'X-Dynamic': 'dynamic-value' },
+      }));
+
+      // Act
+      await api('/users/1');
+
+      // Assert
+      const [request] = fetchSpy.mock.calls[0] as [Request, RequestInit];
+      expect(request.headers.get('X-Dynamic')).toBe('dynamic-value');
+    });
+  });
 });
