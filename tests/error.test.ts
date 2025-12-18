@@ -61,6 +61,21 @@ describe('errors/ValifetchError', () => {
       expect(error).toBeInstanceOf(Error);
       expect(error).toBeInstanceOf(ValifetchError);
     });
+
+    it('should handle environments without Error.captureStackTrace', () => {
+      const original = Error.captureStackTrace;
+      (Error as any).captureStackTrace = undefined;
+
+      const error = new ValifetchError({
+        message: 'Test',
+        code: 'NETWORK_ERROR',
+      });
+
+      expect(error).toBeInstanceOf(ValifetchError);
+      expect(error.stack).toBeDefined();
+
+      Error.captureStackTrace = original;
+    });
   });
 
   describe('error code checks', () => {

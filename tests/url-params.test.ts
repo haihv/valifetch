@@ -240,6 +240,87 @@ describe('url/params', () => {
         // Assert
         expect(result).toBe('/items/0');
       });
+
+      it('should handle param followed by dot', () => {
+        const path = '/files/:name.json';
+        const params = { name: 'data' };
+
+        const result = replacePathParams(path, params);
+
+        expect(result).toBe('/files/data.json');
+      });
+
+      it('should handle param followed by question mark', () => {
+        const path = '/search/:query?limit=10';
+        const params = { query: 'test' };
+
+        const result = replacePathParams(path, params);
+
+        expect(result).toBe('/search/test?limit=10');
+      });
+
+      it('should handle consecutive colons - second colon creates param', () => {
+        const path = '/protocol::port';
+        const params = { port: '8080' };
+
+        const result = replacePathParams(path, params);
+
+        expect(result).toBe('/protocol:8080');
+      });
+
+      it('should handle empty string value', () => {
+        const path = '/users/:id';
+        const params = { id: '' };
+
+        const result = replacePathParams(path, params);
+
+        expect(result).toBe('/users/');
+      });
+
+      it('should handle boolean value', () => {
+        const path = '/api/:active';
+        const params = { active: true as unknown as string };
+
+        const result = replacePathParams(path, params);
+
+        expect(result).toBe('/api/true');
+      });
+
+      it('should handle negative numbers', () => {
+        const path = '/items/:offset';
+        const params = { offset: -10 };
+
+        const result = replacePathParams(path, params);
+
+        expect(result).toBe('/items/-10');
+      });
+
+      it('should handle float numbers', () => {
+        const path = '/products/:price';
+        const params = { price: 99.99 };
+
+        const result = replacePathParams(path, params);
+
+        expect(result).toBe('/products/99.99');
+      });
+
+      it('should handle uppercase param names', () => {
+        const path = '/api/:UserID/:PostID';
+        const params = { UserID: 1, PostID: 2 };
+
+        const result = replacePathParams(path, params);
+
+        expect(result).toBe('/api/1/2');
+      });
+
+      it('should handle very large numbers', () => {
+        const path = '/items/:id';
+        const params = { id: Number.MAX_SAFE_INTEGER };
+
+        const result = replacePathParams(path, params);
+
+        expect(result).toBe('/items/9007199254740991');
+      });
     });
   });
 
@@ -298,6 +379,47 @@ describe('url/params', () => {
       // Assert
       expect(result).toEqual([]);
     });
+
+    it('should extract params followed by special chars', () => {
+      const path = '/files/:name.json?filter=:type';
+
+      const result = extractParamNames(path);
+
+      expect(result).toEqual(['name', 'type']);
+    });
+
+    it('should extract from consecutive colons - second colon creates param', () => {
+      const path = '/protocol::port';
+
+      const result = extractParamNames(path);
+
+      expect(result).toEqual(['port']);
+    });
+
+    it('should extract uppercase param names', () => {
+      const path = '/api/:UserID/:PostID';
+
+      const result = extractParamNames(path);
+
+      expect(result).toEqual(['UserID', 'PostID']);
+    });
+
+    it('should extract pattern even when starting with digit', () => {
+      // hasPathParams returns false for this, but extractParamNames still extracts it
+      const path = '/users/:123invalid';
+
+      const result = extractParamNames(path);
+
+      expect(result).toEqual(['123invalid']);
+    });
+
+    it('should properly exit loop when no more colons after param', () => {
+      const path = '/api/:version/users/list/all/data';
+
+      const result = extractParamNames(path);
+
+      expect(result).toEqual(['version']);
+    });
   });
 
   describe('hasPathParams', () => {
@@ -353,6 +475,46 @@ describe('url/params', () => {
       const result = hasPathParams(path);
 
       // Assert
+      expect(result).toBe(false);
+    });
+
+    it('should return true for param with underscore', () => {
+      const path = '/api/:user_id';
+
+      const result = hasPathParams(path);
+
+      expect(result).toBe(true);
+    });
+
+    it('should return true for uppercase param', () => {
+      const path = '/api/:UserID';
+
+      const result = hasPathParams(path);
+
+      expect(result).toBe(true);
+    });
+
+    it('should return false for consecutive colons', () => {
+      const path = '/protocol::port';
+
+      const result = hasPathParams(path);
+
+      expect(result).toBe(false);
+    });
+
+    it('should return true for param followed by dot', () => {
+      const path = '/files/:name.json';
+
+      const result = hasPathParams(path);
+
+      expect(result).toBe(true);
+    });
+
+    it('should return false for colon in protocol', () => {
+      const path = 'https://example.com';
+
+      const result = hasPathParams(path);
+
       expect(result).toBe(false);
     });
   });

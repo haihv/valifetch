@@ -434,6 +434,29 @@ describe('core/valifetch', () => {
           valifetch.get('https://api.example.com/users', { retry: false })
         ).rejects.toBe('string error');
       });
+
+      it('should throw NETWORK_ERROR after all retry attempts exhausted', async () => {
+        fetchSpy.mockRejectedValue(new Error('Network failure'));
+
+        try {
+          await valifetch.get('https://api.example.com/users', {
+            retry: {
+              limit: 2,
+              methods: ['GET'],
+              statusCodes: [500],
+              delay: () => 1,
+            },
+          });
+          expect.fail('Should have thrown');
+        } catch (error) {
+          expect(error).toBeInstanceOf(ValifetchError);
+          expect((error as ValifetchError).code).toBe('NETWORK_ERROR');
+          expect((error as ValifetchError).message).toBe('Network failure');
+          expect((error as ValifetchError).cause).toBeInstanceOf(Error);
+        }
+
+        expect(fetchSpy).toHaveBeenCalledTimes(3);
+      }, 10000);
     });
 
     describe('abort errors', () => {
