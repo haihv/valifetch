@@ -252,6 +252,8 @@ async function executeRequest<T>(
     }
   }
 
+  // Defensive: should never reach here as the loop always exits via return or throw
+  // Kept as safety net in case of unexpected edge cases
   throw new ValifetchError({
     message: lastError?.message || 'Request failed after retries',
     code: 'NETWORK_ERROR',

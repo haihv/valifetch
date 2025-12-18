@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import * as v from 'valibot';
 import { buildRequest, mergeOptions } from '../src/core/request';
 import { ValifetchError } from '../src/errors/ValifetchError';
@@ -301,6 +301,121 @@ describe('core/request', () => {
         requestHook,
       ]);
     });
+
+    it('should handle both headers being undefined', () => {
+      const instanceOptions = {};
+      const requestOptions = {};
+
+      const result = mergeOptions(instanceOptions, requestOptions as any);
+
+      expect(result.headers).toBeInstanceOf(Headers);
+      expect(Array.from(result.headers.keys())).toEqual([]);
+    });
+
+    it('should handle only instance headers', () => {
+      const instanceOptions = {
+        headers: { Authorization: 'Bearer token' },
+      };
+      const requestOptions = {};
+
+      const result = mergeOptions(instanceOptions, requestOptions as any);
+
+      expect(result.headers.get('Authorization')).toBe('Bearer token');
+    });
+
+    it('should handle only request headers', () => {
+      const instanceOptions = {};
+      const requestOptions = {
+        headers: { 'X-Custom': 'value' },
+      };
+
+      const result = mergeOptions(instanceOptions, requestOptions as any);
+
+      expect(result.headers.get('X-Custom')).toBe('value');
+    });
+
+    it('should handle empty object headers', () => {
+      const instanceOptions = { headers: {} };
+      const requestOptions = { headers: {} };
+
+      const result = mergeOptions(instanceOptions, requestOptions as any);
+
+      expect(result.headers).toBeInstanceOf(Headers);
+      expect(Array.from(result.headers.keys())).toEqual([]);
+    });
+
+    it('should handle empty array headers', () => {
+      const instanceOptions = { headers: [] };
+      const requestOptions = { headers: [] };
+
+      const result = mergeOptions(instanceOptions, requestOptions as any);
+
+      expect(result.headers).toBeInstanceOf(Headers);
+      expect(Array.from(result.headers.keys())).toEqual([]);
+    });
+
+    it('should handle both hooks being undefined', () => {
+      const instanceOptions = {};
+      const requestOptions = {};
+
+      const result = mergeOptions(instanceOptions, requestOptions as any);
+
+      expect(result.hooks).toEqual({});
+    });
+
+    it('should handle instance with undefined beforeRequest and request with beforeRequest', () => {
+      const beforeRequestHook = vi.fn();
+      const instanceOptions = {
+        hooks: {
+          afterResponse: [vi.fn()],
+        },
+      };
+      const requestOptions = {
+        hooks: {
+          beforeRequest: [beforeRequestHook],
+        },
+      };
+
+      const result = mergeOptions(instanceOptions, requestOptions as any);
+
+      expect(result.hooks?.beforeRequest).toEqual([beforeRequestHook]);
+    });
+
+    it('should handle instance with afterParseResponse and request without it', () => {
+      const instanceHook = vi.fn();
+      const instanceOptions = {
+        hooks: {
+          afterParseResponse: [instanceHook],
+        },
+      };
+      const requestOptions = {
+        hooks: {
+          beforeRequest: [vi.fn()],
+        },
+      };
+
+      const result = mergeOptions(instanceOptions, requestOptions as any);
+
+      expect(result.hooks?.afterParseResponse).toEqual([instanceHook]);
+    });
+
+    it('should handle request with afterParseResponse and instance without it', () => {
+      const requestHook = vi.fn();
+      const instanceOptions = {
+        hooks: {
+          beforeRequest: [vi.fn()],
+        },
+      };
+      const requestOptions = {
+        hooks: {
+          afterParseResponse: [requestHook],
+        },
+      };
+
+      const result = mergeOptions(instanceOptions, requestOptions as any);
+
+      expect(result.hooks?.afterParseResponse).toEqual([requestHook]);
+    });
   });
 
   describe('buildRequest', () => {
@@ -491,6 +606,29 @@ describe('core/request', () => {
           buildRequest(url, method, options as any, instanceOptions)
         ).rejects.toThrow(ValifetchError);
       });
+
+      it('should skip search params validation when validateRequest is false', async () => {
+        const url = '/users';
+        const method = 'GET';
+        const searchSchema = v.object({
+          page: v.number(),
+        });
+        const options = {
+          searchParams: { page: 'invalid' },
+          searchSchema,
+          validateRequest: false,
+        };
+        const instanceOptions = { prefixUrl: 'https://api.example.com' };
+
+        const result = await buildRequest(
+          url,
+          method,
+          options as any,
+          instanceOptions
+        );
+
+        expect(result.request.url).toContain('page=invalid');
+      });
     });
 
     describe('JSON body handling', () => {
@@ -570,6 +708,30 @@ describe('core/request', () => {
         await expect(
           buildRequest(url, method, options as any, instanceOptions)
         ).rejects.toThrow(ValifetchError);
+      });
+
+      it('should skip body validation when validateRequest is false', async () => {
+        const url = '/users';
+        const method = 'POST';
+        const bodySchema = v.object({
+          email: v.pipe(v.string(), v.email()),
+        });
+        const options = {
+          json: { email: 'not-an-email' },
+          bodySchema,
+          validateRequest: false,
+        };
+        const instanceOptions = { prefixUrl: 'https://api.example.com' };
+
+        const result = await buildRequest(
+          url,
+          method,
+          options as any,
+          instanceOptions
+        );
+
+        const body = await result.request.text();
+        expect(JSON.parse(body)).toEqual({ email: 'not-an-email' });
       });
 
       it('should not override existing Content-Type header', async () => {
