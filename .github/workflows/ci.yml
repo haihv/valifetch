@@ -36,29 +36,11 @@ jobs:
       - name: Build package
         run: npm run build
 
-      - name: Upload coverage artifact
-        uses: actions/upload-artifact@v4
-        if: always()
+      - name: Upload coverage to Codecov
+        if: matrix.node-version == 24
+        uses: codecov/codecov-action@v5
         with:
-          name: coverage-${{ matrix.node-version }}
-          path: coverage/
-          retention-days: 7
-
-      - name: Coverage summary
-        if: always()
-        run: |
-          echo "## Coverage Report (Node ${{ matrix.node-version }})" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          if [ -f coverage/coverage-summary.json ]; then
-            node -e "
-              const c = require('./coverage/coverage-summary.json').total;
-              console.log('| Metric | Coverage |');
-              console.log('|--------|----------|');
-              console.log('| Statements | ' + c.statements.pct + '% |');
-              console.log('| Branches | ' + c.branches.pct + '% |');
-              console.log('| Functions | ' + c.functions.pct + '% |');
-              console.log('| Lines | ' + c.lines.pct + '% |');
-            " >> $GITHUB_STEP_SUMMARY
-          else
-            echo "Coverage report not found" >> $GITHUB_STEP_SUMMARY
-          fi
+          files: coverage/cobertura-coverage.xml
+          fail_ci_if_error: true
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
