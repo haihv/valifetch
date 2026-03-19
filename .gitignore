@@ -23,4 +23,7 @@ coverage
 
 # Environment
 .env
-.env.local
+
+# Local files
+*.local
+*.local.*
