@@ -51,6 +51,7 @@ type RequestOptions = {
   mode?: RequestMode;
   responseType?: ResponseType;
   method?: HttpMethod;
+  dedupe?: boolean;
 };
 
 const EMPTY = {} as RequestOptions;
@@ -104,7 +105,33 @@ async function handleResponse<T>(
   );
 }
 
-async function executeRequest<T>(
+const dedupeCache = new Map<string, Promise<unknown>>();
+
+function executeRequest<T>(
+  url: string,
+  method: HttpMethod,
+  options: RequestOptions,
+  instanceOptions: ValifetchInstanceOptions
+): Promise<T> {
+  const dedupe = options.dedupe ?? instanceOptions.dedupe;
+  const key = `${method}:${url}`;
+
+  if (dedupe) {
+    const cached = dedupeCache.get(key) as Promise<T> | undefined;
+    if (cached) return cached;
+  }
+
+  const promise = executeRequestCore<T>(url, method, options, instanceOptions);
+
+  if (dedupe) {
+    dedupeCache.set(key, promise);
+    void promise.finally(() => dedupeCache.delete(key));
+  }
+
+  return promise;
+}
+
+async function executeRequestCore<T>(
   url: string,
   method: HttpMethod,
   options: RequestOptions,
