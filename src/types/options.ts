@@ -73,6 +73,8 @@ export type ValifetchBaseOptions = Omit<RequestInit, 'body' | 'method'> & {
   retry?: RetryOptions | number | false;
   /** Hooks for request lifecycle */
   hooks?: Hooks;
+  /** Deduplicate concurrent identical requests (same method + URL). Default: false */
+  dedupe?: boolean;
 };
 
 /**
