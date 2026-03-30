@@ -1,6 +1,6 @@
 {
   "name": "valifetch",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Type-safe HTTP client built on native fetch with valibot schema validation",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -38,7 +38,7 @@
       }
     }
   },
-  "files": ["dist", "README.md", "LICENSE"],
+  "files": ["dist", "README.md", "CHANGELOG.md", "LICENSE"],
   "sideEffects": false,
   "scripts": {
     "build": "tsup",
