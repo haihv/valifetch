@@ -70,6 +70,8 @@ async function handleResponse<T>(
   let data: T;
 
   switch (responseType) {
+    case 'stream':
+      return response.body as T;
     case 'raw':
       return response as T;
     case 'text':

@@ -10,6 +10,7 @@ export type ResponseType =
   | 'blob'
   | 'arrayBuffer'
   | 'formData'
+  | 'stream'
   | 'raw';
 
 /**
