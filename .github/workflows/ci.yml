@@ -40,7 +40,6 @@ jobs:
         if: matrix.node-version == 24
         uses: codecov/codecov-action@v5
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage/cobertura-coverage.xml
           fail_ci_if_error: true
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
