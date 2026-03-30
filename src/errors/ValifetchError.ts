@@ -53,10 +53,11 @@ export class ValifetchError extends Error {
     this.response = options.response;
     this.validation = options.validation;
 
-    // Maintain proper stack trace in V8
-    if (Error.captureStackTrace) {
-      Error.captureStackTrace(this, ValifetchError);
-    }
+    // Maintain proper stack trace in V8 (captureStackTrace is a V8 extension)
+    const ErrorWithCapture = Error as typeof Error & {
+      captureStackTrace?: (target: object, ctor: unknown) => void;
+    };
+    ErrorWithCapture.captureStackTrace?.(this, ValifetchError);
   }
 
   /** Check if this is a validation error */
