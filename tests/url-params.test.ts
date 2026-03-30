@@ -1,8 +1,8 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
-  replacePathParams,
   extractParamNames,
   hasPathParams,
+  replacePathParams,
 } from '../src/url/params';
 
 describe('url/params', () => {

@@ -1,4 +1,4 @@
-import { safeParse, type GenericSchema, type InferOutput } from 'valibot';
+import { type GenericSchema, type InferOutput, safeParse } from 'valibot';
 import { ValifetchError } from '../errors/ValifetchError';
 import type { ValidationTarget } from '../types';
 

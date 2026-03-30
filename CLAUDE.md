@@ -5,13 +5,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-pnpm test                  # run all tests
-pnpm test -- --run <file>  # run a single test file
-pnpm test:coverage         # run tests with coverage (90% threshold required)
-pnpm build                 # build to dist/ via tsup
-pnpm lint                  # ESLint on src/
-pnpm typecheck             # tsc --noEmit
-pnpm format                # Prettier write
+npm run test                  # run all tests
+npm run test -- --run <file>  # run a single test file
+npm run test:coverage         # run tests with coverage (90% threshold required)
+npm run build                 # build to dist/ via tsup
+npm run check                 # Biome check (lint + format + imports)
+npm run check:fix             # Biome check with auto-fix
+npm run typecheck             # tsc --noEmit
 ```
 
 ## Architecture

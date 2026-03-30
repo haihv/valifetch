@@ -1,33 +1,31 @@
 export type {
-  ExtractPathParams,
-  PathParamsRecord,
-  HasPathParams,
-} from './params';
-
-export type {
-  BeforeRequestHook,
-  AfterResponseHook,
   AfterParseResponseHook,
+  AfterResponseHook,
+  BeforeRequestHook,
   Hooks,
 } from './hooks';
-
 export type {
-  HttpMethod,
-  SearchParamsInit,
-  RetryOptions,
-  ErrorCode,
-  ValidationTarget,
-  ValifetchBaseOptions,
-  NormalizedOptions,
-  ValifetchOptions,
-  ValifetchInstanceOptions,
-  InferResponseType,
-} from './options';
-
-export type {
-  ResponseType,
+  CallableInstance,
   GetOptions,
   PostOptions,
+  ResponseType,
   ValifetchInstance,
-  CallableInstance,
 } from './instance';
+
+export type {
+  ErrorCode,
+  HttpMethod,
+  InferResponseType,
+  NormalizedOptions,
+  RetryOptions,
+  SearchParamsInit,
+  ValidationTarget,
+  ValifetchBaseOptions,
+  ValifetchInstanceOptions,
+  ValifetchOptions,
+} from './options';
+export type {
+  ExtractPathParams,
+  HasPathParams,
+  PathParamsRecord,
+} from './params';

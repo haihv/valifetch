@@ -1,5 +1,5 @@
 import type { GenericSchema, InferOutput } from 'valibot';
-import type { ValifetchOptions, ValifetchInstanceOptions } from './options';
+import type { ValifetchInstanceOptions, ValifetchOptions } from './options';
 
 /**
  * Response format options

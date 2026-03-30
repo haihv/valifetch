@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { ValifetchError } from '../src/errors/ValifetchError';
 import type { ErrorCode, ValidationTarget } from '../src/types';
 

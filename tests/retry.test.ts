@@ -1,9 +1,9 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  calculateRetryDelay,
   DEFAULT_RETRY_OPTIONS,
   normalizeRetryOptions,
   shouldRetry,
-  calculateRetryDelay,
   sleep,
 } from '../src/core/retry';
 

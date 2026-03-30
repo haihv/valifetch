@@ -1,7 +1,7 @@
-import { describe, it, expect } from 'vitest';
 import * as v from 'valibot';
-import { validate, safeValidate } from '../src/validation/validate';
+import { describe, expect, it } from 'vitest';
 import { ValifetchError } from '../src/errors/ValifetchError';
+import { safeValidate, validate } from '../src/validation/validate';
 
 describe('validation/validate', () => {
   describe('validate', () => {

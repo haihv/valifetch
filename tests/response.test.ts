@@ -1,12 +1,12 @@
-import { describe, it, expect } from 'vitest';
 import * as v from 'valibot';
+import { describe, expect, it } from 'vitest';
 import {
   checkResponseStatus,
-  parseJsonResponse,
-  parseTextResponse,
   parseArrayBufferResponse,
   parseBlobResponse,
   parseFormDataResponse,
+  parseJsonResponse,
+  parseTextResponse,
 } from '../src/core/response';
 import { ValifetchError } from '../src/errors/ValifetchError';
 

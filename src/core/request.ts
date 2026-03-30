@@ -1,11 +1,11 @@
 import type { GenericSchema } from 'valibot';
 import type {
-  HttpMethod,
-  ValifetchInstanceOptions,
-  NormalizedOptions,
-  ValifetchBaseOptions,
-  SearchParamsInit,
   Hooks,
+  HttpMethod,
+  NormalizedOptions,
+  SearchParamsInit,
+  ValifetchBaseOptions,
+  ValifetchInstanceOptions,
 } from '../types';
 import { buildUrl } from '../url/builder';
 import { validate } from '../validation/validate';

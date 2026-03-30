@@ -1,14 +1,14 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
-  runBeforeRequestHooks,
-  runAfterResponseHooks,
   runAfterParseResponseHooks,
+  runAfterResponseHooks,
+  runBeforeRequestHooks,
 } from '../src/core/hooks';
 import type {
-  NormalizedOptions,
-  BeforeRequestHook,
-  AfterResponseHook,
   AfterParseResponseHook,
+  AfterResponseHook,
+  BeforeRequestHook,
+  NormalizedOptions,
 } from '../src/types';
 
 describe('core/hooks', () => {

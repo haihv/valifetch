@@ -1,26 +1,26 @@
 import type { GenericSchema } from 'valibot';
+import { ValifetchError } from '../errors/ValifetchError';
 import type {
+  AfterParseResponseHook,
+  Hooks,
   HttpMethod,
-  ValifetchInstanceOptions,
-  ValifetchInstance,
   ResponseType,
   RetryOptions,
   SearchParamsInit,
-  Hooks,
-  AfterParseResponseHook,
+  ValifetchInstance,
+  ValifetchInstanceOptions,
 } from '../types';
-import { ValifetchError } from '../errors/ValifetchError';
-import { buildRequest } from './request';
-import { parseJsonResponse, checkResponseStatus } from './response';
 import {
-  runBeforeRequestHooks,
-  runAfterResponseHooks,
   runAfterParseResponseHooks,
+  runAfterResponseHooks,
+  runBeforeRequestHooks,
 } from './hooks';
+import { buildRequest } from './request';
+import { checkResponseStatus, parseJsonResponse } from './response';
 import {
+  calculateRetryDelay,
   normalizeRetryOptions,
   shouldRetry,
-  calculateRetryDelay,
   sleep,
 } from './retry';
 

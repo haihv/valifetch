@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as v from 'valibot';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { valifetch } from '../src/core/valifetch';
 import { ValifetchError } from '../src/errors/ValifetchError';
 

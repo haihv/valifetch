@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
 import * as v from 'valibot';
+import { describe, expect, it, vi } from 'vitest';
 import { buildRequest, mergeOptions } from '../src/core/request';
 import { ValifetchError } from '../src/errors/ValifetchError';
 

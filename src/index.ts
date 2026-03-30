@@ -1,40 +1,38 @@
 // Main export
-export { valifetch } from './core/valifetch';
-export { valifetch as default } from './core/valifetch';
-
-// Error class
-export { ValifetchError } from './errors/ValifetchError';
+export { valifetch, valifetch as default } from './core/valifetch';
 export type {
   ValidationErrorInfo,
   ValifetchErrorOptions,
 } from './errors/ValifetchError';
+// Error class
+export { ValifetchError } from './errors/ValifetchError';
 
 // Types
 export type {
-  // Path params
-  ExtractPathParams,
-  PathParamsRecord,
-  HasPathParams,
+  AfterResponseHook,
   // Hooks
   BeforeRequestHook,
-  AfterResponseHook,
+  ErrorCode,
+  // Path params
+  ExtractPathParams,
+  GetOptions,
+  HasPathParams,
   Hooks,
   // Options
   HttpMethod,
-  SearchParamsInit,
-  RetryOptions,
-  ErrorCode,
-  ValidationTarget,
-  ValifetchBaseOptions,
-  NormalizedOptions,
-  ValifetchOptions,
-  ValifetchInstanceOptions,
   InferResponseType,
+  NormalizedOptions,
+  PathParamsRecord,
+  PostOptions,
   // Instance
   ResponseType,
-  GetOptions,
-  PostOptions,
+  RetryOptions,
+  SearchParamsInit,
+  ValidationTarget,
+  ValifetchBaseOptions,
   ValifetchInstance,
+  ValifetchInstanceOptions,
+  ValifetchOptions,
 } from './types';
 
 export type { CallableInstance } from './types/instance';

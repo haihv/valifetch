@@ -1,28 +1,28 @@
 // Standalone types export for granular imports
 export type {
-  // Path params
-  ExtractPathParams,
-  PathParamsRecord,
-  HasPathParams,
+  AfterParseResponseHook,
+  AfterResponseHook,
   // Hooks
   BeforeRequestHook,
-  AfterResponseHook,
-  AfterParseResponseHook,
+  ErrorCode,
+  // Path params
+  ExtractPathParams,
+  GetOptions,
+  HasPathParams,
   Hooks,
   // Options
   HttpMethod,
-  SearchParamsInit,
-  RetryOptions,
-  ErrorCode,
-  ValidationTarget,
-  ValifetchBaseOptions,
-  NormalizedOptions,
-  ValifetchOptions,
-  ValifetchInstanceOptions,
   InferResponseType,
+  NormalizedOptions,
+  PathParamsRecord,
+  PostOptions,
   // Instance
   ResponseType,
-  GetOptions,
-  PostOptions,
+  RetryOptions,
+  SearchParamsInit,
+  ValidationTarget,
+  ValifetchBaseOptions,
   ValifetchInstance,
+  ValifetchInstanceOptions,
+  ValifetchOptions,
 } from './types/index';

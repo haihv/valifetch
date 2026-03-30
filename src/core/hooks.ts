@@ -1,7 +1,7 @@
 import type {
-  BeforeRequestHook,
-  AfterResponseHook,
   AfterParseResponseHook,
+  AfterResponseHook,
+  BeforeRequestHook,
   NormalizedOptions,
 } from '../types';
 
