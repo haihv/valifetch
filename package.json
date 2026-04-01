@@ -44,6 +44,8 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "test": "vitest",
+    "test:integration": "vitest --run tests/integration/",
+    "test:integration:coverage": "vitest --config vitest.integration.config.ts --coverage",
     "test:coverage": "vitest --coverage",
     "check": "biome check .",
     "check:fix": "biome check --write .",
