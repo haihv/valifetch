@@ -1,7 +1,12 @@
 import * as v from 'valibot';
-import { describe, expect, it } from 'vitest';
-import { checkResponseStatus, parseJsonResponse } from '../src/core/response';
+import { describe, expect, it, vi } from 'vitest';
+import {
+  checkResponseStatus,
+  parseJsonResponse,
+  wrapResponseWithProgress,
+} from '../src/core/response';
 import { ValifetchError } from '../src/errors/ValifetchError';
+import type { DownloadProgressEvent } from '../src/types/options';
 
 describe('core/response', () => {
   const createRequest = () => new Request('https://api.example.com/users');
@@ -417,6 +422,121 @@ describe('core/response', () => {
         // Assert - it should parse the JSON body regardless of status
         expect(result).toEqual({ error: 'Not Found' });
       });
+    });
+  });
+
+  describe('wrapResponseWithProgress', () => {
+    const makeStreamResponse = (
+      chunks: Uint8Array[],
+      contentLength?: number
+    ): Response => {
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          for (const chunk of chunks) {
+            controller.enqueue(chunk);
+          }
+          controller.close();
+        },
+      });
+
+      const headers: Record<string, string> = {};
+      if (contentLength !== undefined) {
+        headers['content-length'] = String(contentLength);
+      }
+
+      return new Response(stream, { status: 200, headers });
+    };
+
+    it('returns the original response unchanged when body is null', () => {
+      // Arrange
+      const response = new Response(null, { status: 204 });
+      const callback = vi.fn();
+
+      // Act
+      const result = wrapResponseWithProgress(response, callback);
+
+      // Assert
+      expect(result).toBe(response);
+      expect(callback).not.toHaveBeenCalled();
+    });
+
+    it('fires callback for each chunk with correct loaded/total/percent when Content-Length is present', async () => {
+      // Arrange
+      const encoder = new TextEncoder();
+      const chunk1 = encoder.encode('hel');
+      const chunk2 = encoder.encode('lo');
+      const total = chunk1.byteLength + chunk2.byteLength;
+
+      const response = makeStreamResponse([chunk1, chunk2], total);
+      const events: DownloadProgressEvent[] = [];
+      const onDownloadProgress = (e: DownloadProgressEvent) => events.push(e);
+
+      // Act
+      const wrapped = wrapResponseWithProgress(response, onDownloadProgress);
+      await wrapped.text(); // consume the body to drive the stream
+
+      // Assert
+      expect(events).toHaveLength(2);
+      expect(events[0]).toEqual({
+        loaded: chunk1.byteLength,
+        total,
+        percent: (chunk1.byteLength / total) * 100,
+      });
+      expect(events[1]).toEqual({
+        loaded: total,
+        total,
+        percent: 100,
+      });
+    });
+
+    it('fires callback with undefined total/percent when no Content-Length header', async () => {
+      // Arrange
+      const encoder = new TextEncoder();
+      const chunk = encoder.encode('hello');
+      const response = makeStreamResponse([chunk]);
+
+      const events: DownloadProgressEvent[] = [];
+      const wrapped = wrapResponseWithProgress(response, (e) => events.push(e));
+
+      // Act
+      await wrapped.text();
+
+      // Assert
+      expect(events).toHaveLength(1);
+      expect(events[0].loaded).toBe(chunk.byteLength);
+      expect(events[0].total).toBeUndefined();
+      expect(events[0].percent).toBeUndefined();
+    });
+
+    it('preserves response status and headers on the wrapped response', () => {
+      // Arrange
+      const encoder = new TextEncoder();
+      const chunk = encoder.encode('x');
+      const response = makeStreamResponse([chunk], 1);
+
+      // Act
+      const wrapped = wrapResponseWithProgress(response, vi.fn());
+
+      // Assert
+      expect(wrapped.status).toBe(200);
+      expect(wrapped.headers.get('content-length')).toBe('1');
+    });
+
+    it('caps percent at 100 even if loaded exceeds total', async () => {
+      // Arrange — simulate a Content-Length that is smaller than actual data
+      const encoder = new TextEncoder();
+      const chunk = encoder.encode('hello world'); // 11 bytes
+      // Declare a smaller content-length than actual (edge case)
+      const response = makeStreamResponse([chunk], 5);
+
+      const events: DownloadProgressEvent[] = [];
+      const wrapped = wrapResponseWithProgress(response, (e) => events.push(e));
+
+      // Act
+      await wrapped.text();
+
+      // Assert
+      expect(events[0].percent).toBe(100); // capped by Math.min
     });
   });
 });

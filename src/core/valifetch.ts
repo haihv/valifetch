@@ -2,6 +2,7 @@ import type { GenericSchema } from 'valibot';
 import { ValifetchError } from '../errors/ValifetchError';
 import type {
   AfterParseResponseHook,
+  DownloadProgressEvent,
   Hooks,
   HttpMethod,
   ResponseType,
@@ -16,7 +17,11 @@ import {
   runBeforeRequestHooks,
 } from './hooks';
 import { buildRequest } from './request';
-import { checkResponseStatus, parseJsonResponse } from './response';
+import {
+  checkResponseStatus,
+  parseJsonResponse,
+  wrapResponseWithProgress,
+} from './response';
 import {
   calculateRetryDelay,
   normalizeRetryOptions,
@@ -53,6 +58,7 @@ type RequestOptions = {
   responseType?: ResponseType;
   method?: HttpMethod;
   dedupe?: boolean;
+  onDownloadProgress?: (event: DownloadProgressEvent) => void;
 };
 
 const EMPTY = {} as RequestOptions;
@@ -69,6 +75,15 @@ async function handleResponse<T>(
   const responseType = options.responseType ?? 'json';
   checkResponseStatus(response, request, throwHttpErrors);
 
+  // Pipe body through a progress-tracking TransformStream before parsing.
+  // Skip for 'stream' and 'raw' since the caller takes ownership of the body.
+  const trackedResponse =
+    options.onDownloadProgress &&
+    responseType !== 'stream' &&
+    responseType !== 'raw'
+      ? wrapResponseWithProgress(response, options.onDownloadProgress)
+      : response;
+
   let data: T;
 
   switch (responseType) {
@@ -77,21 +92,21 @@ async function handleResponse<T>(
     case 'raw':
       return response as T;
     case 'text':
-      data = (await response.text()) as T;
+      data = (await trackedResponse.text()) as T;
       break;
     case 'blob':
-      data = (await response.blob()) as T;
+      data = (await trackedResponse.blob()) as T;
       break;
     case 'arrayBuffer':
-      data = (await response.arrayBuffer()) as T;
+      data = (await trackedResponse.arrayBuffer()) as T;
       break;
     case 'formData':
-      data = (await response.formData()) as T;
+      data = (await trackedResponse.formData()) as T;
       break;
     case 'json':
     default:
       data = (await parseJsonResponse({
-        response,
+        response: trackedResponse,
         request,
         responseSchema,
         validateResponse,

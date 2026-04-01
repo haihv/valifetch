@@ -19,6 +19,7 @@ A type-safe HTTP client built on native `fetch` with [Valibot](https://valibot.d
 - **Path Parameters** - Support for `/users/:id` syntax with validation
 - **Retry Logic** - Exponential backoff with jitter for failed requests
 - **Timeout & Cancellation** - AbortController support with configurable timeout
+- **Download Progress** - Track response body bytes received via `onDownloadProgress`
 - **Hooks** - `beforeRequest`, `afterResponse`, and `afterParseResponse` interceptors
 - **Instances** - Create configured instances with `create()` and `extend()`
 - **Minimal** - Tree-shakeable, valibot as peer dependency, ~17KB bundle
@@ -128,6 +129,7 @@ type Options = {
   validateRequest?: boolean; // Enable request validation (default: true)
   throwHttpErrors?: boolean; // Throw on non-2xx status (default: true)
   dedupe?: boolean; // Deduplicate concurrent identical requests (default: false)
+  onDownloadProgress?: (event: DownloadProgressEvent) => void; // Download progress callback (not called for responseType 'stream' or 'raw')
 
   // Hooks
   hooks?: {
@@ -421,6 +423,32 @@ const [a, b] = await Promise.all([
   api.get('/users/1'),
 ]);
 ```
+
+### Download Progress
+
+Track download progress with the `onDownloadProgress` callback. The callback is fired for each received chunk and receives a `DownloadProgressEvent`.
+
+```typescript
+type DownloadProgressEvent = {
+  loaded: number;           // bytes received so far
+  total: number | undefined; // total bytes (undefined if no Content-Length header)
+  percent: number | undefined; // 0–100 (undefined if total is unknown)
+};
+```
+
+```typescript
+const data = await valifetch.get('https://api.example.com/large-file.json', {
+  onDownloadProgress: ({ loaded, total, percent }) => {
+    if (percent !== undefined) {
+      console.log(`Downloaded ${percent.toFixed(1)}% (${loaded}/${total} bytes)`);
+    } else {
+      console.log(`Downloaded ${loaded} bytes`);
+    }
+  },
+});
+```
+
+> **Note:** `onDownloadProgress` is not called when `responseType` is `'stream'` or `'raw'`, because in those modes the caller takes direct ownership of the response body.
 
 ### Error Handling
 

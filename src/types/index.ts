@@ -13,6 +13,7 @@ export type {
 } from './instance';
 
 export type {
+  DownloadProgressEvent,
   ErrorCode,
   HttpMethod,
   InferResponseType,
