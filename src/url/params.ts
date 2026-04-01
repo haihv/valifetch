@@ -5,6 +5,13 @@ for (let code = 65; code <= 90; code++) VALID_PARAM_CHAR[code] = 1; // A-Z
 for (let code = 48; code <= 57; code++) VALID_PARAM_CHAR[code] = 1; // 0-9
 VALID_PARAM_CHAR[95] = 1; // _
 
+/**
+ * Replace `:param` placeholders in a path with URL-encoded values.
+ * Throws if a required parameter is missing or `null`/`undefined`.
+ * @param path - Path string with `:param` placeholders
+ * @param params - Map of parameter names to values
+ * @returns Path with placeholders replaced by encoded values
+ */
 export function replacePathParams(
   path: string,
   params: Record<string, string | number>
@@ -57,6 +64,11 @@ export function replacePathParams(
   return result;
 }
 
+/**
+ * Extract all `:param` names from a path pattern.
+ * @param path - Path string with `:param` placeholders
+ * @returns Array of parameter names in order of appearance
+ */
 export function extractParamNames(path: string): string[] {
   if (path.indexOf(':') === -1) return [];
 
@@ -82,6 +94,11 @@ export function extractParamNames(path: string): string[] {
   return names;
 }
 
+/**
+ * Check whether a path contains at least one valid `:param` placeholder.
+ * @param path - Path string to inspect
+ * @returns `true` if the path has at least one named parameter
+ */
 export function hasPathParams(path: string): boolean {
   const colonPosition = path.indexOf(':');
   if (colonPosition === -1) return false;

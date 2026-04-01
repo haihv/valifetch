@@ -1,5 +1,9 @@
 import type { HttpMethod, RetryOptions } from '../types';
 
+/**
+ * Default retry configuration: 2 retries on idempotent methods and common transient status codes,
+ * with exponential backoff + 20% jitter, capped at 30 s.
+ */
 export const DEFAULT_RETRY_OPTIONS: Required<RetryOptions> = {
   limit: 2,
   methods: ['GET', 'PUT', 'HEAD', 'DELETE', 'OPTIONS'],
@@ -11,6 +15,13 @@ export const DEFAULT_RETRY_OPTIONS: Required<RetryOptions> = {
   },
 };
 
+/**
+ * Normalize the `retry` option to a `RetryOptions` object or `false`.
+ * - `false` → disabled
+ * - `undefined` → default options
+ * - `number` → default options with custom limit
+ * - `RetryOptions` → merged with defaults
+ */
 export function normalizeRetryOptions(
   retry: RetryOptions | number | false | undefined
 ): RetryOptions | false {
@@ -32,6 +43,13 @@ export function normalizeRetryOptions(
   };
 }
 
+/**
+ * Determine whether a failed request should be retried.
+ * @param method - HTTP method of the request
+ * @param statusCode - HTTP status code of the response
+ * @param attemptCount - Number of attempts already made (0-based)
+ * @param options - Retry configuration
+ */
 export function shouldRetry(
   method: HttpMethod,
   statusCode: number,
@@ -57,6 +75,12 @@ export function shouldRetry(
   return true;
 }
 
+/**
+ * Calculate the delay in milliseconds before the next retry attempt.
+ * @param attemptCount - Number of attempts already made (0-based)
+ * @param options - Retry configuration
+ * @returns Delay in milliseconds
+ */
 export function calculateRetryDelay(
   attemptCount: number,
   options: RetryOptions
@@ -65,6 +89,10 @@ export function calculateRetryDelay(
   return delayFn(attemptCount);
 }
 
+/**
+ * Returns a promise that resolves after `ms` milliseconds.
+ * @param ms - Duration in milliseconds
+ */
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }

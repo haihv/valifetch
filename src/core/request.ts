@@ -127,6 +127,7 @@ export function mergeOptions(
   };
 }
 
+/** Result of {@link buildRequest} containing the constructed `Request` and derived options */
 export type BuildRequestResult = {
   request: Request;
   normalizedOptions: NormalizedOptions;

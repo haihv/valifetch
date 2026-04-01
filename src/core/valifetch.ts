@@ -515,4 +515,13 @@ function mergeOptions(
   return result;
 }
 
+/**
+ * The default valifetch instance.
+ * Use `.get()`, `.post()`, etc. directly, or call `.create()` / `.extend()` to make a configured instance.
+ *
+ * @example
+ * ```ts
+ * const data = await valifetch.get<User>('https://api.example.com/users/1');
+ * ```
+ */
 export const valifetch: ValifetchInstance = createInstance({});
