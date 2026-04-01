@@ -1,7 +1,7 @@
 import * as v from 'valibot';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { valifetch } from '../src/core/valifetch';
-import { ValifetchError } from '../src/errors/ValifetchError';
+import { valifetch } from '../../src/core/valifetch';
+import { ValifetchError } from '../../src/errors/ValifetchError';
 
 describe('core/valifetch', () => {
   let fetchSpy: ReturnType<typeof vi.spyOn>;

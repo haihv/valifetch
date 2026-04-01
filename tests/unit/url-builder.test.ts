@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildUrl } from '../src/url/builder';
+import { buildUrl } from '../../src/url/builder';
 
 describe('url/builder', () => {
   describe('buildUrl', () => {

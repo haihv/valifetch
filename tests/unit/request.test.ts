@@ -1,7 +1,7 @@
 import * as v from 'valibot';
 import { describe, expect, it, vi } from 'vitest';
-import { buildRequest, mergeOptions } from '../src/core/request';
-import { ValifetchError } from '../src/errors/ValifetchError';
+import { buildRequest, mergeOptions } from '../../src/core/request';
+import { ValifetchError } from '../../src/errors/ValifetchError';
 
 describe('core/request', () => {
   describe('mergeOptions', () => {

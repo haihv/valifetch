@@ -3,7 +3,7 @@ import {
   extractParamNames,
   hasPathParams,
   replacePathParams,
-} from '../src/url/params';
+} from '../../src/url/params';
 
 describe('url/params', () => {
   describe('replacePathParams', () => {

@@ -5,13 +5,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm run test                  # run all tests
-npm run test -- --run <file>  # run a single test file
-npm run test:coverage         # run tests with coverage (100% threshold required)
-npm run build                 # build to dist/ via tsup
-npm run check                 # Biome check (lint + format + imports)
-npm run check:fix             # Biome check with auto-fix
-npm run typecheck             # tsc --noEmit
+npm run test                          # run all tests once (unit + integration)
+npm run test:watch                    # run all tests in watch mode (development)
+npm run test -- <file>                # run a single test file
+npm run test:unit                     # run unit tests only (tests/unit/)
+npm run test:integration              # run integration tests only (tests/integration/)
+npm run test:coverage                 # run all tests with coverage (100% threshold enforced)
+npm run build                         # build to dist/ via tsup
+npm run check                         # Biome check (lint + format + imports)
+npm run check:fix                     # Biome check with auto-fix
+npm run typecheck                     # tsc --noEmit
 ```
 
 ## Architecture
@@ -50,6 +53,20 @@ valifetch.get(url, opts)
 ### Package exports
 
 Three subpath exports: `.` (main), `./error` (error class), `./types` (types only, zero runtime). All dual CJS/ESM via tsup. `valibot` is a peer dependency — not bundled.
+
+### Testing
+
+Unit tests live in `tests/unit/` and mock `globalThis.fetch` via `vi.spyOn`. They enforce 100% branch/line/function coverage on `src/`.
+
+Integration tests live in `tests/integration/` and spin up a real `http.createServer` (Node built-in, zero extra deps). They are excluded from the 100% coverage threshold but still run in `npm run test`. Key scenarios covered:
+
+- Chunked `onDownloadProgress` — real chunked transfer with `Content-Length`, verifies `loaded`/`total`/`percent`
+- FormData multipart upload — verifies `multipart/form-data` boundary and field names reach the server
+- Retry on 503 → 200 — real HTTP 503 triggers a retry; second request returns 200
+- Timeout — server never responds; asserts `TIMEOUT_ERROR` within the configured `timeout` ms
+- `prefixUrl` path joining — trailing-slash normalization and search-param encoding round-trips
+
+Integration tests are not run in the pre-commit hook (too slow); they run in CI alongside unit tests.
 
 ## Rules
 

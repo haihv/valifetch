@@ -3,13 +3,13 @@ import {
   runAfterParseResponseHooks,
   runAfterResponseHooks,
   runBeforeRequestHooks,
-} from '../src/core/hooks';
+} from '../../src/core/hooks';
 import type {
   AfterParseResponseHook,
   AfterResponseHook,
   BeforeRequestHook,
   NormalizedOptions,
-} from '../src/types';
+} from '../../src/types';
 
 describe('core/hooks', () => {
   const createMockOptions = (): NormalizedOptions => ({

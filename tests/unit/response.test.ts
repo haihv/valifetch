@@ -4,9 +4,9 @@ import {
   checkResponseStatus,
   parseJsonResponse,
   wrapResponseWithProgress,
-} from '../src/core/response';
-import { ValifetchError } from '../src/errors/ValifetchError';
-import type { DownloadProgressEvent } from '../src/types/options';
+} from '../../src/core/response';
+import { ValifetchError } from '../../src/errors/ValifetchError';
+import type { DownloadProgressEvent } from '../../src/types/options';
 
 describe('core/response', () => {
   const createRequest = () => new Request('https://api.example.com/users');
