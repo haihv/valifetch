@@ -71,3 +71,4 @@ Integration tests are not run in the pre-commit hook (too slow); they run in CI 
 ## Rules
 
 - **Docs must stay in sync with code.** Any change to public API, options, behaviour, or architecture must be reflected in `README.md` (and this file if architecture changes). Do not merge code changes without updating the relevant docs.
+- **Every exported symbol must have JSDoc.** This includes top-level exports and all members of exported types/classes (fields, methods, getters). JSR scores documentation coverage and requires ≥80% to avoid a penalty — aim for 100%. Plain `//` comments do not count; use `/** */` blocks.
