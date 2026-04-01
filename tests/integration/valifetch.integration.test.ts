@@ -4,7 +4,9 @@ import { createTestServer, readBody } from './helpers';
 
 describe('integration — real HTTP server', () => {
   it('fires onDownloadProgress with correct loaded/total/percent on chunked response', async () => {
-    const data = JSON.stringify({ message: 'chunked response test payload for progress tracking' });
+    const data = JSON.stringify({
+      message: 'chunked response test payload for progress tracking',
+    });
     const totalBytes = Buffer.byteLength(data);
     const half = Math.floor(totalBytes / 2);
     const chunk1 = data.slice(0, half);
@@ -24,7 +26,11 @@ describe('integration — real HTTP server', () => {
     });
 
     const url = await start();
-    const events: Array<{ loaded: number; total: number | undefined; percent: number | undefined }> = [];
+    const events: Array<{
+      loaded: number;
+      total: number | undefined;
+      percent: number | undefined;
+    }> = [];
 
     try {
       await valifetch.get(url, {
@@ -169,7 +175,9 @@ describe('integration — real HTTP server', () => {
       const client = valifetch.create({ prefixUrl: url });
 
       try {
-        await client.get('/search', { searchParams: { q: 'hello world', filter: 'a&b' } });
+        await client.get('/search', {
+          searchParams: { q: 'hello world', filter: 'a&b' },
+        });
         // Parse what the server received to check decoded values
         const parsed = new URL(`http://127.0.0.1${receivedUrl}`);
         expect(parsed.pathname).toBe('/search');

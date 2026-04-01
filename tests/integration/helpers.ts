@@ -1,7 +1,10 @@
+import type { IncomingMessage, Server, ServerResponse } from 'node:http';
 import { createServer } from 'node:http';
-import type { IncomingMessage, ServerResponse, Server } from 'node:http';
 
-export type Handler = (req: IncomingMessage, res: ServerResponse) => void | Promise<void>;
+export type Handler = (
+  req: IncomingMessage,
+  res: ServerResponse
+) => void | Promise<void>;
 
 export function createTestServer(handler: Handler): {
   start: () => Promise<string>;
