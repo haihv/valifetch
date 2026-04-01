@@ -1,4 +1,14 @@
-// Standalone types export for granular imports
+/**
+ * Standalone types export — import valifetch TypeScript types without pulling
+ * in any runtime code.
+ *
+ * @example
+ * ```ts
+ * import type { ValifetchInstance, ValifetchOptions } from 'valifetch/types';
+ * ```
+ *
+ * @module
+ */
 export type {
   // Hooks
   AfterParseResponseHook,

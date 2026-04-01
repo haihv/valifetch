@@ -1,4 +1,14 @@
-// Standalone error export for granular imports
+/**
+ * Standalone error export — import `ValifetchError` and related types without
+ * pulling in the full valifetch client.
+ *
+ * @example
+ * ```ts
+ * import { ValifetchError } from 'valifetch/error';
+ * ```
+ *
+ * @module
+ */
 
 export type {
   ValidationErrorInfo,

@@ -1,4 +1,18 @@
-// Main export
+/**
+ * Valifetch — a type-safe HTTP client built on native `fetch` with
+ * [Valibot](https://valibot.dev) schema validation.
+ *
+ * @example
+ * ```ts
+ * import valifetch from 'valifetch';
+ * import * as v from 'valibot';
+ *
+ * const UserSchema = v.object({ id: v.number(), name: v.string() });
+ * const user = await valifetch.get('/users/1', { responseSchema: UserSchema });
+ * ```
+ *
+ * @module
+ */
 export { valifetch, valifetch as default } from './core/valifetch';
 export type {
   ValidationErrorInfo,
