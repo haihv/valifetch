@@ -1,6 +1,7 @@
 # Valifetch
 
 [![npm version](https://img.shields.io/npm/v/valifetch.svg)](https://www.npmjs.com/package/valifetch)
+[![JSR](https://jsr.io/badges/@haihv/valifetch)](https://jsr.io/@haihv/valifetch)
 [![npm downloads](https://img.shields.io/npm/dm/valifetch.svg)](https://www.npmjs.com/package/valifetch)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![CI](https://github.com/haihv/valifetch/actions/workflows/ci.yml/badge.svg)](https://github.com/haihv/valifetch/actions/workflows/ci.yml)
@@ -25,8 +26,28 @@ A type-safe HTTP client built on native `fetch` with [Valibot](https://valibot.d
 
 ## Installation
 
+**npm / Node.js**
+
 ```bash
 npm install valifetch valibot
+```
+
+**Deno (via JSR)**
+
+```ts
+import valifetch from 'jsr:@haihv/valifetch';
+```
+
+Or add to `deno.json`:
+
+```bash
+deno add jsr:@haihv/valifetch
+```
+
+**Bun / other runtimes (via JSR)**
+
+```bash
+bunx jsr add @haihv/valifetch
 ```
 
 ## Quick Start
