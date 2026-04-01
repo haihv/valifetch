@@ -201,9 +201,7 @@ async function executeRequestCore<T>(
 
   let lastError: Error | undefined;
   let attemptCount = 0;
-  /* v8 ignore next */
-  const maxAttempts =
-    retryOptions === false ? 1 : (retryOptions.limit ?? 2) + 1;
+  const maxAttempts = retryOptions === false ? 1 : retryOptions.limit + 1;
 
   while (attemptCount < maxAttempts) {
     try {

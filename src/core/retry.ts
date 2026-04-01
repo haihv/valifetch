@@ -24,7 +24,7 @@ export const DEFAULT_RETRY_OPTIONS: Required<RetryOptions> = {
  */
 export function normalizeRetryOptions(
   retry: RetryOptions | number | false | undefined
-): RetryOptions | false {
+): Required<RetryOptions> | false {
   if (retry === false) {
     return false;
   }
