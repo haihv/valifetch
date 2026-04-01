@@ -47,7 +47,6 @@
     "test:watch": "vitest",
     "test:unit": "vitest run tests/unit/",
     "test:integration": "vitest run tests/integration/",
-    "test:integration:coverage": "vitest --config vitest.integration.config.ts --coverage",
     "test:coverage": "vitest run --coverage",
     "check": "biome check .",
     "check:fix": "biome check --write .",
