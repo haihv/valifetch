@@ -54,6 +54,18 @@ export type ErrorCode =
 export type ValidationTarget = 'response' | 'body' | 'params' | 'search';
 
 /**
+ * Progress event fired during response body download
+ */
+export type DownloadProgressEvent = {
+  /** Bytes received so far */
+  loaded: number;
+  /** Total bytes expected (undefined when no Content-Length header is present) */
+  total: number | undefined;
+  /** Download percentage 0–100 (undefined when total is unknown) */
+  percent: number | undefined;
+};
+
+/**
  * Base options without schemas (for internal use)
  */
 export type ValifetchBaseOptions = Omit<RequestInit, 'body' | 'method'> & {
@@ -77,6 +89,11 @@ export type ValifetchBaseOptions = Omit<RequestInit, 'body' | 'method'> & {
   dedupe?: boolean;
   /** Form body — FormData sends multipart/form-data; URLSearchParams or plain object sends application/x-www-form-urlencoded */
   form?: FormData | URLSearchParams | Record<string, string>;
+  /**
+   * Callback fired as response body bytes are received.
+   * Not called when `responseType` is `'stream'` or `'raw'` (caller owns the stream).
+   */
+  onDownloadProgress?: (event: DownloadProgressEvent) => void;
 };
 
 /**

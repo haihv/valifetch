@@ -7,6 +7,7 @@ export type {
   // Instance
   CallableInstance,
   // Options
+  DownloadProgressEvent,
   ErrorCode,
   // Path params
   ExtractPathParams,

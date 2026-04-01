@@ -1,5 +1,6 @@
 import type { GenericSchema, InferOutput } from 'valibot';
 import { ValifetchError } from '../errors/ValifetchError';
+import type { DownloadProgressEvent } from '../types/options';
 import { validate } from '../validation/validate';
 
 /** Options passed to response-parsing helpers */
@@ -67,4 +68,39 @@ export async function parseJsonResponse<T extends GenericSchema>(
   }
 
   return data as InferOutput<T>;
+}
+
+/**
+ * Wraps a Response so that `onDownloadProgress` is called as body bytes arrive.
+ * Reads `Content-Length` for total; percent is omitted when the header is absent.
+ * Returns the original response unchanged when its body is null.
+ */
+export function wrapResponseWithProgress(
+  response: Response,
+  onDownloadProgress: (event: DownloadProgressEvent) => void
+): Response {
+  if (!response.body) return response;
+
+  const contentLength = response.headers.get('content-length');
+  const total = contentLength !== null ? Number(contentLength) : undefined;
+
+  let loaded = 0;
+
+  const transform = new TransformStream<Uint8Array, Uint8Array>({
+    transform(chunk, controller) {
+      loaded += chunk.byteLength;
+      const percent =
+        total !== undefined ? Math.min((loaded / total) * 100, 100) : undefined;
+      onDownloadProgress({ loaded, total, percent });
+      controller.enqueue(chunk);
+    },
+  });
+
+  const pipedBody = response.body.pipeThrough(transform);
+
+  return new Response(pipedBody, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: response.headers,
+  });
 }

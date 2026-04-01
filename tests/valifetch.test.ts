@@ -1455,4 +1455,153 @@ describe('core/valifetch', () => {
       expect(request.headers.get('X-Dynamic')).toBe('dynamic-value');
     });
   });
+
+  describe('onDownloadProgress', () => {
+    const makeStreamResponse = (
+      chunks: Uint8Array[],
+      contentLength?: number
+    ): Response => {
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          for (const chunk of chunks) {
+            controller.enqueue(chunk);
+          }
+          controller.close();
+        },
+      });
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (contentLength !== undefined) {
+        headers['Content-Length'] = String(contentLength);
+      }
+
+      return new Response(stream, { status: 200, headers });
+    };
+
+    it('fires with correct loaded/total/percent when Content-Length is present', async () => {
+      // Arrange
+      const body = JSON.stringify({ id: 1 });
+      const encoder = new TextEncoder();
+      const chunk1 = encoder.encode(body.slice(0, 4));
+      const chunk2 = encoder.encode(body.slice(4));
+      const total = body.length;
+
+      fetchSpy.mockResolvedValue(makeStreamResponse([chunk1, chunk2], total));
+
+      const events: Array<{
+        loaded: number;
+        total: number | undefined;
+        percent: number | undefined;
+      }> = [];
+
+      // Act
+      await valifetch.get('https://example.com/data', {
+        onDownloadProgress: (e) => events.push(e),
+      });
+
+      // Assert
+      expect(events.length).toBeGreaterThanOrEqual(2);
+
+      // Each event should have defined total and percent
+      for (const e of events) {
+        expect(e.total).toBe(total);
+        expect(e.percent).toBeDefined();
+      }
+
+      // First event: partial load
+      expect(events[0].loaded).toBe(chunk1.byteLength);
+
+      // Last event: fully loaded
+      const last = events[events.length - 1];
+      expect(last.loaded).toBe(total);
+      expect(last.percent).toBe(100);
+    });
+
+    it('fires with loaded but undefined total/percent when no Content-Length', async () => {
+      // Arrange
+      const body = JSON.stringify({ id: 2 });
+      const encoder = new TextEncoder();
+      const chunk = encoder.encode(body);
+
+      fetchSpy.mockResolvedValue(makeStreamResponse([chunk]));
+
+      const events: Array<{
+        loaded: number;
+        total: number | undefined;
+        percent: number | undefined;
+      }> = [];
+
+      // Act
+      await valifetch.get('https://example.com/data', {
+        onDownloadProgress: (e) => events.push(e),
+      });
+
+      // Assert
+      expect(events.length).toBeGreaterThanOrEqual(1);
+
+      for (const e of events) {
+        expect(e.total).toBeUndefined();
+        expect(e.percent).toBeUndefined();
+        expect(e.loaded).toBeGreaterThan(0);
+      }
+    });
+
+    it('does NOT apply progress tracking for responseType stream', async () => {
+      // Arrange
+      const encoder = new TextEncoder();
+      const chunk = encoder.encode('data');
+      fetchSpy.mockResolvedValue(makeStreamResponse([chunk], 4));
+
+      const events: unknown[] = [];
+
+      // Act — caller owns the ReadableStream directly, no wrapping should happen
+      const stream = await valifetch.get('https://example.com/stream', {
+        responseType: 'stream',
+        onDownloadProgress: (e) => events.push(e),
+      });
+
+      // Assert: progress was not fired, raw stream returned
+      expect(events).toHaveLength(0);
+      expect(stream).toBeInstanceOf(ReadableStream);
+    });
+
+    it('does NOT apply progress tracking for responseType raw', async () => {
+      // Arrange
+      const encoder = new TextEncoder();
+      const chunk = encoder.encode('data');
+      fetchSpy.mockResolvedValue(makeStreamResponse([chunk], 4));
+
+      const events: unknown[] = [];
+
+      // Act — caller owns the Response directly, no wrapping should happen
+      const response = await valifetch.get('https://example.com/raw', {
+        responseType: 'raw',
+        onDownloadProgress: (e) => events.push(e),
+      });
+
+      // Assert
+      expect(events).toHaveLength(0);
+      expect(response).toBeInstanceOf(Response);
+    });
+
+    it('passes data through unchanged (response body is not corrupted)', async () => {
+      // Arrange
+      const payload = { id: 42, name: 'Alice' };
+      const body = JSON.stringify(payload);
+      const encoder = new TextEncoder();
+      const chunk = encoder.encode(body);
+
+      fetchSpy.mockResolvedValue(makeStreamResponse([chunk], chunk.byteLength));
+
+      // Act
+      const result = await valifetch.get('https://example.com/data', {
+        onDownloadProgress: vi.fn(),
+      });
+
+      // Assert: data flows through the TransformStream unchanged
+      expect(result).toEqual(payload);
+    });
+  });
 });
