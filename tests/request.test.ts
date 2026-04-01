@@ -783,6 +783,104 @@ describe('core/request', () => {
       });
     });
 
+    describe('form body handling', () => {
+      it('should send FormData without setting Content-Type', async () => {
+        // Arrange
+        const formData = new FormData();
+        formData.append(
+          'file',
+          new Blob(['hello'], { type: 'text/plain' }),
+          'hello.txt'
+        );
+        const options = { form: formData };
+        const instanceOptions = { prefixUrl: 'https://api.example.com' };
+
+        // Act
+        const result = await buildRequest(
+          '/upload',
+          'POST',
+          options as any,
+          instanceOptions
+        );
+
+        // Assert — Content-Type is set automatically by the runtime with the correct boundary
+        expect(result.request.headers.get('Content-Type')).toMatch(
+          /^multipart\/form-data; boundary=/
+        );
+        expect(result.request.body).not.toBeNull();
+      });
+
+      it('should send URLSearchParams with application/x-www-form-urlencoded', async () => {
+        // Arrange
+        const params = new URLSearchParams({
+          username: 'alice',
+          password: 'secret',
+        });
+        const options = { form: params };
+        const instanceOptions = { prefixUrl: 'https://api.example.com' };
+
+        // Act
+        const result = await buildRequest(
+          '/login',
+          'POST',
+          options as any,
+          instanceOptions
+        );
+
+        // Assert
+        expect(result.request.headers.get('Content-Type')).toBe(
+          'application/x-www-form-urlencoded'
+        );
+        const body = await result.request.text();
+        expect(body).toBe('username=alice&password=secret');
+      });
+
+      it('should send plain object as url-encoded with application/x-www-form-urlencoded', async () => {
+        // Arrange
+        const options = { form: { username: 'alice', password: 'secret' } };
+        const instanceOptions = { prefixUrl: 'https://api.example.com' };
+
+        // Act
+        const result = await buildRequest(
+          '/login',
+          'POST',
+          options as any,
+          instanceOptions
+        );
+
+        // Assert
+        expect(result.request.headers.get('Content-Type')).toBe(
+          'application/x-www-form-urlencoded'
+        );
+        const body = await result.request.text();
+        expect(body).toBe('username=alice&password=secret');
+      });
+
+      it('should not override existing Content-Type for url-encoded form', async () => {
+        // Arrange
+        const options = {
+          form: { key: 'value' },
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded; charset=utf-8',
+          },
+        };
+        const instanceOptions = { prefixUrl: 'https://api.example.com' };
+
+        // Act
+        const result = await buildRequest(
+          '/submit',
+          'POST',
+          options as any,
+          instanceOptions
+        );
+
+        // Assert
+        expect(result.request.headers.get('Content-Type')).toBe(
+          'application/x-www-form-urlencoded; charset=utf-8'
+        );
+      });
+    });
+
     describe('fetch options', () => {
       it('should pass credentials option', async () => {
         // Arrange
