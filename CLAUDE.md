@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 npm run test                  # run all tests
 npm run test -- --run <file>  # run a single test file
-npm run test:coverage         # run tests with coverage (90% threshold required)
+npm run test:coverage         # run tests with coverage (100% threshold required)
 npm run build                 # build to dist/ via tsup
 npm run check                 # Biome check (lint + format + imports)
 npm run check:fix             # Biome check with auto-fix
@@ -34,8 +34,8 @@ valifetch.get(url, opts)
 | File                           | Responsibility                                                                            |
 | ------------------------------ | ----------------------------------------------------------------------------------------- |
 | `src/core/valifetch.ts`        | Instance creation (`create`, `extend`, `callable`), HTTP method dispatch, options merging |
-| `src/core/request.ts`          | Builds `Request` object; validates request body/params/search against schemas             |
-| `src/core/response.ts`         | Status checking, JSON/text/blob/formData parsing, response schema validation              |
+| `src/core/request.ts`          | Builds `Request` object; validates request body/params/search against schemas; handles `json` and `form` bodies |
+| `src/core/response.ts`         | Status checking, JSON parsing, response schema validation                                 |
 | `src/core/retry.ts`            | Exponential backoff with jitter; default 2 retries on `[408, 413, 429, 500–504]`          |
 | `src/core/hooks.ts`            | `beforeRequest`, `afterResponse`, `afterParseResponse` hook runners                       |
 | `src/errors/ValifetchError.ts` | Custom error class with typed error codes                                                 |
@@ -50,3 +50,7 @@ valifetch.get(url, opts)
 ### Package exports
 
 Three subpath exports: `.` (main), `./error` (error class), `./types` (types only, zero runtime). All dual CJS/ESM via tsup. `valibot` is a peer dependency — not bundled.
+
+## Rules
+
+- **Docs must stay in sync with code.** Any change to public API, options, behaviour, or architecture must be reflected in `README.md` (and this file if architecture changes). Do not merge code changes without updating the relevant docs.

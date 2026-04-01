@@ -15,6 +15,7 @@ A type-safe HTTP client built on native `fetch` with [Valibot](https://valibot.d
 - **Schema Validation** - Validate response, body, path params, and search params with Valibot
 - **Type Inference** - Full TypeScript inference from schemas
 - **Auto-parsed Responses** - JSON responses are automatically parsed, no `.json()` needed
+- **File Uploads** - Send `FormData`, `URLSearchParams`, or plain objects via the `form` option
 - **Path Parameters** - Support for `/users/:id` syntax with validation
 - **Retry Logic** - Exponential backoff with jitter for failed requests
 - **Timeout & Cancellation** - AbortController support with configurable timeout
@@ -110,7 +111,8 @@ type Options = {
   searchSchema?: Schema; // Validate search/query parameters
 
   // Request data
-  json?: object; // JSON body (auto-stringified)
+  json?: object; // JSON body (auto-stringified, sets Content-Type: application/json)
+  form?: FormData | URLSearchParams | Record<string, string>; // Form body — FormData → multipart/form-data; URLSearchParams/object → application/x-www-form-urlencoded
   params?: object; // Path parameters for :param replacement
   searchParams?: string | URLSearchParams | Record<string, string | number | boolean | null | undefined> | Array<[string, string | number | boolean]>; // Query string parameters
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS'; // HTTP method (for callable syntax)
@@ -187,6 +189,29 @@ const newUser = await valifetch.post('https://api.example.com/users', {
   responseSchema: UserSchema,
 });
 ```
+
+### File Uploads & Form Body
+
+```typescript
+// Multipart file upload (FormData) — Content-Type is set automatically with the correct boundary
+const formData = new FormData();
+formData.append('file', fileInput.files[0]);
+formData.append('name', 'avatar');
+
+await api.post('/upload', { form: formData });
+
+// URL-encoded form — sets Content-Type: application/x-www-form-urlencoded
+await api.post('/login', {
+  form: { username: 'alice', password: 'secret' },
+});
+
+// URLSearchParams also works
+await api.post('/login', {
+  form: new URLSearchParams({ username: 'alice', password: 'secret' }),
+});
+```
+
+> **Note:** `form` and `json` are mutually exclusive — only one should be set per request.
 
 ### Search Parameters
 

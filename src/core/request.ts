@@ -178,7 +178,7 @@ export async function buildRequest(
 
   const headers = merged.headers;
 
-  // Handle JSON body
+  // Handle request body (json or form — mutually exclusive)
   let body: BodyInit | undefined;
   if (options.json !== undefined) {
     let jsonData: unknown = options.json;
@@ -200,6 +200,19 @@ export async function buildRequest(
     }
     if (!headers.has('Accept')) {
       headers.set('Accept', 'application/json');
+    }
+  } else if (options.form !== undefined) {
+    if (options.form instanceof FormData) {
+      // Let the browser set Content-Type with the correct multipart boundary
+      body = options.form;
+    } else {
+      body =
+        options.form instanceof URLSearchParams
+          ? options.form
+          : new URLSearchParams(options.form);
+      if (!headers.has('Content-Type')) {
+        headers.set('Content-Type', 'application/x-www-form-urlencoded');
+      }
     }
   }
 
