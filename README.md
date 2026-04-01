@@ -494,6 +494,7 @@ import type {
   BeforeRequestHook,
   AfterResponseHook,
   AfterParseResponseHook,
+  CallableInstance,
 } from 'valifetch/types';
 ```
 
