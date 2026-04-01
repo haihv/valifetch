@@ -75,6 +75,8 @@ export type ValifetchBaseOptions = Omit<RequestInit, 'body' | 'method'> & {
   hooks?: Hooks;
   /** Deduplicate concurrent identical requests (same method + URL). Default: false */
   dedupe?: boolean;
+  /** Form body — FormData sends multipart/form-data; URLSearchParams or plain object sends application/x-www-form-urlencoded */
+  form?: FormData | URLSearchParams | Record<string, string>;
 };
 
 /**
@@ -127,6 +129,8 @@ export type ValifetchOptions<
   searchSchema?: TSearchSchema;
   /** JSON body - validated against bodySchema if provided */
   json?: TBodySchema extends GenericSchema ? InferInput<TBodySchema> : unknown;
+  /** Form body — FormData sends multipart/form-data; URLSearchParams or plain object sends application/x-www-form-urlencoded */
+  form?: FormData | URLSearchParams | Record<string, string>;
   /** URL path parameters */
   params?: TParamsSchema extends GenericSchema
     ? InferInput<TParamsSchema>

@@ -40,6 +40,7 @@ type RequestOptions = {
   paramsSchema?: GenericSchema;
   searchSchema?: GenericSchema;
   json?: unknown;
+  form?: FormData | URLSearchParams | Record<string, string>;
   params?: Record<string, string | number>;
   credentials?: RequestCredentials;
   cache?: RequestCache;
