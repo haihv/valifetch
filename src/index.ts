@@ -9,6 +9,7 @@ export { ValifetchError } from './errors/ValifetchError';
 
 // Types
 export type {
+  AfterParseResponseHook,
   AfterResponseHook,
   // Hooks
   BeforeRequestHook,
