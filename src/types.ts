@@ -1,22 +1,23 @@
 // Standalone types export for granular imports
 export type {
+  // Hooks
   AfterParseResponseHook,
   AfterResponseHook,
-  // Hooks
   BeforeRequestHook,
+  // Instance
+  CallableInstance,
+  // Options
   ErrorCode,
   // Path params
   ExtractPathParams,
   GetOptions,
   HasPathParams,
   Hooks,
-  // Options
   HttpMethod,
   InferResponseType,
   NormalizedOptions,
   PathParamsRecord,
   PostOptions,
-  // Instance
   ResponseType,
   RetryOptions,
   SearchParamsInit,
