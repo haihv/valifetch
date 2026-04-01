@@ -7,9 +7,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 npm run test                          # run all tests (unit + integration)
 npm run test -- --run <file>          # run a single test file
-npm run test:coverage                 # run tests with coverage (100% threshold required)
-npm run test:integration              # run integration tests only
-npm run test:integration:coverage     # integration tests with coverage (shows which src/ lines they exercise)
+npm run test:unit                     # run unit tests only (tests/*.test.ts)
+npm run test:integration              # run integration tests only (tests/integration/)
+npm run test:coverage                 # run all tests with coverage (100% threshold enforced)
+npm run test:integration:coverage     # integration tests with coverage, no threshold (diagnostic: shows which src/ lines they exercise independently)
 npm run build                         # build to dist/ via tsup
 npm run check                         # Biome check (lint + format + imports)
 npm run check:fix                     # Biome check with auto-fix
