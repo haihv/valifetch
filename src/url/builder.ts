@@ -1,10 +1,15 @@
 import type { SearchParamsInit } from '../types';
 import { replacePathParams } from './params';
 
+/** Options for building a request URL */
 export type BuildUrlOptions = {
+  /** Base URL prefix prepended to the path */
   prefixUrl?: string;
+  /** URL path, optionally containing `:param` segments */
   path: string;
+  /** Path parameter values to interpolate into the path */
   params?: Record<string, string | number>;
+  /** Query string parameters appended to the URL */
   searchParams?: SearchParamsInit;
 };
 

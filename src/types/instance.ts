@@ -65,7 +65,9 @@ type ResolveResponseType<TData, TResponseSchema> =
  * Callable instance type for ky-style syntax
  */
 export type CallableInstance = {
+  /** Perform a request using the default method */
   <TData = unknown>(url: string, options?: ValifetchOptions): Promise<TData>;
+  /** GET request */
   get<
     TData = unknown,
     TPath extends string = string,
@@ -76,6 +78,7 @@ export type CallableInstance = {
     url: TPath,
     options?: GetOptions<TPath, TResponseSchema, TParamsSchema, TSearchSchema>
   ): Promise<ResolveResponseType<TData, TResponseSchema>>;
+  /** POST request */
   post<
     TData = unknown,
     TPath extends string = string,
@@ -93,6 +96,7 @@ export type CallableInstance = {
       TSearchSchema
     >
   ): Promise<ResolveResponseType<TData, TResponseSchema>>;
+  /** PUT request */
   put<
     TData = unknown,
     TPath extends string = string,
@@ -110,6 +114,7 @@ export type CallableInstance = {
       TSearchSchema
     >
   ): Promise<ResolveResponseType<TData, TResponseSchema>>;
+  /** PATCH request */
   patch<
     TData = unknown,
     TPath extends string = string,
@@ -127,6 +132,7 @@ export type CallableInstance = {
       TSearchSchema
     >
   ): Promise<ResolveResponseType<TData, TResponseSchema>>;
+  /** DELETE request */
   delete<
     TData = unknown,
     TPath extends string = string,
@@ -137,6 +143,7 @@ export type CallableInstance = {
     url: TPath,
     options?: GetOptions<TPath, TResponseSchema, TParamsSchema, TSearchSchema>
   ): Promise<ResolveResponseType<TData, TResponseSchema>>;
+  /** HEAD request - returns void */
   head<
     TPath extends string = string,
     TParamsSchema extends GenericSchema | undefined = undefined,
@@ -145,6 +152,7 @@ export type CallableInstance = {
     url: TPath,
     options?: GetOptions<TPath, undefined, TParamsSchema, TSearchSchema>
   ): Promise<void>;
+  /** OPTIONS request */
   options<
     TData = unknown,
     TPath extends string = string,
@@ -155,7 +163,9 @@ export type CallableInstance = {
     url: TPath,
     options?: GetOptions<TPath, TResponseSchema, TParamsSchema, TSearchSchema>
   ): Promise<ResolveResponseType<TData, TResponseSchema>>;
+  /** Create new instance with defaults */
   create(options?: ValifetchInstanceOptions): CallableInstance;
+  /** Extend current instance with additional options */
   extend(
     options:
       | ValifetchInstanceOptions

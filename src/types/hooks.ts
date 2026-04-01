@@ -33,7 +33,10 @@ export type AfterParseResponseHook<T = unknown> = (
  * All available hooks
  */
 export type Hooks = {
+  /** Hooks called before each request is sent */
   beforeRequest?: BeforeRequestHook[];
+  /** Hooks called after each response is received, before parsing */
   afterResponse?: AfterResponseHook[];
+  /** Hooks called after the response body has been parsed */
   afterParseResponse?: AfterParseResponseHook[];
 };

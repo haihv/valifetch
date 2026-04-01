@@ -100,12 +100,15 @@ export type ValifetchBaseOptions = Omit<RequestInit, 'body' | 'method'> & {
  * Normalized options after merging defaults (internal use)
  */
 export type NormalizedOptions = ValifetchBaseOptions & {
+  /** HTTP method for the request */
   method: HttpMethod;
+  /** Resolved headers object */
   headers: Headers;
 };
 
 /**
- * Helper type to conditionally require params based on path
+ * Conditionally requires `params` and `paramsSchema` based on whether the path contains dynamic segments.
+ * Paths with `:param` segments require params; paths without disallow them.
  */
 export type ParamsOption<
   TPath extends string,

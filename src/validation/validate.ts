@@ -2,11 +2,17 @@ import { type GenericSchema, type InferOutput, safeParse } from 'valibot';
 import { ValifetchError } from '../errors/ValifetchError';
 import type { ValidationTarget } from '../types';
 
+/** Options for validating data against a Valibot schema */
 export type ValidateOptions<T extends GenericSchema> = {
+  /** Valibot schema to validate against */
   schema: T;
+  /** Data to validate */
   data: unknown;
+  /** Which part of the request/response is being validated */
   target: ValidationTarget;
+  /** Originating request (included in thrown error) */
   request?: Request;
+  /** Associated response (included in thrown error) */
   response?: Response;
 };
 

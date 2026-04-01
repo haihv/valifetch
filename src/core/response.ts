@@ -5,10 +5,15 @@ import { validate } from '../validation/validate';
 
 /** Options passed to response-parsing helpers */
 export type HandleResponseOptions = {
+  /** The fetch Response to process */
   response: Response;
+  /** The originating Request */
   request: Request;
+  /** Optional Valibot schema to validate the parsed body against */
   responseSchema?: GenericSchema;
+  /** Whether to validate the response body against the schema */
   validateResponse: boolean;
+  /** Whether to throw on non-2xx status codes */
   throwHttpErrors: boolean;
 };
 
