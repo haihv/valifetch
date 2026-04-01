@@ -48,6 +48,7 @@
     "check": "biome check .",
     "check:fix": "biome check --write .",
     "typecheck": "tsc --noEmit",
+    "version": "node scripts/sync-jsr-version.mjs && git add jsr.json",
     "prepublishOnly": "npm run build",
     "prepare": "husky"
   },

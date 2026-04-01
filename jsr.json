@@ -1,0 +1,16 @@
+{
+  "name": "@haihv/valifetch",
+  "version": "0.3.0",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts",
+    "./error": "./src/error.ts",
+    "./types": "./src/types.ts"
+  },
+  "imports": {
+    "valibot": "npm:valibot@^1.0.0"
+  },
+  "publish": {
+    "include": ["src/**/*.ts", "LICENSE", "README.md", "CHANGELOG.md"]
+  }
+}

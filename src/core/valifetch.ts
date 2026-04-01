@@ -515,4 +515,4 @@ function mergeOptions(
   return result;
 }
 
-export const valifetch = createInstance({});
+export const valifetch: ValifetchInstance = createInstance({});
