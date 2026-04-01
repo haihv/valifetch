@@ -201,6 +201,7 @@ async function executeRequestCore<T>(
 
   let lastError: Error | undefined;
   let attemptCount = 0;
+  /* v8 ignore next */
   const maxAttempts =
     retryOptions === false ? 1 : (retryOptions.limit ?? 2) + 1;
 
@@ -283,6 +284,7 @@ async function executeRequestCore<T>(
 
   // Defensive: should never reach here as the loop always exits via return or throw
   // Kept as safety net in case of unexpected edge cases
+  /* v8 ignore next 5 */
   throw new ValifetchError({
     message: lastError?.message || 'Request failed after retries',
     code: 'NETWORK_ERROR',

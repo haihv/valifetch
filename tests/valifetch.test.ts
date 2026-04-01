@@ -79,6 +79,19 @@ describe('core/valifetch', () => {
     });
 
     describe('post', () => {
+      it('should make POST request without options', async () => {
+        // Arrange — covers `options ?? EMPTY` false branch
+        mockFetch({ id: 1 });
+
+        // Act
+        const result = await valifetch.post('https://api.example.com/users');
+
+        // Assert
+        const [request] = fetchSpy.mock.calls[0] as [Request, RequestInit];
+        expect(request.method).toBe('POST');
+        expect(result).toEqual({ id: 1 });
+      });
+
       it('should make POST request with JSON body', async () => {
         // Arrange
         mockFetch({ id: 1, name: 'John' }, 201);
@@ -130,6 +143,19 @@ describe('core/valifetch', () => {
     });
 
     describe('put', () => {
+      it('should make PUT request without options', async () => {
+        // Arrange — covers `options ?? EMPTY` false branch
+        mockFetch({ id: 1 });
+
+        // Act
+        const result = await valifetch.put('https://api.example.com/users/1');
+
+        // Assert
+        const [request] = fetchSpy.mock.calls[0] as [Request, RequestInit];
+        expect(request.method).toBe('PUT');
+        expect(result).toEqual({ id: 1 });
+      });
+
       it('should make PUT request', async () => {
         // Arrange
         mockFetch({ id: 1, name: 'John Updated' });
@@ -147,6 +173,19 @@ describe('core/valifetch', () => {
     });
 
     describe('patch', () => {
+      it('should make PATCH request without options', async () => {
+        // Arrange — covers `options ?? EMPTY` false branch
+        mockFetch({ id: 1 });
+
+        // Act
+        const result = await valifetch.patch('https://api.example.com/users/1');
+
+        // Assert
+        const [request] = fetchSpy.mock.calls[0] as [Request, RequestInit];
+        expect(request.method).toBe('PATCH');
+        expect(result).toEqual({ id: 1 });
+      });
+
       it('should make PATCH request', async () => {
         // Arrange
         mockFetch({ id: 1, name: 'John Patched' });
@@ -424,6 +463,43 @@ describe('core/valifetch', () => {
         expect(callCount).toBe(2);
         expect(result).toEqual({ success: true });
       }, 10000);
+
+      it('should use default retry limit of 2 when limit is not specified', async () => {
+        // Arrange — covers `retryOptions.limit ?? 2` false branch
+        let callCount = 0;
+        fetchSpy.mockImplementation(() => {
+          callCount++;
+          if (callCount <= 2) return Promise.reject(new Error('Network error'));
+          return Promise.resolve(new Response('{"ok":true}', { status: 200 }));
+        });
+
+        // Act — retry with no limit specified, defaults to 2
+        const result = await valifetch.get('https://api.example.com/users', {
+          retry: { methods: ['GET'], delay: () => 1 },
+        });
+
+        // Assert
+        expect(callCount).toBe(3); // 1 initial + 2 retries
+        expect(result).toEqual({ ok: true });
+      }, 10000);
+
+      it('should use fallback message when error has no message', async () => {
+        // Arrange — covers `error.message || 'Network request failed'` false branch
+        mockFetchError(new Error(''));
+
+        // Act & Assert
+        try {
+          await valifetch.get('https://api.example.com/users', {
+            retry: false,
+          });
+          expect.fail('Should have thrown');
+        } catch (error) {
+          expect(error).toBeInstanceOf(ValifetchError);
+          expect((error as ValifetchError).message).toBe(
+            'Network request failed'
+          );
+        }
+      });
 
       it('should rethrow non-Error objects', async () => {
         // Arrange
@@ -746,6 +822,18 @@ describe('core/valifetch', () => {
   });
 
   describe('create instance', () => {
+    it('should create instance without arguments', async () => {
+      // Arrange — covers `newOptions ?? EMPTY` false branch
+      mockFetch({ id: 1 });
+      const api = valifetch.create();
+
+      // Act
+      const result = await api.get('https://api.example.com/users/1');
+
+      // Assert
+      expect(result).toEqual({ id: 1 });
+    });
+
     it('should create instance with default options', async () => {
       // Arrange
       mockFetch({ id: 1 });
@@ -1089,6 +1177,140 @@ describe('core/valifetch', () => {
 
       // Assert
       expect(fetchSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('should extend with referrer option', async () => {
+      // Arrange
+      mockFetch({ id: 1 });
+      const baseApi = valifetch.create({
+        prefixUrl: 'https://api.example.com',
+      });
+      const extendedApi = baseApi.extend({
+        referrer: 'https://referrer.example.com',
+      });
+
+      // Act
+      await extendedApi.get('/users/1');
+
+      // Assert
+      const [request] = fetchSpy.mock.calls[0] as [Request, RequestInit];
+      expect(request.referrer).toBe('https://referrer.example.com/');
+    });
+
+    it('should inherit parent hooks when child has no hooks', async () => {
+      // Arrange
+      mockFetch({ id: 1 });
+      const parentHook = vi.fn();
+      const baseApi = valifetch.create({
+        prefixUrl: 'https://api.example.com',
+        hooks: { beforeRequest: [parentHook] },
+      });
+      const extendedApi = baseApi.extend({ timeout: 5000 });
+
+      // Act
+      await extendedApi.get('/users/1');
+
+      // Assert
+      expect(parentHook).toHaveBeenCalled();
+    });
+
+    it('should inherit parent headers when child adds no headers', async () => {
+      // Arrange
+      mockFetch({ id: 1 });
+      const baseApi = valifetch.create({
+        prefixUrl: 'https://api.example.com',
+        headers: { Authorization: 'Bearer token' },
+      });
+      const extendedApi = baseApi.extend({ timeout: 5000 });
+
+      // Act
+      await extendedApi.get('/users/1');
+
+      // Assert
+      const [request] = fetchSpy.mock.calls[0] as [Request, RequestInit];
+      expect(request.headers.get('Authorization')).toBe('Bearer token');
+    });
+
+    it('should extend with a different prefixUrl', async () => {
+      // Arrange
+      mockFetch({ id: 1 });
+      const baseApi = valifetch.create({
+        prefixUrl: 'https://api.example.com',
+      });
+      const extendedApi = baseApi.extend({
+        prefixUrl: 'https://v2.example.com',
+      });
+
+      // Act
+      await extendedApi.get('/users/1');
+
+      // Assert
+      const [request] = fetchSpy.mock.calls[0] as [Request, RequestInit];
+      expect(request.url).toContain('v2.example.com');
+    });
+
+    it('should add hooks when base instance has none', async () => {
+      // Arrange
+      mockFetch({ id: 1 });
+      const childHook = vi.fn();
+      const baseApi = valifetch.create({
+        prefixUrl: 'https://api.example.com',
+      });
+      const extendedApi = baseApi.extend({
+        hooks: { beforeRequest: [childHook] },
+      });
+
+      // Act
+      await extendedApi.get('/users/1');
+
+      // Assert
+      expect(childHook).toHaveBeenCalled();
+    });
+
+    it('should merge partial hooks — parent afterResponse, child beforeRequest', async () => {
+      // Arrange — covers concatArrays(undefined, [hook]) branch
+      mockFetch({ id: 1 });
+      const afterResponseHook = vi
+        .fn()
+        .mockImplementation((req, opts, res) => res);
+      const beforeRequestHook = vi.fn();
+      const baseApi = valifetch.create({
+        prefixUrl: 'https://api.example.com',
+        hooks: { afterResponse: [afterResponseHook] },
+      });
+      const extendedApi = baseApi.extend({
+        hooks: { beforeRequest: [beforeRequestHook] },
+      });
+
+      // Act
+      await extendedApi.get('/users/1');
+
+      // Assert
+      expect(afterResponseHook).toHaveBeenCalled();
+      expect(beforeRequestHook).toHaveBeenCalled();
+    });
+
+    it('should merge partial hooks — parent beforeRequest, child afterResponse', async () => {
+      // Arrange — covers concatArrays([hook], undefined) branch
+      mockFetch({ id: 1 });
+      const beforeRequestHook = vi.fn();
+      const afterResponseHook = vi
+        .fn()
+        .mockImplementation((req, opts, res) => res);
+      const baseApi = valifetch.create({
+        prefixUrl: 'https://api.example.com',
+        hooks: { beforeRequest: [beforeRequestHook] },
+      });
+      const extendedApi = baseApi.extend({
+        hooks: { afterResponse: [afterResponseHook] },
+      });
+
+      // Act
+      await extendedApi.get('/users/1');
+
+      // Assert
+      expect(beforeRequestHook).toHaveBeenCalled();
+      expect(afterResponseHook).toHaveBeenCalled();
     });
   });
 
