@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { ValifetchError } from '../src/errors/ValifetchError';
-import type { ErrorCode, ValidationTarget } from '../src/types';
+import { ValifetchError } from '../../src/errors/ValifetchError';
+import type { ErrorCode, ValidationTarget } from '../../src/types';
 
 describe('errors/ValifetchError', () => {
   describe('constructor', () => {

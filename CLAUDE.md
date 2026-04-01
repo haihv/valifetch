@@ -5,9 +5,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm run test                          # run all tests (unit + integration)
-npm run test -- --run <file>          # run a single test file
-npm run test:unit                     # run unit tests only (tests/*.test.ts)
+npm run test                          # run all tests once (unit + integration)
+npm run test:watch                    # run all tests in watch mode (development)
+npm run test -- <file>                # run a single test file
+npm run test:unit                     # run unit tests only (tests/unit/)
 npm run test:integration              # run integration tests only (tests/integration/)
 npm run test:coverage                 # run all tests with coverage (100% threshold enforced)
 npm run test:integration:coverage     # integration tests with coverage, no threshold (diagnostic: shows which src/ lines they exercise independently)
@@ -56,7 +57,7 @@ Three subpath exports: `.` (main), `./error` (error class), `./types` (types onl
 
 ### Testing
 
-Unit tests live in `tests/` and mock `globalThis.fetch` via `vi.spyOn`. They enforce 100% branch/line/function coverage on `src/`.
+Unit tests live in `tests/unit/` and mock `globalThis.fetch` via `vi.spyOn`. They enforce 100% branch/line/function coverage on `src/`.
 
 Integration tests live in `tests/integration/` and spin up a real `http.createServer` (Node built-in, zero extra deps). They are excluded from the 100% coverage threshold but still run in `npm run test`. Key scenarios covered:
 

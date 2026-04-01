@@ -5,7 +5,7 @@ import {
   normalizeRetryOptions,
   shouldRetry,
   sleep,
-} from '../src/core/retry';
+} from '../../src/core/retry';
 
 describe('core/retry', () => {
   describe('DEFAULT_RETRY_OPTIONS', () => {

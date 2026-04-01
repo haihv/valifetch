@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { valifetch } from '../src/core/valifetch';
+import { valifetch } from '../../src/core/valifetch';
 
 describe('request deduplication', () => {
   let fetchSpy: ReturnType<typeof vi.spyOn>;
