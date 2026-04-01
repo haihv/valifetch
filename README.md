@@ -112,11 +112,11 @@ type Options = {
   // Request data
   json?: object; // JSON body (auto-stringified)
   params?: object; // Path parameters for :param replacement
-  searchParams?: object; // Query string parameters
+  searchParams?: string | URLSearchParams | Record<string, string | number | boolean | null | undefined> | Array<[string, string | number | boolean]>; // Query string parameters
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS'; // HTTP method (for callable syntax)
 
   // Response format
-  responseType?: 'json' | 'text' | 'blob' | 'arrayBuffer' | 'formData' | 'raw';
+  responseType?: 'json' | 'text' | 'blob' | 'arrayBuffer' | 'formData' | 'stream' | 'raw';
 
   // Configuration
   prefixUrl?: string; // Base URL prefix
@@ -125,6 +125,7 @@ type Options = {
   validateResponse?: boolean; // Enable response validation (default: true)
   validateRequest?: boolean; // Enable request validation (default: true)
   throwHttpErrors?: boolean; // Throw on non-2xx status (default: true)
+  dedupe?: boolean; // Deduplicate concurrent identical requests (default: false)
 
   // Hooks
   hooks?: {
@@ -217,6 +218,11 @@ const html = await valifetch.get('https://example.com', {
 // Blob
 const image = await valifetch.get('https://example.com/image.png', {
   responseType: 'blob',
+});
+
+// Streaming (returns response.body as ReadableStream)
+const stream = await valifetch.get('https://example.com/large-file', {
+  responseType: 'stream',
 });
 
 // Raw Response object
@@ -372,6 +378,23 @@ const promise = valifetch.get('https://api.example.com/slow', {
 
 // Cancel the request
 controller.abort();
+```
+
+### Deduplication
+
+When `dedupe: true`, concurrent requests with the same method and URL share a single in-flight promise. Subsequent calls made before the first resolves reuse the same request rather than firing a new one.
+
+```typescript
+const api = valifetch.create({
+  prefixUrl: 'https://api.example.com',
+  dedupe: true,
+});
+
+// These two concurrent calls result in only one HTTP request
+const [a, b] = await Promise.all([
+  api.get('/users/1'),
+  api.get('/users/1'),
+]);
 ```
 
 ### Error Handling
