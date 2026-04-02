@@ -541,3 +541,8 @@ function mergeOptions(
  * ```
  */
 export const valifetch: ValifetchInstance = createInstance({});
+
+/** Default export alias — enables `import valifetch from 'valifetch'` syntax. */
+const _default: ValifetchInstance = valifetch;
+
+export { _default as default };

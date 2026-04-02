@@ -13,7 +13,7 @@
  *
  * @module
  */
-export { valifetch, valifetch as default } from './core/valifetch';
+export { default, valifetch } from './core/valifetch';
 export type {
   ValidationErrorInfo,
   ValifetchErrorOptions,

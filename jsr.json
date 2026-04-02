@@ -3,11 +3,7 @@
   "version": "0.4.2",
   "description": "Type-safe HTTP client built on native fetch with Valibot schema validation",
   "license": "MIT",
-  "exports": {
-    ".": "./src/index.ts",
-    "./error": "./src/error.ts",
-    "./types": "./src/types.ts"
-  },
+  "exports": "./src/index.ts",
   "imports": {
     "valibot": "npm:valibot@^1.0.0"
   },
