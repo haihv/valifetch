@@ -1605,7 +1605,7 @@ describe('core/valifetch', () => {
     });
   });
 
-  describe('per-request timeout override (HAI-143)', () => {
+  describe('per-request timeout override', () => {
     it('should use per-request timeout when specified, overriding instance timeout', async () => {
       // Arrange: instance has a short timeout but the request uses a longer one
       vi.useFakeTimers();
