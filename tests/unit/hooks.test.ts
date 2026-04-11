@@ -317,53 +317,60 @@ describe('core/hooks', () => {
         expect(result).toBe(modifiedResponse);
       });
 
-      it('should pass modified response to subsequent hooks', async () => {
-        // Arrange
+      it('should short-circuit remaining hooks when one returns a Response', async () => {
+        // The first hook that returns a Response wins; subsequent hooks are skipped.
+        // This prevents infinite loops in token-refresh patterns.
         const request = new Request('https://api.example.com/users');
         const originalResponse = new Response('{}', { status: 200 });
-        const modifiedResponse = new Response('{"modified": true}', {
+        const replacementResponse = new Response('{"replaced": true}', {
           status: 200,
         });
         const options = createMockOptions();
 
         const hook1: AfterResponseHook = vi
           .fn()
-          .mockResolvedValue(modifiedResponse);
+          .mockResolvedValue(replacementResponse);
         const hook2: AfterResponseHook = vi.fn().mockResolvedValue(undefined);
-
-        // Act
-        await runAfterResponseHooks(request, options, originalResponse, [
-          hook1,
-          hook2,
-        ]);
-
-        // Assert
-        expect(hook2).toHaveBeenCalledWith(request, options, modifiedResponse);
-      });
-
-      it('should chain multiple response modifications', async () => {
-        // Arrange
-        const request = new Request('https://api.example.com/users');
-        const response1 = new Response('{}', { status: 200 });
-        const response2 = new Response('{"step": 1}', { status: 200 });
-        const response3 = new Response('{"step": 2}', { status: 200 });
-        const options = createMockOptions();
-
-        const hook1: AfterResponseHook = vi.fn().mockResolvedValue(response2);
-        const hook2: AfterResponseHook = vi.fn().mockResolvedValue(response3);
 
         // Act
         const result = await runAfterResponseHooks(
           request,
           options,
-          response1,
+          originalResponse,
           [hook1, hook2]
         );
 
-        // Assert
-        expect(result).toBe(response3);
-        expect(hook1).toHaveBeenCalledWith(request, options, response1);
-        expect(hook2).toHaveBeenCalledWith(request, options, response2);
+        // Assert: hook1's replacement is returned, hook2 is never called
+        expect(result).toBe(replacementResponse);
+        expect(hook2).not.toHaveBeenCalled();
+      });
+
+      it('should return replacement from the first hook that provides one, ignoring later hooks', async () => {
+        // If hook1 returns void and hook2 returns a Response, hook2 wins
+        const request = new Request('https://api.example.com/users');
+        const originalResponse = new Response('{}', { status: 200 });
+        const replacementResponse = new Response('{"from-hook2": true}', {
+          status: 200,
+        });
+        const options = createMockOptions();
+
+        const hook1: AfterResponseHook = vi.fn().mockResolvedValue(undefined);
+        const hook2: AfterResponseHook = vi
+          .fn()
+          .mockResolvedValue(replacementResponse);
+        const hook3: AfterResponseHook = vi.fn();
+
+        // Act
+        const result = await runAfterResponseHooks(
+          request,
+          options,
+          originalResponse,
+          [hook1, hook2, hook3]
+        );
+
+        // Assert: hook2 replacement returned; hook3 was never reached
+        expect(result).toBe(replacementResponse);
+        expect(hook3).not.toHaveBeenCalled();
       });
     });
 

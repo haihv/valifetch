@@ -188,4 +188,39 @@ describe('integration — real HTTP server', () => {
       }
     });
   });
+
+  it('afterResponse hook can replace a 401 response with a refreshed one (HAI-146)', async () => {
+    // Server: returns 401 without the magic header, 200 with it
+    const { start, stop } = createTestServer((req, res) => {
+      if (req.headers['x-token'] === 'valid') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ user: 'alice' }));
+      } else {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Unauthorized' }));
+      }
+    });
+
+    const url = await start();
+
+    try {
+      const result = await valifetch.get(url, {
+        retry: false,
+        hooks: {
+          afterResponse: [
+            async (_req, _opts, response) => {
+              if (response.status === 401) {
+                // Simulate a token refresh by re-fetching with the correct header
+                return fetch(url, { headers: { 'x-token': 'valid' } });
+              }
+            },
+          ],
+        },
+      });
+
+      expect(result).toEqual({ user: 'alice' });
+    } finally {
+      await stop();
+    }
+  });
 });

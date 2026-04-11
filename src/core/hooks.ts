@@ -42,12 +42,15 @@ export async function runBeforeRequestHooks(
 
 /**
  * Run all `afterResponse` hooks in order.
- * If a hook returns a new `Response`, it replaces the current one for subsequent hooks.
+ * If a hook returns a `Response`, the chain short-circuits immediately and that response is
+ * returned (remaining hooks are skipped). This enables patterns like 401 token-refresh + retry
+ * without triggering an infinite loop — hooks only run once per request attempt.
+ * Hooks that return `void` or `undefined` leave the response unchanged.
  * @param request - The original request
  * @param options - Normalized request options
  * @param response - The response received from fetch
  * @param hooks - Array of hooks to run
- * @returns The (possibly modified) `Response`
+ * @returns The (possibly replaced) `Response`
  */
 export async function runAfterResponseHooks(
   request: Request,
@@ -59,17 +62,15 @@ export async function runAfterResponseHooks(
     return response;
   }
 
-  let currentResponse = response;
-
   for (const hook of hooks) {
-    const result = await hook(request, options, currentResponse);
+    const result = await hook(request, options, response);
 
     if (result instanceof Response) {
-      currentResponse = result;
+      return result;
     }
   }
 
-  return currentResponse;
+  return response;
 }
 
 /**
