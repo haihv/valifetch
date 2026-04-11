@@ -1667,4 +1667,73 @@ describe('core/valifetch', () => {
       await assertion;
     });
   });
+
+  describe('network error retry with method guard', () => {
+    it('should retry GET on network error (TypeError)', async () => {
+      // Arrange
+      let callCount = 0;
+      fetchSpy.mockImplementation(() => {
+        callCount++;
+        if (callCount < 3) {
+          return Promise.reject(new TypeError('Failed to fetch'));
+        }
+        return Promise.resolve(new Response('{"ok":true}', { status: 200 }));
+      });
+
+      // Act
+      const result = await valifetch.get('https://api.example.com/data', {
+        retry: { limit: 3, methods: ['GET'], statusCodes: [], delay: () => 1 },
+      });
+
+      // Assert
+      expect(callCount).toBe(3);
+      expect(result).toEqual({ ok: true });
+    });
+
+    it('should NOT retry POST on network error by default', async () => {
+      // POST must not retry — risks duplicate submissions
+      let callCount = 0;
+      fetchSpy.mockImplementation(() => {
+        callCount++;
+        return Promise.reject(new TypeError('Failed to fetch'));
+      });
+
+      await expect(
+        valifetch.post('https://api.example.com/users', {
+          json: { name: 'Alice' },
+          retry: { limit: 3, delay: () => 1 },
+        })
+      ).rejects.toMatchObject({ code: 'NETWORK_ERROR' });
+
+      expect(callCount).toBe(1);
+    });
+
+    it('should retry POST on network error when explicitly included in methods', async () => {
+      let callCount = 0;
+      fetchSpy.mockImplementation(() => {
+        callCount++;
+        if (callCount < 2)
+          return Promise.reject(new TypeError('Failed to fetch'));
+        return Promise.resolve(new Response('{"id":1}', { status: 201 }));
+      });
+
+      const result = await valifetch.post('https://api.example.com/users', {
+        json: {},
+        retry: { limit: 2, methods: ['POST'], statusCodes: [], delay: () => 1 },
+      });
+
+      expect(callCount).toBe(2);
+      expect(result).toEqual({ id: 1 });
+    });
+
+    it('should not retry network error when retry is false', async () => {
+      fetchSpy.mockRejectedValue(new TypeError('Failed to fetch'));
+
+      await expect(
+        valifetch.get('https://api.example.com/data', { retry: false })
+      ).rejects.toMatchObject({ code: 'NETWORK_ERROR' });
+
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+    });
+  });
 });

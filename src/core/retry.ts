@@ -90,6 +90,33 @@ export function calculateRetryDelay(
 }
 
 /**
+ * Determine whether a network-level error (e.g. `TypeError: Failed to fetch`) should be retried.
+ * Applies the same method guard as {@link shouldRetry} — non-idempotent methods (e.g. POST) are
+ * not retried by default to prevent duplicate submissions.
+ * @param method - HTTP method of the request
+ * @param attemptCount - Number of attempts already made (0-based)
+ * @param options - Retry configuration
+ */
+export function shouldRetryNetworkError(
+  method: HttpMethod,
+  attemptCount: number,
+  options: RetryOptions
+): boolean {
+  const limit = options.limit ?? DEFAULT_RETRY_OPTIONS.limit;
+  const methods = options.methods ?? DEFAULT_RETRY_OPTIONS.methods;
+
+  if (attemptCount >= limit) {
+    return false;
+  }
+
+  if (!methods.includes(method)) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
  * Returns a promise that resolves after `ms` milliseconds.
  * @param ms - Duration in milliseconds
  */
