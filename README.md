@@ -390,10 +390,18 @@ const api3 = valifetch.create({ retry: false });
 ### Timeout & Cancellation
 
 ```typescript
-// Timeout
-const user = await valifetch.get('https://api.example.com/users/1', {
-  timeout: 5000, // 5 seconds
+// Instance-level timeout (applies to every request)
+const api = valifetch.create({ timeout: 10_000 });
+
+// Per-request timeout — overrides the instance default for this call only
+const user = await api.get('https://api.example.com/users/1', {
+  timeout: 2_000, // tight 2 s for a health-check endpoint
   responseSchema: UserSchema,
+});
+
+await api.post('/upload', {
+  timeout: 60_000, // generous 60 s for a file upload
+  form: formData,
 });
 
 // Manual cancellation
