@@ -1604,4 +1604,67 @@ describe('core/valifetch', () => {
       expect(result).toEqual(payload);
     });
   });
+
+  describe('per-request timeout override', () => {
+    it('should use per-request timeout when specified, overriding instance timeout', async () => {
+      // Arrange: instance has a short timeout but the request uses a longer one
+      vi.useFakeTimers();
+      const api = valifetch.create({
+        timeout: 50,
+        retry: false,
+      });
+
+      // Fetch resolves after 200ms — would be killed by the 50ms instance timeout,
+      // but the per-request timeout of 10_000ms should let it succeed.
+      fetchSpy.mockImplementation(
+        () =>
+          new Promise((resolve) =>
+            setTimeout(
+              () => resolve(new Response('{"ok":true}', { status: 200 })),
+              200
+            )
+          )
+      );
+
+      const promise = api.get('https://api.example.com/slow', {
+        timeout: 10_000,
+      });
+      await vi.advanceTimersByTimeAsync(200);
+      const result = await promise;
+
+      vi.useRealTimers();
+
+      // Assert: request succeeded — per-request timeout (10 s) won over instance (50 ms)
+      expect(result).toEqual({ ok: true });
+    });
+
+    it('should use instance timeout when no per-request timeout is given', async () => {
+      // Arrange — mock respects the AbortSignal so it rejects when the timeout fires
+      vi.useFakeTimers();
+      const api = valifetch.create({ timeout: 50, retry: false });
+
+      fetchSpy.mockImplementation(
+        (_req, init) =>
+          new Promise<Response>((_, reject) => {
+            const signal = (init as RequestInit)?.signal;
+            if (signal) {
+              signal.addEventListener('abort', () => {
+                reject(
+                  Object.assign(new Error('Aborted'), { name: 'AbortError' })
+                );
+              });
+            }
+          })
+      );
+
+      const promise = api.get('https://api.example.com/slow');
+      // Attach rejection handler before advancing so Node doesn't flag unhandled rejection
+      const assertion = expect(promise).rejects.toMatchObject({
+        code: 'TIMEOUT_ERROR',
+      });
+      await vi.advanceTimersByTimeAsync(100);
+      vi.useRealTimers();
+      await assertion;
+    });
+  });
 });
