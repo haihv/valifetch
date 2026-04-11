@@ -346,9 +346,12 @@ const api = valifetch.create({
     afterResponse: [
       async (request, options, response) => {
         if (response.status === 401) {
-          // Handle token refresh
+          // Returning a new Response short-circuits remaining afterResponse hooks
+          // and replaces the original response for parsing/validation.
           const newToken = await refreshToken();
-          // Retry with new token...
+          return fetch(request, {
+            headers: { ...Object.fromEntries(request.headers), Authorization: `Bearer ${newToken}` },
+          });
         }
         return response;
       },
@@ -374,7 +377,7 @@ const api = valifetch.create({
 const api = valifetch.create({
   retry: {
     limit: 3, // Max retry attempts
-    methods: ['GET', 'PUT'], // Methods to retry
+    methods: ['GET', 'PUT'], // Methods to retry (also guards network-error retries)
     statusCodes: [408, 429, 500, 502, 503, 504], // Status codes to retry
     delay: (attempt) => Math.min(1000 * 2 ** attempt, 30000), // Backoff
   },
@@ -387,13 +390,23 @@ const api2 = valifetch.create({ retry: 5 });
 const api3 = valifetch.create({ retry: false });
 ```
 
+Retry applies to both HTTP error responses (matching `statusCodes`) and network-level errors (e.g. `TypeError: Failed to fetch`). In both cases the same `methods` guard applies — non-idempotent methods like `POST` and `PATCH` are not retried by default to prevent duplicate submissions.
+
 ### Timeout & Cancellation
 
 ```typescript
-// Timeout
-const user = await valifetch.get('https://api.example.com/users/1', {
-  timeout: 5000, // 5 seconds
+// Instance-level timeout (applies to every request)
+const api = valifetch.create({ timeout: 10_000 });
+
+// Per-request timeout — overrides the instance default for this call only
+const user = await api.get('https://api.example.com/users/1', {
+  timeout: 2_000, // tight 2 s for a health-check endpoint
   responseSchema: UserSchema,
+});
+
+await api.post('/upload', {
+  timeout: 60_000, // generous 60 s for a file upload
+  form: formData,
 });
 
 // Manual cancellation
