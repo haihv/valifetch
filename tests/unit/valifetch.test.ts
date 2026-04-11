@@ -1456,6 +1456,221 @@ describe('core/valifetch', () => {
     });
   });
 
+  describe('per-request timeout override (HAI-143)', () => {
+    it('should use per-request timeout when specified, overriding instance timeout', async () => {
+      // Arrange: instance has a short timeout but the request uses a longer one
+      vi.useFakeTimers();
+      const api = valifetch.create({
+        timeout: 50,
+        retry: false,
+      });
+
+      // Fetch resolves after 200ms — would be killed by the 50ms instance timeout,
+      // but the per-request timeout of 10_000ms should let it succeed.
+      fetchSpy.mockImplementation(
+        () =>
+          new Promise((resolve) =>
+            setTimeout(
+              () => resolve(new Response('{"ok":true}', { status: 200 })),
+              200
+            )
+          )
+      );
+
+      const promise = api.get('https://api.example.com/slow', {
+        timeout: 10_000,
+      });
+      await vi.advanceTimersByTimeAsync(200);
+      const result = await promise;
+
+      vi.useRealTimers();
+
+      // Assert: request succeeded — per-request timeout (10 s) won over instance (50 ms)
+      expect(result).toEqual({ ok: true });
+    });
+
+    it('should use instance timeout when no per-request timeout is given', async () => {
+      // Arrange — mock respects the AbortSignal so it rejects when the timeout fires
+      vi.useFakeTimers();
+      const api = valifetch.create({ timeout: 50, retry: false });
+
+      fetchSpy.mockImplementation(
+        (_req, init) =>
+          new Promise<Response>((_, reject) => {
+            const signal = (init as RequestInit)?.signal;
+            if (signal) {
+              signal.addEventListener('abort', () => {
+                reject(
+                  Object.assign(new Error('Aborted'), { name: 'AbortError' })
+                );
+              });
+            }
+          })
+      );
+
+      const promise = api.get('https://api.example.com/slow');
+      // Attach rejection handler before advancing so Node doesn't flag unhandled rejection
+      const assertion = expect(promise).rejects.toMatchObject({
+        code: 'TIMEOUT_ERROR',
+      });
+      await vi.advanceTimersByTimeAsync(100);
+      vi.useRealTimers();
+      await assertion;
+    });
+  });
+
+  describe('network error retry with method guard (HAI-144)', () => {
+    it('should retry GET on network error (TypeError)', async () => {
+      // Arrange
+      let callCount = 0;
+      fetchSpy.mockImplementation(() => {
+        callCount++;
+        if (callCount < 3) {
+          return Promise.reject(new TypeError('Failed to fetch'));
+        }
+        return Promise.resolve(new Response('{"ok":true}', { status: 200 }));
+      });
+
+      // Act
+      const result = await valifetch.get('https://api.example.com/data', {
+        retry: { limit: 3, methods: ['GET'], statusCodes: [], delay: () => 1 },
+      });
+
+      // Assert
+      expect(callCount).toBe(3);
+      expect(result).toEqual({ ok: true });
+    });
+
+    it('should NOT retry POST on network error by default', async () => {
+      // POST must not retry — risks duplicate submissions
+      let callCount = 0;
+      fetchSpy.mockImplementation(() => {
+        callCount++;
+        return Promise.reject(new TypeError('Failed to fetch'));
+      });
+
+      await expect(
+        valifetch.post('https://api.example.com/users', {
+          json: { name: 'Alice' },
+          retry: { limit: 3, delay: () => 1 },
+        })
+      ).rejects.toMatchObject({ code: 'NETWORK_ERROR' });
+
+      expect(callCount).toBe(1);
+    });
+
+    it('should retry POST on network error when explicitly included in methods', async () => {
+      let callCount = 0;
+      fetchSpy.mockImplementation(() => {
+        callCount++;
+        if (callCount < 2)
+          return Promise.reject(new TypeError('Failed to fetch'));
+        return Promise.resolve(new Response('{"id":1}', { status: 201 }));
+      });
+
+      const result = await valifetch.post('https://api.example.com/users', {
+        json: {},
+        retry: { limit: 2, methods: ['POST'], statusCodes: [], delay: () => 1 },
+      });
+
+      expect(callCount).toBe(2);
+      expect(result).toEqual({ id: 1 });
+    });
+
+    it('should not retry network error when retry is false', async () => {
+      fetchSpy.mockRejectedValue(new TypeError('Failed to fetch'));
+
+      await expect(
+        valifetch.get('https://api.example.com/data', { retry: false })
+      ).rejects.toMatchObject({ code: 'NETWORK_ERROR' });
+
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('afterResponse hook returning replacement Response (HAI-146)', () => {
+    it('should use replacement Response from afterResponse hook', async () => {
+      // Arrange: first fetch returns 401, hook returns fresh 200 response
+      const originalResponse = new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+      fetchSpy.mockResolvedValue(originalResponse);
+
+      const refreshedResponse = new Response(JSON.stringify({ id: 1 }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const api = valifetch.create({
+        hooks: {
+          afterResponse: [
+            (_req, _opts, res) => {
+              if (res.status === 401) return refreshedResponse;
+            },
+          ],
+        },
+      });
+
+      // Act
+      const result = await api.get('https://api.example.com/me', {
+        retry: false,
+        throwHttpErrors: false,
+      });
+
+      // Assert: the hook's replacement Response was used
+      expect(result).toEqual({ id: 1 });
+    });
+
+    it('should short-circuit remaining afterResponse hooks once a replacement is returned', async () => {
+      // Arrange
+      mockFetch({ id: 1 });
+
+      const hook1 = vi.fn().mockReturnValue(
+        new Response(JSON.stringify({ replaced: true }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      );
+      const hook2 = vi.fn();
+
+      const api = valifetch.create({
+        hooks: { afterResponse: [hook1, hook2] },
+      });
+
+      // Act
+      await api.get('https://api.example.com/users');
+
+      // Assert: hook2 was NOT called because hook1 returned a Response
+      expect(hook1).toHaveBeenCalled();
+      expect(hook2).not.toHaveBeenCalled();
+    });
+
+    it('should process replacement response through status check and parsing', async () => {
+      // Arrange: hook returns a 404 replacement — should still throw HTTP error
+      fetchSpy.mockResolvedValue(new Response('{}', { status: 200 }));
+
+      const api = valifetch.create({
+        hooks: {
+          afterResponse: [
+            () =>
+              new Response(JSON.stringify({ error: 'Not found' }), {
+                status: 404,
+                headers: { 'Content-Type': 'application/json' },
+              }),
+          ],
+        },
+      });
+
+      await expect(
+        api.get('https://api.example.com/item')
+      ).rejects.toMatchObject({ code: 'HTTP_ERROR' });
+    });
+  });
+
   describe('onDownloadProgress', () => {
     const makeStreamResponse = (
       chunks: Uint8Array[],

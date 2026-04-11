@@ -26,6 +26,7 @@ import {
   calculateRetryDelay,
   normalizeRetryOptions,
   shouldRetry,
+  shouldRetryNetworkError,
   sleep,
 } from './retry';
 
@@ -278,7 +279,11 @@ async function executeRequestCore<T>(
 
         lastError = error;
 
-        if (retryOptions === false || attemptCount >= maxAttempts - 1) {
+        if (
+          retryOptions === false ||
+          attemptCount >= maxAttempts - 1 ||
+          !shouldRetryNetworkError(method, attemptCount, retryOptions)
+        ) {
           throw new ValifetchError({
             message: error.message || 'Network request failed',
             code: 'NETWORK_ERROR',

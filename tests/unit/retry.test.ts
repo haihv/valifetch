@@ -4,6 +4,7 @@ import {
   DEFAULT_RETRY_OPTIONS,
   normalizeRetryOptions,
   shouldRetry,
+  shouldRetryNetworkError,
   sleep,
 } from '../../src/core/retry';
 
@@ -280,6 +281,62 @@ describe('core/retry', () => {
         // Over limit
         expect(shouldRetry('GET', 500, 3, options as any)).toBe(false);
       });
+    });
+  });
+
+  describe('shouldRetryNetworkError', () => {
+    const baseOptions = { ...DEFAULT_RETRY_OPTIONS };
+
+    it('should return true for idempotent methods within limit', () => {
+      expect(shouldRetryNetworkError('GET', 0, baseOptions)).toBe(true);
+      expect(shouldRetryNetworkError('PUT', 0, baseOptions)).toBe(true);
+      expect(shouldRetryNetworkError('HEAD', 0, baseOptions)).toBe(true);
+      expect(shouldRetryNetworkError('DELETE', 0, baseOptions)).toBe(true);
+      expect(shouldRetryNetworkError('OPTIONS', 0, baseOptions)).toBe(true);
+    });
+
+    it('should return false for non-idempotent methods', () => {
+      // POST/PATCH must not retry on network errors to avoid duplicate submissions
+      expect(shouldRetryNetworkError('POST', 0, baseOptions)).toBe(false);
+      expect(shouldRetryNetworkError('PATCH', 0, baseOptions)).toBe(false);
+    });
+
+    it('should return false when attempt count reaches limit', () => {
+      expect(shouldRetryNetworkError('GET', 2, baseOptions)).toBe(false);
+      expect(shouldRetryNetworkError('GET', 3, baseOptions)).toBe(false);
+    });
+
+    it('should return true while still within limit', () => {
+      expect(
+        shouldRetryNetworkError('GET', 0, { ...baseOptions, limit: 3 })
+      ).toBe(true);
+      expect(
+        shouldRetryNetworkError('GET', 1, { ...baseOptions, limit: 3 })
+      ).toBe(true);
+      expect(
+        shouldRetryNetworkError('GET', 2, { ...baseOptions, limit: 3 })
+      ).toBe(true);
+      expect(
+        shouldRetryNetworkError('GET', 3, { ...baseOptions, limit: 3 })
+      ).toBe(false);
+    });
+
+    it('should respect custom methods list', () => {
+      const options = { ...baseOptions, methods: ['POST', 'PATCH'] as const };
+      expect(shouldRetryNetworkError('POST', 0, options as any)).toBe(true);
+      expect(shouldRetryNetworkError('GET', 0, options as any)).toBe(false);
+    });
+
+    it('should use default limit when not specified', () => {
+      const options = { methods: ['GET'] } as any;
+      expect(shouldRetryNetworkError('GET', 0, options)).toBe(true);
+      expect(shouldRetryNetworkError('GET', 2, options)).toBe(false);
+    });
+
+    it('should use default methods when not specified', () => {
+      const options = { limit: 2 } as any;
+      expect(shouldRetryNetworkError('GET', 0, options)).toBe(true);
+      expect(shouldRetryNetworkError('POST', 0, options)).toBe(false);
     });
   });
 
