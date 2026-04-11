@@ -4,6 +4,7 @@ import {
   DEFAULT_RETRY_OPTIONS,
   normalizeRetryOptions,
   shouldRetry,
+  shouldRetryNetworkError,
   sleep,
 } from '../../src/core/retry';
 
@@ -366,6 +367,50 @@ describe('core/retry', () => {
         // Assert - promise resolved
         expect(true).toBe(true);
       }
+    });
+  });
+
+  describe('shouldRetryNetworkError', () => {
+    it('returns true for an idempotent method within the limit', () => {
+      expect(
+        shouldRetryNetworkError('GET', 0, { limit: 2, methods: ['GET'] })
+      ).toBe(true);
+    });
+
+    it('returns false for POST (not in default methods)', () => {
+      expect(shouldRetryNetworkError('POST', 0, DEFAULT_RETRY_OPTIONS)).toBe(
+        false
+      );
+    });
+
+    it('returns false once attemptCount reaches the limit', () => {
+      expect(
+        shouldRetryNetworkError('GET', 2, { limit: 2, methods: ['GET'] })
+      ).toBe(false);
+    });
+
+    it('returns true for POST when explicitly included in methods', () => {
+      expect(
+        shouldRetryNetworkError('POST', 0, { limit: 3, methods: ['POST'] })
+      ).toBe(true);
+    });
+
+    it('falls back to DEFAULT_RETRY_OPTIONS.limit when limit is not set', () => {
+      // Default limit is 2; attempt 2 should be refused
+      expect(shouldRetryNetworkError('GET', 2, { methods: ['GET'] })).toBe(
+        false
+      );
+      // Attempt 1 should be allowed
+      expect(shouldRetryNetworkError('GET', 1, { methods: ['GET'] })).toBe(
+        true
+      );
+    });
+
+    it('falls back to DEFAULT_RETRY_OPTIONS.methods when methods is not set', () => {
+      // PUT is in default methods
+      expect(shouldRetryNetworkError('PUT', 0, { limit: 2 })).toBe(true);
+      // POST is not in default methods
+      expect(shouldRetryNetworkError('POST', 0, { limit: 2 })).toBe(false);
     });
   });
 });

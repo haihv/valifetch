@@ -374,7 +374,7 @@ const api = valifetch.create({
 const api = valifetch.create({
   retry: {
     limit: 3, // Max retry attempts
-    methods: ['GET', 'PUT'], // Methods to retry
+    methods: ['GET', 'PUT'], // Methods to retry (also guards network-error retries)
     statusCodes: [408, 429, 500, 502, 503, 504], // Status codes to retry
     delay: (attempt) => Math.min(1000 * 2 ** attempt, 30000), // Backoff
   },
@@ -386,6 +386,8 @@ const api2 = valifetch.create({ retry: 5 });
 // Disable retry
 const api3 = valifetch.create({ retry: false });
 ```
+
+Retry applies to both HTTP error responses (matching `statusCodes`) and network-level errors (e.g. `TypeError: Failed to fetch`). In both cases the same `methods` guard applies — non-idempotent methods like `POST` and `PATCH` are not retried by default to prevent duplicate submissions.
 
 ### Timeout & Cancellation
 
