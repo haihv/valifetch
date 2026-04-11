@@ -64,6 +64,7 @@ Integration tests live in `tests/integration/` and spin up a real `http.createSe
 - FormData multipart upload — verifies `multipart/form-data` boundary and field names reach the server
 - Retry on 503 → 200 — real HTTP 503 triggers a retry; second request returns 200
 - Timeout — server never responds; asserts `TIMEOUT_ERROR` within the configured `timeout` ms
+- `afterResponse` 401-refresh — hook re-fetches with refreshed token and replacement response flows through the full pipeline
 - `prefixUrl` path joining — trailing-slash normalization and search-param encoding round-trips
 
 Integration tests are not run in the pre-commit hook (too slow); they run in CI alongside unit tests.

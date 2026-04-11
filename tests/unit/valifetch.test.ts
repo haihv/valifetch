@@ -2,6 +2,7 @@ import * as v from 'valibot';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { valifetch } from '../../src/core/valifetch';
 import { ValifetchError } from '../../src/errors/ValifetchError';
+import type { AfterResponseHook } from '../../src/types';
 
 describe('core/valifetch', () => {
   let fetchSpy: ReturnType<typeof vi.spyOn>;
@@ -1734,6 +1735,89 @@ describe('core/valifetch', () => {
       ).rejects.toMatchObject({ code: 'NETWORK_ERROR' });
 
       expect(fetchSpy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('afterResponse hook returning replacement Response', () => {
+    it('should use replacement Response from afterResponse hook', async () => {
+      // Arrange: first fetch returns 401, hook returns fresh 200 response
+      const originalResponse = new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+      fetchSpy.mockResolvedValue(originalResponse);
+
+      const refreshedResponse = new Response(JSON.stringify({ id: 1 }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const api = valifetch.create({
+        hooks: {
+          afterResponse: [
+            (_req, _opts, res) => {
+              if (res.status === 401) return refreshedResponse;
+            },
+          ],
+        },
+      });
+
+      // Act
+      const result = await api.get('https://api.example.com/me', {
+        retry: false,
+        throwHttpErrors: false,
+      });
+
+      // Assert: the hook's replacement Response was used
+      expect(result).toEqual({ id: 1 });
+    });
+
+    it('should short-circuit remaining afterResponse hooks once a replacement is returned', async () => {
+      // Arrange
+      mockFetch({ id: 1 });
+
+      const hook1 = vi.fn().mockReturnValue(
+        new Response(JSON.stringify({ replaced: true }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      );
+      const hook2 = vi.fn();
+
+      const api = valifetch.create({
+        hooks: { afterResponse: [hook1, hook2] },
+      });
+
+      // Act
+      await api.get('https://api.example.com/users');
+
+      // Assert: hook2 was NOT called because hook1 returned a Response
+      expect(hook1).toHaveBeenCalled();
+      expect(hook2).not.toHaveBeenCalled();
+    });
+
+    it('should pass the replacement Response through checkResponseStatus', async () => {
+      // Arrange: hook replaces with a 404 response — should still throw HTTP_ERROR
+      const hook: AfterResponseHook = () =>
+        new Response('{"error":"not found"}', {
+          status: 404,
+          headers: { 'Content-Type': 'application/json' },
+        });
+
+      fetchSpy.mockResolvedValue(new Response('{}', { status: 200 }));
+
+      const api = valifetch.create({
+        hooks: { afterResponse: [hook] },
+        retry: false,
+      });
+
+      // Act & Assert
+      await expect(
+        api.get('https://api.example.com/item')
+      ).rejects.toMatchObject({ code: 'HTTP_ERROR' });
     });
   });
 });

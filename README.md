@@ -346,9 +346,12 @@ const api = valifetch.create({
     afterResponse: [
       async (request, options, response) => {
         if (response.status === 401) {
-          // Handle token refresh
+          // Returning a new Response short-circuits remaining afterResponse hooks
+          // and replaces the original response for parsing/validation.
           const newToken = await refreshToken();
-          // Retry with new token...
+          return fetch(request, {
+            headers: { ...Object.fromEntries(request.headers), Authorization: `Bearer ${newToken}` },
+          });
         }
         return response;
       },
