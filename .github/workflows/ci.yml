@@ -37,6 +37,13 @@ jobs:
         run: npm run test:coverage
 
       - name: Build package
+        if: matrix.node-version == 24
+        run: npm run build
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Build package (no upload)
+        if: matrix.node-version != 24
         run: npm run build
 
       - name: Upload coverage to Codecov
