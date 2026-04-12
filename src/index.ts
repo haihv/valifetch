@@ -27,6 +27,7 @@ export type {
   AfterResponseHook,
   // Hooks
   BeforeRequestHook,
+  CancellablePromise,
   ErrorCode,
   // Path params
   ExtractPathParams,
