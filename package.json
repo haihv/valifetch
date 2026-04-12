@@ -83,6 +83,9 @@
   "devDependencies": {
     "@biomejs/biome": "2.4.9",
     "@codecov/rollup-plugin": "^1.9.1",
+    "@emnapi/core": "^1.9.2",
+    "@emnapi/runtime": "^1.9.2",
+    "@emnapi/wasi-threads": "^1.2.1",
     "@types/node": "^25.5.0",
     "@vitest/coverage-v8": "^4.1.2",
     "husky": "^9.1.7",
