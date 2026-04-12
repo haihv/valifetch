@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-04-12
+
+### Added
+
+- **`valifetch/auth` subpath** — built-in `beforeRequest` hook factories for common auth patterns: `bearerAuth`, `basicAuth`, and `jwtRefresh`. Zero runtime cost if unused (tree-shaken out). The `jwtRefresh` helper queues concurrent requests during an in-flight refresh so only one refresh call is made. ([#23](https://github.com/haihv/valifetch/pull/23))
+- **Cancellable requests** — every HTTP method now returns a `CancellablePromise<T>` with an attached `.cancel()` method. Calling `.cancel()` aborts the in-flight request and rejects with `ValifetchError { code: 'ABORT_ERROR' }`. User-provided `signal` and `.cancel()` work independently via `AbortSignal.any()`. ([#24](https://github.com/haihv/valifetch/pull/24))
+- **`CancellablePromise<T>` type** — exported from `valifetch` and `valifetch/types` for use in typed applications.
+
+### Maintenance
+
+- Enable Codecov Test Analytics — JUnit XML reports uploaded to Codecov after each CI run for flaky test detection ([#21](https://github.com/haihv/valifetch/pull/21))
+- Enable Codecov Bundle Analysis — bundle stats uploaded on each build via `@codecov/rollup-plugin` to track size regressions on PRs ([#22](https://github.com/haihv/valifetch/pull/22))
+
 ## [0.4.3] - 2026-04-02
 
 ### Documentation
