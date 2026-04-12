@@ -1,3 +1,4 @@
+import { codecovRollupPlugin } from '@codecov/rollup-plugin';
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
@@ -17,6 +18,14 @@ export default defineConfig({
   treeshake: true,
   splitting: true,
   external: ['valibot'],
+  esbuildPlugins: [],
+  plugins: [
+    codecovRollupPlugin({
+      enableBundleAnalysis: process.env.CODECOV_TOKEN !== undefined,
+      bundleName: 'valifetch',
+      uploadToken: process.env.CODECOV_TOKEN,
+    }),
+  ],
   outExtension({ format }) {
     return {
       js: format === 'cjs' ? '.cjs' : '.js',
