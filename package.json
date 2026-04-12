@@ -36,6 +36,16 @@
         "types": "./dist/types.d.cts",
         "default": "./dist/types.cjs"
       }
+    },
+    "./auth": {
+      "import": {
+        "types": "./dist/auth.d.ts",
+        "default": "./dist/auth.js"
+      },
+      "require": {
+        "types": "./dist/auth.d.cts",
+        "default": "./dist/auth.cjs"
+      }
     }
   },
   "files": ["dist", "README.md", "CHANGELOG.md", "LICENSE"],

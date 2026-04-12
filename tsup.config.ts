@@ -5,6 +5,7 @@ export default defineConfig({
     index: 'src/index.ts',
     error: 'src/error.ts',
     types: 'src/types.ts',
+    auth: 'src/auth.ts',
   },
   format: ['cjs', 'esm'],
   dts: true,
