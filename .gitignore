@@ -21,6 +21,9 @@ npm-debug.log*
 # Test coverage
 coverage
 
+# Test results (JUnit XML for Codecov Test Analytics)
+test-results
+
 # Environment
 .env
 
