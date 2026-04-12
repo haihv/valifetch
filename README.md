@@ -542,6 +542,42 @@ await valifetch.get('/users/:id/posts/:postId', {
 });
 ```
 
+## Built-in Auth Helpers
+
+The `valifetch/auth` subpath ships three `beforeRequest` hook factories for the most common auth patterns. They are zero-cost if unused (tree-shaken out entirely).
+
+```typescript
+import valifetch from 'valifetch';
+import { bearerAuth, basicAuth, jwtRefresh } from 'valifetch/auth';
+
+// Bearer token — reads the token on each request
+const api = valifetch.create({
+  hooks: { beforeRequest: [bearerAuth(() => localStorage.getItem('token'))] },
+});
+
+// HTTP Basic auth — credentials encoded once at creation
+const adminApi = valifetch.create({
+  hooks: { beforeRequest: [basicAuth('admin', 's3cr3t')] },
+});
+
+// JWT proactive refresh — refreshes before the request when expired,
+// queues concurrent requests so only one refresh call is made
+const authApi = valifetch.create({
+  hooks: {
+    beforeRequest: [
+      jwtRefresh({
+        getToken: () => store.accessToken,
+        isExpired: (token) => isJwtExpired(token),
+        refresh: () => authApi.post('/auth/refresh').then((r) => r.token),
+        onRefreshed: (token) => store.setToken(token),
+      }),
+    ],
+  },
+});
+```
+
+All three factories return a plain `BeforeRequestHook` — they compose freely with any other hooks.
+
 ## Tree-Shaking & Subpath Imports
 
 Valifetch is fully tree-shakeable. For minimal bundle size, you can import just what you need:
@@ -552,6 +588,9 @@ import valifetch, { ValifetchError } from 'valifetch';
 
 // Subpath import - just the error class
 import { ValifetchError } from 'valifetch/error';
+
+// Subpath import - just the auth helpers (zero runtime cost if unused)
+import { bearerAuth, basicAuth, jwtRefresh } from 'valifetch/auth';
 
 // Subpath import - just types (no runtime code)
 import type {
