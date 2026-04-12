@@ -6,6 +6,7 @@ export type {
 } from './hooks';
 export type {
   CallableInstance,
+  CancellablePromise,
   GetOptions,
   PostOptions,
   ResponseType,

@@ -409,15 +409,16 @@ await api.post('/upload', {
   form: formData,
 });
 
-// Manual cancellation
-const controller = new AbortController();
+// Manual cancellation — every request returns a CancellablePromise with .cancel()
+const req = valifetch.get('https://api.example.com/slow');
+req.cancel(); // aborts immediately; rejects with ValifetchError { code: 'ABORT_ERROR' }
 
-const promise = valifetch.get('https://api.example.com/slow', {
+// Or use an AbortController for external control (both cancel() and signal work together)
+const controller = new AbortController();
+const req2 = valifetch.get('https://api.example.com/slow', {
   signal: controller.signal,
 });
-
-// Cancel the request
-controller.abort();
+controller.abort(); // same effect as req2.cancel()
 ```
 
 ### Deduplication

@@ -2,6 +2,30 @@ import type { GenericSchema, InferOutput } from 'valibot';
 import type { ValifetchInstanceOptions, ValifetchOptions } from './options';
 
 /**
+ * A `Promise<T>` with an attached `.cancel()` method that aborts the in-flight request.
+ *
+ * Cancelling rejects the promise with a `ValifetchError` whose `code` is `'ABORT_ERROR'`.
+ *
+ * @example
+ * ```ts
+ * const req = api.get('/slow-endpoint');
+ * req.cancel(); // aborts immediately
+ * try {
+ *   await req;
+ * } catch (err) {
+ *   // err.code === 'ABORT_ERROR'
+ * }
+ * ```
+ */
+export type CancellablePromise<T> = Promise<T> & {
+  /**
+   * Aborts the in-flight request.
+   * The promise rejects with a `ValifetchError` whose `code` is `'ABORT_ERROR'`.
+   */
+  cancel(): void;
+};
+
+/**
  * Response format options
  */
 export type ResponseType =
@@ -66,7 +90,10 @@ type ResolveResponseType<TData, TResponseSchema> =
  */
 export type CallableInstance = {
   /** Perform a request using the default method */
-  <TData = unknown>(url: string, options?: ValifetchOptions): Promise<TData>;
+  <TData = unknown>(
+    url: string,
+    options?: ValifetchOptions
+  ): CancellablePromise<TData>;
   /** GET request */
   get<
     TData = unknown,
@@ -77,7 +104,7 @@ export type CallableInstance = {
   >(
     url: TPath,
     options?: GetOptions<TPath, TResponseSchema, TParamsSchema, TSearchSchema>
-  ): Promise<ResolveResponseType<TData, TResponseSchema>>;
+  ): CancellablePromise<ResolveResponseType<TData, TResponseSchema>>;
   /** POST request */
   post<
     TData = unknown,
@@ -95,7 +122,7 @@ export type CallableInstance = {
       TParamsSchema,
       TSearchSchema
     >
-  ): Promise<ResolveResponseType<TData, TResponseSchema>>;
+  ): CancellablePromise<ResolveResponseType<TData, TResponseSchema>>;
   /** PUT request */
   put<
     TData = unknown,
@@ -113,7 +140,7 @@ export type CallableInstance = {
       TParamsSchema,
       TSearchSchema
     >
-  ): Promise<ResolveResponseType<TData, TResponseSchema>>;
+  ): CancellablePromise<ResolveResponseType<TData, TResponseSchema>>;
   /** PATCH request */
   patch<
     TData = unknown,
@@ -131,7 +158,7 @@ export type CallableInstance = {
       TParamsSchema,
       TSearchSchema
     >
-  ): Promise<ResolveResponseType<TData, TResponseSchema>>;
+  ): CancellablePromise<ResolveResponseType<TData, TResponseSchema>>;
   /** DELETE request */
   delete<
     TData = unknown,
@@ -142,7 +169,7 @@ export type CallableInstance = {
   >(
     url: TPath,
     options?: GetOptions<TPath, TResponseSchema, TParamsSchema, TSearchSchema>
-  ): Promise<ResolveResponseType<TData, TResponseSchema>>;
+  ): CancellablePromise<ResolveResponseType<TData, TResponseSchema>>;
   /** HEAD request - returns void */
   head<
     TPath extends string = string,
@@ -151,7 +178,7 @@ export type CallableInstance = {
   >(
     url: TPath,
     options?: GetOptions<TPath, undefined, TParamsSchema, TSearchSchema>
-  ): Promise<void>;
+  ): CancellablePromise<void>;
   /** OPTIONS request */
   options<
     TData = unknown,
@@ -162,7 +189,7 @@ export type CallableInstance = {
   >(
     url: TPath,
     options?: GetOptions<TPath, TResponseSchema, TParamsSchema, TSearchSchema>
-  ): Promise<ResolveResponseType<TData, TResponseSchema>>;
+  ): CancellablePromise<ResolveResponseType<TData, TResponseSchema>>;
   /** Create new instance with defaults */
   create(options?: ValifetchInstanceOptions): CallableInstance;
   /** Extend current instance with additional options */
@@ -190,7 +217,7 @@ export type ValifetchInstance = {
   >(
     url: TPath,
     options?: GetOptions<TPath, TResponseSchema, TParamsSchema, TSearchSchema>
-  ): Promise<ResolveResponseType<TData, TResponseSchema>>;
+  ): CancellablePromise<ResolveResponseType<TData, TResponseSchema>>;
 
   /**
    * POST request - returns parsed JSON by default
@@ -212,7 +239,7 @@ export type ValifetchInstance = {
       TParamsSchema,
       TSearchSchema
     >
-  ): Promise<ResolveResponseType<TData, TResponseSchema>>;
+  ): CancellablePromise<ResolveResponseType<TData, TResponseSchema>>;
 
   /**
    * PUT request - returns parsed JSON by default
@@ -234,7 +261,7 @@ export type ValifetchInstance = {
       TParamsSchema,
       TSearchSchema
     >
-  ): Promise<ResolveResponseType<TData, TResponseSchema>>;
+  ): CancellablePromise<ResolveResponseType<TData, TResponseSchema>>;
 
   /**
    * PATCH request - returns parsed JSON by default
@@ -256,7 +283,7 @@ export type ValifetchInstance = {
       TParamsSchema,
       TSearchSchema
     >
-  ): Promise<ResolveResponseType<TData, TResponseSchema>>;
+  ): CancellablePromise<ResolveResponseType<TData, TResponseSchema>>;
 
   /**
    * DELETE request - returns parsed JSON by default
@@ -271,7 +298,7 @@ export type ValifetchInstance = {
   >(
     url: TPath,
     options?: GetOptions<TPath, TResponseSchema, TParamsSchema, TSearchSchema>
-  ): Promise<ResolveResponseType<TData, TResponseSchema>>;
+  ): CancellablePromise<ResolveResponseType<TData, TResponseSchema>>;
 
   /** HEAD request - returns void */
   head<
@@ -284,7 +311,7 @@ export type ValifetchInstance = {
       GetOptions<TPath, undefined, TParamsSchema, TSearchSchema>,
       'responseSchema' | 'responseType'
     >
-  ): Promise<void>;
+  ): CancellablePromise<void>;
 
   /**
    * OPTIONS request - returns parsed JSON by default
@@ -299,7 +326,7 @@ export type ValifetchInstance = {
   >(
     url: TPath,
     options?: GetOptions<TPath, TResponseSchema, TParamsSchema, TSearchSchema>
-  ): Promise<ResolveResponseType<TData, TResponseSchema>>;
+  ): CancellablePromise<ResolveResponseType<TData, TResponseSchema>>;
 
   /** Create new instance with defaults */
   create(options?: ValifetchInstanceOptions): ValifetchInstance;

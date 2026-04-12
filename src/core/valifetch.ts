@@ -2,6 +2,7 @@ import type { GenericSchema } from 'valibot';
 import { ValifetchError } from '../errors/ValifetchError';
 import type {
   AfterParseResponseHook,
+  CancellablePromise,
   DownloadProgressEvent,
   Hooks,
   HttpMethod,
@@ -131,16 +132,30 @@ function executeRequest<T>(
   method: HttpMethod,
   options: RequestOptions,
   instanceOptions: ValifetchInstanceOptions
-): Promise<T> {
+): CancellablePromise<T> {
+  const cancelController = new AbortController();
+  const mergedOptions: RequestOptions = {
+    ...options,
+    signal: options.signal
+      ? AbortSignal.any([options.signal, cancelController.signal])
+      : cancelController.signal,
+  };
+
   const dedupe = options.dedupe ?? instanceOptions.dedupe;
   const key = `${method}:${url}`;
 
   if (dedupe) {
-    const cached = dedupeCache.get(key) as Promise<T> | undefined;
+    const cached = dedupeCache.get(key) as CancellablePromise<T> | undefined;
     if (cached) return cached;
   }
 
-  const promise = executeRequestCore<T>(url, method, options, instanceOptions);
+  const promise = executeRequestCore<T>(
+    url,
+    method,
+    mergedOptions,
+    instanceOptions
+  ) as CancellablePromise<T>;
+  promise.cancel = () => cancelController.abort();
 
   if (dedupe) {
     dedupeCache.set(key, promise);
@@ -190,17 +205,18 @@ async function executeRequestCore<T>(
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
   let timeoutController: AbortController | undefined;
 
-  const setupTimeout = (): AbortSignal | null | undefined => {
+  // options.signal is always an AbortSignal (set by executeRequest via the cancel controller)
+  const baseSignal = options.signal as AbortSignal;
+
+  const setupTimeout = (): AbortSignal => {
     const timeout = options.timeout ?? instanceOptions.timeout;
-    if (!timeout) return options.signal;
+    if (!timeout) return baseSignal;
 
     timeoutController = new AbortController();
 
-    if (options.signal) {
-      options.signal.addEventListener('abort', () => {
-        timeoutController?.abort((options.signal as AbortSignal).reason);
-      });
-    }
+    baseSignal.addEventListener('abort', () => {
+      timeoutController?.abort(baseSignal.reason);
+    });
 
     timeoutId = setTimeout(() => {
       timeoutController?.abort(new Error('Request timed out'));
@@ -225,12 +241,7 @@ async function executeRequestCore<T>(
       const signal = setupTimeout();
       const requestToSend = attemptCount > 0 ? request.clone() : request;
 
-      const fetchInit: RequestInit = {};
-      if (signal !== undefined) {
-        fetchInit.signal = signal;
-      }
-
-      const response = await fetch(requestToSend, fetchInit);
+      const response = await fetch(requestToSend, { signal });
       clearTimeoutIfSet();
 
       if (
@@ -369,12 +380,15 @@ const proto = {
     );
   },
   head(this: Instance, url: string, options?: RequestOptions) {
-    return executeRequest(
+    const req = executeRequest(
       url,
       'HEAD',
       { ...options, responseType: 'raw' },
       getInstanceOptions(this)
-    ).then(() => undefined);
+    );
+    const p = req.then(() => undefined) as CancellablePromise<void>;
+    p.cancel = req.cancel;
+    return p;
   },
   options(this: Instance, url: string, options?: RequestOptions) {
     return executeRequest(

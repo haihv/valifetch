@@ -14,8 +14,9 @@ export type {
   AfterParseResponseHook,
   AfterResponseHook,
   BeforeRequestHook,
-  // Instance
   CallableInstance,
+  // Instance
+  CancellablePromise,
   // Options
   DownloadProgressEvent,
   ErrorCode,
