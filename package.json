@@ -60,6 +60,7 @@
     "test:coverage": "vitest run --coverage",
     "check": "biome check .",
     "check:fix": "biome check --write .",
+    "bench": "vitest bench",
     "typecheck": "tsc --noEmit",
     "version": "node scripts/sync-jsr-version.mjs && git add jsr.json",
     "prepublishOnly": "npm run build",
