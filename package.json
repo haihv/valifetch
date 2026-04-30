@@ -92,7 +92,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.9",
-    "@codecov/rollup-plugin": "^1.9.1",
+    "@codecov/rollup-plugin": "^2.0.1",
     "@emnapi/core": "^1.9.2",
     "@emnapi/runtime": "^1.9.2",
     "@emnapi/wasi-threads": "^1.2.1",
