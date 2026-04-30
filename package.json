@@ -91,7 +91,7 @@
     "valibot": ">=1.0.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.9",
+    "@biomejs/biome": "2.4.13",
     "@codecov/rollup-plugin": "^2.0.1",
     "@emnapi/core": "^1.9.2",
     "@emnapi/runtime": "^1.9.2",
