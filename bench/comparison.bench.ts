@@ -17,7 +17,7 @@ import * as v from 'valibot';
 import { bench, describe } from 'vitest';
 import { valifetch } from '../src/core/valifetch';
 
-const URL = 'https://api.example.com/users/1';
+const TEST_URL = 'https://api.example.com/users/1';
 const PAYLOAD = { id: 1, name: 'Alice' };
 
 // Module-scope mock — must be set before any lib initialises its instance
@@ -39,23 +39,23 @@ const flatSchema = v.object({ id: v.number(), name: v.string() });
 
 describe('GET + JSON parse — no schema', () => {
   bench('valifetch', async () => {
-    await valifetch.get(URL);
+    await valifetch.get(TEST_URL);
   });
 
   bench('ky', async () => {
-    await ky.get(URL).json();
+    await ky.get(TEST_URL).json();
   });
 
   bench('ofetch', async () => {
-    await ofetch(URL);
+    await ofetch(TEST_URL);
   });
 
   bench('up-fetch', async () => {
-    await upfetchClient(URL);
+    await upfetchClient(TEST_URL);
   });
 
   bench('axios (fetch adapter)', async () => {
-    await axiosClient.get(URL);
+    await axiosClient.get(TEST_URL);
   });
 });
 
