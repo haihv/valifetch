@@ -606,6 +606,29 @@ import type {
 
 The package uses code splitting internally, so shared code between entry points is only loaded once.
 
+## Performance
+
+Benchmarked with [Vitest bench](https://vitest.dev/guide/features.html#benchmarking) on Node.js 20, fetch mocked to eliminate network variance. Run `npm run bench` to reproduce on your machine.
+
+### GET + JSON parse (no schema)
+
+| Library | ops/sec | vs valifetch |
+|---|---|---|
+| ofetch | 217,095 | 1.93× faster |
+| **valifetch** | **112,391** | baseline |
+| ky | 72,723 | 1.55× slower |
+| up-fetch | 44,908 | 2.50× slower |
+| axios (fetch adapter) | 40,579 | 2.77× slower |
+
+### GET + JSON parse + Valibot schema validation
+
+| Library | ops/sec | vs valifetch |
+|---|---|---|
+| **valifetch + valibot** | **99,668** | baseline |
+| up-fetch + valibot | 48,207 | 2.07× slower |
+
+valifetch adds schema validation with less than 10% overhead over its own baseline. ofetch and ky have no built-in schema support and are excluded from this group.
+
 ## Requirements
 
 - Node.js >= 20.0.0 (uses native fetch)
