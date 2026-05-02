@@ -72,6 +72,7 @@ Integration tests are not run in the pre-commit hook (too slow); they run in CI 
 ## Rules
 
 - **Docs must stay in sync with code.** Any change to public API, options, behaviour, or architecture must be reflected in `README.md` (and this file if architecture changes). Do not merge code changes without updating the relevant docs.
+- **`llms.txt` and `AGENTS.md` must stay in sync with code.** Any change to public API, options, error codes, hook signatures, auth helpers, or behaviour must also be reflected in both `llms.txt` and `AGENTS.md`. These are agent-facing docs — stale information causes agents to generate broken code. Update them in the same commit as the code change.
 - **Every exported symbol must have JSDoc.** This includes top-level exports and all members of exported types/classes (fields, methods, getters). Plain `//` comments do not count; use `/** */` blocks.
 - **JSR documentation score must stay at 100%.** Before opening or merging a PR, verify every new exported symbol has a JSDoc block. This package uses a single entry point in `jsr.json` — do not add additional entry points, as multiple entry points cause symbol duplication that drops the score below 100%.
 - **Never embed issue tracker IDs in source code.** No Linear, Jira, or GitHub issue numbers in test descriptions, function names, comments, or any other code. Issue IDs belong in commit messages and PR descriptions only.
