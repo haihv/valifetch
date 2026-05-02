@@ -122,26 +122,46 @@ describe('POST with JSON body', () => {
 describe('4xx error path', () => {
   bench('valifetch', async () => {
     globalThis.fetch = errorFetch;
-    try { await valifetch.get(TEST_URL); } catch {}
+    try {
+      await valifetch.get(TEST_URL);
+    } catch (_e) {
+      /* expected */
+    }
   });
 
   bench('ky', async () => {
     globalThis.fetch = errorFetch;
-    try { await ky.get(TEST_URL).json(); } catch {}
+    try {
+      await ky.get(TEST_URL).json();
+    } catch (_e) {
+      /* expected */
+    }
   });
 
   bench('ofetch', async () => {
     globalThis.fetch = errorFetch;
-    try { await ofetch(TEST_URL); } catch {}
+    try {
+      await ofetch(TEST_URL);
+    } catch (_e) {
+      /* expected */
+    }
   });
 
   bench('up-fetch', async () => {
     globalThis.fetch = errorFetch;
-    try { await upfetchClient(TEST_URL); } catch {}
+    try {
+      await upfetchClient(TEST_URL);
+    } catch (_e) {
+      /* expected */
+    }
   });
 
   bench('axios (fetch adapter)', async () => {
     globalThis.fetch = errorFetch;
-    try { await axiosClient.get(TEST_URL); } catch {}
+    try {
+      await axiosClient.get(TEST_URL);
+    } catch (_e) {
+      /* expected */
+    }
   });
 });

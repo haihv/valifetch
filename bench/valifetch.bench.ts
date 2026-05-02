@@ -9,14 +9,6 @@ mockFetch({ id: 1, name: 'Alice' });
 const TEST_URL = 'https://api.example.com/users/1';
 
 const flatSchema = v.object({ id: v.number(), name: v.string() });
-const complexSchema = v.array(
-  v.object({
-    id: v.number(),
-    name: v.string(),
-    email: v.string(),
-    role: v.union([v.literal('admin'), v.literal('user'), v.literal('guest')]),
-  })
-);
 
 const noopHook = async (req: Request) => req;
 const prefixApi = valifetch.create({ prefixUrl: 'https://api.example.com' });
