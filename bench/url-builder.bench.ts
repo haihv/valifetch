@@ -30,7 +30,13 @@ describe('url-builder (pure sync)', () => {
     buildUrl({
       prefixUrl: 'https://api.example.com',
       path: '/search',
-      searchParams: { q: 'foo', page: '2', limit: '20', sort: 'asc', filter: 'active' },
+      searchParams: {
+        q: 'foo',
+        page: '2',
+        limit: '20',
+        sort: 'asc',
+        filter: 'active',
+      },
     });
   });
 

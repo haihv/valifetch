@@ -15,7 +15,12 @@ describe('buildRequest', () => {
   });
 
   bench('json body + Content-Type header merge', async () => {
-    await buildRequest(TEST_URL, 'POST', { json: { name: 'Alice', age: 30 } }, INSTANCE_OPTS);
+    await buildRequest(
+      TEST_URL,
+      'POST',
+      { json: { name: 'Alice', age: 30 } },
+      INSTANCE_OPTS
+    );
   });
 
   bench('json body + bodySchema validation', async () => {
@@ -46,7 +51,12 @@ describe('buildRequest', () => {
   });
 
   bench('searchParams (record, 3 keys)', async () => {
-    await buildRequest(TEST_URL, 'GET', { searchParams: { q: 'foo', page: '1', limit: '20' } }, INSTANCE_OPTS);
+    await buildRequest(
+      TEST_URL,
+      'GET',
+      { searchParams: { q: 'foo', page: '1', limit: '20' } },
+      INSTANCE_OPTS
+    );
   });
 
   bench('instance headers + request headers merge', async () => {
