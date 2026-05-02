@@ -26,6 +26,53 @@ A type-safe HTTP client built on native `fetch` with [Valibot](https://valibot.d
 - **Lightweight Instances** - Shared prototype pattern: each instance has only 1-2 own properties
 - **Callable Syntax** - Optional ky-style `api('/users')` syntax via `callable()` wrapper
 
+## Performance
+
+Benchmarked with [Vitest bench](https://vitest.dev/guide/features.html#benchmarking) on Node.js 20, fetch mocked to eliminate network variance. Run `npm run bench` to reproduce on your machine.
+
+> **Why is ofetch faster on the baseline?** ofetch is a minimal wrapper with no built-in retry, hook system, or schema validation. valifetch bundles all of that — the gap reflects features, not inefficiency. Schema validation itself adds less than 10% overhead over valifetch's own baseline.
+
+### GET + JSON parse (no schema)
+
+| Library | ops/sec | vs valifetch |
+|---|---|---|
+| ofetch | 217,095 | 1.93× faster |
+| **valifetch** | **112,391** | baseline |
+| ky | 72,723 | 1.55× slower |
+| up-fetch | 44,908 | 2.50× slower |
+| axios (fetch adapter) | 40,579 | 2.77× slower |
+
+### GET + JSON parse + schema validation
+
+Only valifetch and up-fetch support schema validation natively. ky, ofetch, and axios would require a manual parse step on top of their baseline cost.
+
+| Library | ops/sec | vs valifetch |
+|---|---|---|
+| **valifetch + valibot** | **99,668** | baseline |
+| up-fetch + valibot | 48,207 | 2.07× slower |
+
+### POST with JSON body
+
+| Library | ops/sec | vs valifetch |
+|---|---|---|
+| ofetch | 133,557 | 1.60× faster |
+| **valifetch** | **83,447** | baseline |
+| ky | 49,157 | 1.70× slower |
+| up-fetch | 44,221 | 1.89× slower |
+| axios (fetch adapter) | 31,800 | 2.62× slower |
+
+### 4xx error path
+
+| Library | ops/sec | vs valifetch |
+|---|---|---|
+| **valifetch** | **67,713** | baseline |
+| ofetch | 58,109 | 1.17× slower |
+| up-fetch | 42,619 | 1.59× slower |
+| ky | 39,225 | 1.73× slower |
+| axios (fetch adapter) | 11,463 | 5.91× slower |
+
+axios constructs a full `AxiosError` with a deep copy of the request config on every error, which explains the 6× gap.
+
 ## Installation
 
 **npm / Node.js**
@@ -605,53 +652,6 @@ import type {
 ```
 
 The package uses code splitting internally, so shared code between entry points is only loaded once.
-
-## Performance
-
-Benchmarked with [Vitest bench](https://vitest.dev/guide/features.html#benchmarking) on Node.js 20, fetch mocked to eliminate network variance. Run `npm run bench` to reproduce on your machine.
-
-> **Why is ofetch faster on the baseline?** ofetch is a minimal wrapper with no built-in retry, hook system, or schema validation. valifetch bundles all of that — the gap reflects features, not inefficiency. Schema validation itself adds less than 10% overhead over valifetch's own baseline.
-
-### GET + JSON parse (no schema)
-
-| Library | ops/sec | vs valifetch |
-|---|---|---|
-| ofetch | 217,095 | 1.93× faster |
-| **valifetch** | **112,391** | baseline |
-| ky | 72,723 | 1.55× slower |
-| up-fetch | 44,908 | 2.50× slower |
-| axios (fetch adapter) | 40,579 | 2.77× slower |
-
-### GET + JSON parse + schema validation
-
-Only valifetch and up-fetch support schema validation natively. ky, ofetch, and axios would require a manual parse step on top of their baseline cost.
-
-| Library | ops/sec | vs valifetch |
-|---|---|---|
-| **valifetch + valibot** | **99,668** | baseline |
-| up-fetch + valibot | 48,207 | 2.07× slower |
-
-### POST with JSON body
-
-| Library | ops/sec | vs valifetch |
-|---|---|---|
-| ofetch | 133,557 | 1.60× faster |
-| **valifetch** | **83,447** | baseline |
-| ky | 49,157 | 1.70× slower |
-| up-fetch | 44,221 | 1.89× slower |
-| axios (fetch adapter) | 31,800 | 2.62× slower |
-
-### 4xx error path
-
-| Library | ops/sec | vs valifetch |
-|---|---|---|
-| **valifetch** | **67,713** | baseline |
-| ofetch | 58,109 | 1.17× slower |
-| up-fetch | 42,619 | 1.59× slower |
-| ky | 39,225 | 1.73× slower |
-| axios (fetch adapter) | 11,463 | 5.91× slower |
-
-axios constructs a full `AxiosError` with a deep copy of the request config on every error, which explains the 6× gap.
 
 ## Requirements
 
