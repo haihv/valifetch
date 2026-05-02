@@ -26,6 +26,53 @@ A type-safe HTTP client built on native `fetch` with [Valibot](https://valibot.d
 - **Lightweight Instances** - Shared prototype pattern: each instance has only 1-2 own properties
 - **Callable Syntax** - Optional ky-style `api('/users')` syntax via `callable()` wrapper
 
+## Performance
+
+Benchmarked with [Vitest bench](https://vitest.dev/guide/features.html#benchmarking) on Node.js 20, fetch mocked to eliminate network variance. Run `npm run bench` to reproduce on your machine.
+
+> **Why is ofetch faster on the baseline?** ofetch is a minimal wrapper with no built-in retry, hook system, or schema validation. valifetch bundles all of that — the gap reflects features, not inefficiency. Schema validation itself adds less than 10% overhead over valifetch's own baseline.
+
+### GET + JSON parse (no schema)
+
+| Library | ops/sec | vs valifetch |
+|---|---|---|
+| ofetch | 204,379 | 1.92× faster |
+| **valifetch** | **106,373** | baseline |
+| ky | 68,443 | 1.55× slower |
+| up-fetch | 44,282 | 2.40× slower |
+| axios (fetch adapter) | 36,613 | 2.91× slower |
+
+### GET + JSON parse + schema validation
+
+Only valifetch and up-fetch support schema validation natively. ky, ofetch, and axios would require a manual parse step on top of their baseline cost.
+
+| Library | ops/sec | vs valifetch |
+|---|---|---|
+| **valifetch + valibot** | **95,703** | baseline |
+| up-fetch + valibot | 47,033 | 2.03× slower |
+
+### POST with JSON body
+
+| Library | ops/sec | vs valifetch |
+|---|---|---|
+| ofetch | 148,444 | 1.80× faster |
+| **valifetch** | **82,530** | baseline |
+| ky | 47,700 | 1.73× slower |
+| up-fetch | 43,303 | 1.91× slower |
+| axios (fetch adapter) | 31,562 | 2.61× slower |
+
+### 4xx error path
+
+| Library | ops/sec | vs valifetch |
+|---|---|---|
+| **valifetch** | **67,548** | baseline |
+| ofetch | 58,619 | 1.15× slower |
+| up-fetch | 48,718 | 1.39× slower |
+| ky | 38,687 | 1.75× slower |
+| axios (fetch adapter) | 9,207 | 7.34× slower |
+
+axios constructs a full `AxiosError` with a deep copy of the request config on every error, which explains the 7× gap.
+
 ## Installation
 
 **npm / Node.js**
