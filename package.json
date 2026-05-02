@@ -76,7 +76,13 @@
     "typescript",
     "type-safe",
     "api",
-    "rest"
+    "rest",
+    "ai",
+    "llm",
+    "agent",
+    "zod-alternative",
+    "ky-alternative",
+    "axios-alternative"
   ],
   "author": "haihv",
   "license": "MIT",

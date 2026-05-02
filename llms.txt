@@ -1,0 +1,172 @@
+# valifetch
+
+> Type-safe HTTP client built on native `fetch` with [Valibot](https://valibot.dev) schema validation.
+> Like ky, but with built-in request/response validation and up to 1.75× faster than ky.
+
+## Installation
+
+```bash
+npm install valifetch valibot
+# Deno
+deno add jsr:@haihv/valifetch
+```
+
+## Core concept
+
+valifetch wraps native `fetch` with:
+- Automatic JSON parse (no `.json()` needed)
+- Valibot schema validation on request body, response, path params, and search params
+- Full TypeScript inference from schemas
+- Retry with exponential backoff, timeout, hooks, deduplication, download progress
+
+## Quick start
+
+```typescript
+import valifetch from 'valifetch';
+import * as v from 'valibot';
+
+const UserSchema = v.object({ id: v.number(), name: v.string(), email: v.pipe(v.string(), v.email()) });
+
+// GET — response type inferred from schema
+const user = await valifetch.get('https://api.example.com/users/1', { responseSchema: UserSchema });
+
+// POST with body validation
+const newUser = await valifetch.post('https://api.example.com/users', {
+  json: { name: 'John', email: 'john@example.com' },
+  bodySchema: v.object({ name: v.pipe(v.string(), v.minLength(1)), email: v.pipe(v.string(), v.email()) }),
+  responseSchema: UserSchema,
+});
+```
+
+## Create a configured instance
+
+```typescript
+const api = valifetch.create({
+  prefixUrl: 'https://api.example.com',
+  timeout: 10_000,
+  headers: { Authorization: 'Bearer token' },
+  retry: { limit: 3, statusCodes: [429, 500, 502, 503, 504] },
+});
+
+const user = await api.get('/users/1', { responseSchema: UserSchema });
+```
+
+## All HTTP methods
+
+```typescript
+valifetch.get(url, options)     // CancellablePromise<T>
+valifetch.post(url, options)    // CancellablePromise<T>
+valifetch.put(url, options)     // CancellablePromise<T>
+valifetch.patch(url, options)   // CancellablePromise<T>
+valifetch.delete(url, options)  // CancellablePromise<T>
+valifetch.head(url, options)    // CancellablePromise<void> — no body; responseSchema is ignored
+valifetch.options(url, options) // CancellablePromise<T>
+```
+
+## Key options
+
+| Option | Type | Description |
+|---|---|---|
+| `responseSchema` | Valibot schema | Validate + type the response JSON |
+| `bodySchema` | Valibot schema | Validate `json` body before sending |
+| `paramsSchema` | Valibot schema | Validate `:param` path replacements |
+| `searchSchema` | Valibot schema | Validate query string params |
+| `json` | object | JSON body (auto-stringified) |
+| `form` | FormData \| URLSearchParams \| Record\<string, string\> | Form body (plain object values must be strings) |
+| `params` | object | Path param values for `:name` replacement |
+| `searchParams` | object \| URLSearchParams | Query string |
+| `prefixUrl` | string | Base URL |
+| `timeout` | number | Ms before TIMEOUT_ERROR |
+| `retry` | RetryOptions \| number \| false | Retry config |
+| `responseType` | `'json'` \| `'text'` \| `'blob'` \| `'arrayBuffer'` \| `'formData'` \| `'stream'` \| `'raw'` | Response format |
+| `validateResponse` | boolean | Validate response against `responseSchema` (default: true) |
+| `validateRequest` | boolean | Validate body/params/search schemas (default: true) |
+| `dedupe` | boolean | Deduplicate concurrent identical requests |
+| `onDownloadProgress` | function | Progress callback `{ loaded, total, percent }` |
+| `hooks` | object | `beforeRequest`, `afterResponse`, `afterParseResponse` arrays |
+
+## Auth helpers (valifetch/auth)
+
+```typescript
+import { bearerAuth, basicAuth, jwtRefresh } from 'valifetch/auth';
+
+const api = valifetch.create({
+  hooks: { beforeRequest: [bearerAuth(() => getToken())] },
+});
+```
+
+## Error handling
+
+```typescript
+import { ValifetchError } from 'valifetch/error';
+
+try {
+  await api.get('/users/1', { responseSchema: UserSchema });
+} catch (e) {
+  if (e instanceof ValifetchError) {
+    if (e.code === 'HTTP_ERROR') {
+      console.log(e.status);               // convenience getter for e.response?.status
+      console.log(e.statusText);           // convenience getter for e.response?.statusText
+    } else if (e.code === 'VALIDATION_ERROR') {
+      console.log(e.issues);              // convenience getter for e.validation?.issues ?? []
+      console.log(e.validation?.target);  // 'response' | 'body' | 'params' | 'search'
+      console.log(e.validation?.input);   // the invalid data that was validated
+    } else if (e.code === 'TIMEOUT_ERROR') {
+      // request exceeded timeout
+    } else if (e.code === 'NETWORK_ERROR') {
+      // fetch failed (offline, DNS, etc.)
+    } else if (e.code === 'ABORT_ERROR') {
+      // cancelled via .cancel() or AbortController
+    } else if (e.code === 'PARSE_ERROR') {
+      // JSON parse failed
+    }
+    // Boolean convenience: e.isHttpError, e.isValidationError, e.isTimeoutError,
+    //                      e.isNetworkError, e.isAbortError, e.isParseError
+  }
+}
+```
+
+## Extend an instance
+
+```typescript
+const adminApi = api.extend({ headers: { 'X-Admin': 'true' } });
+
+// Dynamic extension
+const authApi = api.extend((opts) => ({
+  ...opts,
+  headers: { ...opts.headers, Authorization: `Bearer ${getToken()}` },
+}));
+```
+
+## Callable syntax
+
+```typescript
+const api = valifetch.create({ prefixUrl: 'https://api.example.com' }).callable();
+const users = await api('/users');                          // GET
+const user  = await api('/users', { method: 'POST', json: { name: 'Jane' } });
+```
+
+## Subpath exports
+
+```typescript
+import valifetch from 'valifetch';                   // main
+import { ValifetchError } from 'valifetch/error';    // error class only
+import { bearerAuth } from 'valifetch/auth';         // auth helpers
+import type { ValifetchOptions } from 'valifetch/types'; // types only, zero runtime
+```
+
+## Performance (ops/sec, Node.js 20, fetch mocked)
+
+| Benchmark | valifetch | ky | axios |
+|---|---|---|---|
+| GET + JSON parse | 106,373 | 68,443 (1.5× slower) | 36,613 (2.9× slower) |
+| GET + schema validation | 95,703 | n/a | n/a |
+| POST JSON body | 82,530 | 47,700 (1.7× slower) | 31,562 (2.6× slower) |
+| 4xx error path | 67,548 (fastest) | 38,687 | 9,207 (7× slower) |
+
+## Links
+
+- npm: https://www.npmjs.com/package/valifetch
+- JSR: https://jsr.io/@haihv/valifetch
+- GitHub: https://github.com/haihv/valifetch
+- Changelog: https://github.com/haihv/valifetch/blob/main/CHANGELOG.md
