@@ -36,11 +36,11 @@ Benchmarked with [Vitest bench](https://vitest.dev/guide/features.html#benchmark
 
 | Library | ops/sec | vs valifetch |
 |---|---|---|
-| ofetch | 217,095 | 1.93× faster |
-| **valifetch** | **112,391** | baseline |
-| ky | 72,723 | 1.55× slower |
-| up-fetch | 44,908 | 2.50× slower |
-| axios (fetch adapter) | 40,579 | 2.77× slower |
+| ofetch | 204,379 | 1.92× faster |
+| **valifetch** | **106,373** | baseline |
+| ky | 68,443 | 1.55× slower |
+| up-fetch | 44,282 | 2.40× slower |
+| axios (fetch adapter) | 36,613 | 2.91× slower |
 
 ### GET + JSON parse + schema validation
 
@@ -48,30 +48,30 @@ Only valifetch and up-fetch support schema validation natively. ky, ofetch, and 
 
 | Library | ops/sec | vs valifetch |
 |---|---|---|
-| **valifetch + valibot** | **99,668** | baseline |
-| up-fetch + valibot | 48,207 | 2.07× slower |
+| **valifetch + valibot** | **95,703** | baseline |
+| up-fetch + valibot | 47,033 | 2.03× slower |
 
 ### POST with JSON body
 
 | Library | ops/sec | vs valifetch |
 |---|---|---|
-| ofetch | 133,557 | 1.60× faster |
-| **valifetch** | **83,447** | baseline |
-| ky | 49,157 | 1.70× slower |
-| up-fetch | 44,221 | 1.89× slower |
-| axios (fetch adapter) | 31,800 | 2.62× slower |
+| ofetch | 148,444 | 1.80× faster |
+| **valifetch** | **82,530** | baseline |
+| ky | 47,700 | 1.73× slower |
+| up-fetch | 43,303 | 1.91× slower |
+| axios (fetch adapter) | 31,562 | 2.61× slower |
 
 ### 4xx error path
 
 | Library | ops/sec | vs valifetch |
 |---|---|---|
-| **valifetch** | **67,713** | baseline |
-| ofetch | 58,109 | 1.17× slower |
-| up-fetch | 42,619 | 1.59× slower |
-| ky | 39,225 | 1.73× slower |
-| axios (fetch adapter) | 11,463 | 5.91× slower |
+| **valifetch** | **67,548** | baseline |
+| ofetch | 58,619 | 1.15× slower |
+| up-fetch | 48,718 | 1.39× slower |
+| ky | 38,687 | 1.75× slower |
+| axios (fetch adapter) | 9,207 | 7.34× slower |
 
-axios constructs a full `AxiosError` with a deep copy of the request config on every error, which explains the 6× gap.
+axios constructs a full `AxiosError` with a deep copy of the request config on every error, which explains the 7× gap.
 
 ## Installation
 
