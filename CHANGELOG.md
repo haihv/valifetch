@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.1] - 2026-05-02
+
+### Added
+
+- **Benchmark suite** — Vitest bench suite covering the core pipeline (request build, response parse, retry, hooks). Run with `npm run bench`. ([#27](https://github.com/haihv/valifetch/pull/27))
+
+### Maintenance
+
+- Upgrade all dependencies to latest ([#26](https://github.com/haihv/valifetch/pull/26))
+- Update `@codecov/rollup-plugin` to v2; fix postcss XSS advisory ([#25](https://github.com/haihv/valifetch/pull/25))
+
 ## [0.5.0] - 2026-04-12
 
 ### Added
