@@ -25,6 +25,7 @@ import {
 } from './response';
 import {
   calculateRetryDelay,
+  getRetryAfterDelay,
   normalizeRetryOptions,
   shouldRetry,
   shouldRetryNetworkError,
@@ -250,7 +251,10 @@ async function executeRequestCore<T>(
         shouldRetry(method, response.status, attemptCount, retryOptions)
       ) {
         attemptCount++;
-        await sleep(calculateRetryDelay(attemptCount - 1, retryOptions));
+        const delay =
+          getRetryAfterDelay(response) ??
+          calculateRetryDelay(attemptCount - 1, retryOptions);
+        await sleep(delay);
         continue;
       }
 

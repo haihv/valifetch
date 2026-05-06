@@ -189,7 +189,40 @@ describe('integration — real HTTP server', () => {
     });
   });
 
-  it('afterResponse hook can replace a 401 response with a refreshed one (HAI-146)', async () => {
+  it('Retry-After header — client waits the prescribed delay before retrying 429', async () => {
+    let requestCount = 0;
+    const startTime = Date.now();
+    let retryTime = 0;
+
+    const { start, stop } = createTestServer((_req, res) => {
+      requestCount++;
+      if (requestCount === 1) {
+        res.writeHead(429, { 'retry-after': '1' });
+        res.end();
+      } else {
+        retryTime = Date.now();
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true }));
+      }
+    });
+
+    const url = await start();
+
+    try {
+      const result = await valifetch.get(url, {
+        retry: { limit: 1, methods: ['GET'], statusCodes: [429] },
+      });
+
+      expect(result).toEqual({ ok: true });
+      expect(requestCount).toBe(2);
+      // Retry-After: 1 → at least ~1 000 ms elapsed between first request and retry
+      expect(retryTime - startTime).toBeGreaterThanOrEqual(900);
+    } finally {
+      await stop();
+    }
+  });
+
+  it('afterResponse hook can replace a 401 response with a refreshed one', async () => {
     // Server: returns 401 without the magic header, 200 with it
     const { start, stop } = createTestServer((req, res) => {
       if (req.headers['x-token'] === 'valid') {

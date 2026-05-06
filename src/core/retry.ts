@@ -123,3 +123,28 @@ export function shouldRetryNetworkError(
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+/**
+ * Read the `Retry-After` response header and return the prescribed delay in milliseconds.
+ *
+ * The header value may be:
+ * - A non-negative integer (seconds): `Retry-After: 120` → 120 000 ms
+ * - An HTTP-date: `Retry-After: Wed, 21 Oct 2015 07:28:00 GMT` → ms until that date (min 0)
+ *
+ * Returns `null` when the header is absent or cannot be parsed.
+ *
+ * @param response - The HTTP response to inspect
+ * @returns Delay in milliseconds, or `null` if the header is absent or unparseable
+ */
+export function getRetryAfterDelay(response: Response): number | null {
+  const value = response.headers.get('retry-after');
+  if (value === null) return null;
+
+  const seconds = parseInt(value, 10);
+  if (Number.isFinite(seconds) && seconds >= 0) return seconds * 1000;
+
+  const date = Date.parse(value);
+  if (Number.isFinite(date)) return Math.max(0, date - Date.now());
+
+  return null;
+}

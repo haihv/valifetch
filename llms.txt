@@ -17,7 +17,7 @@ valifetch wraps native `fetch` with:
 - Automatic JSON parse (no `.json()` needed)
 - Valibot schema validation on request body, response, path params, and search params
 - Full TypeScript inference from schemas
-- Retry with exponential backoff, timeout, hooks, deduplication, download progress
+- Retry with exponential backoff + `Retry-After` header support, timeout, hooks, deduplication, download progress
 
 ## Quick start
 
