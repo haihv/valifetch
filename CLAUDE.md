@@ -66,6 +66,8 @@ Integration tests live in `tests/integration/` and spin up a real `http.createSe
 - Timeout — server never responds; asserts `TIMEOUT_ERROR` within the configured `timeout` ms
 - `afterResponse` 401-refresh — hook re-fetches with refreshed token and replacement response flows through the full pipeline
 - `prefixUrl` path joining — trailing-slash normalization and search-param encoding round-trips
+- `responseType: 'sse'` — real chunked `text/event-stream` response; verifies event type, data, and lastEventId
+- `Retry-After` header — server returns 429 with `Retry-After: 1`; client waits ≥ 900 ms before retry
 
 Integration tests are not run in the pre-commit hook (too slow); they run in CI alongside unit tests.
 

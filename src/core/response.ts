@@ -85,13 +85,19 @@ export async function parseJsonResponse<T extends GenericSchema>(
  * - `id:` sets `lastEventId`
  * - `retry:` is parsed but not yielded (reconnect hint, not applicable to a one-shot fetch)
  * - Lines starting with `:` are comments and are ignored
+ * - Handles `\n`, `\r`, and `\r\n` line endings per the SSE spec
  *
- * @param body - The raw `ReadableStream<Uint8Array>` from `response.body`
+ * Yields nothing and returns immediately when `body` is `null`
+ * (e.g. a 204 No Content response).
+ *
+ * @param body - The raw `ReadableStream<Uint8Array>` from `response.body`, or `null`
  * @returns An `AsyncIterable<MessageEvent>` that yields one event per SSE frame
  */
 export async function* parseSSEResponse(
-  body: ReadableStream<Uint8Array>
+  body: ReadableStream<Uint8Array> | null
 ): AsyncIterable<MessageEvent> {
+  if (!body) return;
+
   // TextDecoderStream's writable is typed as WritableStream<BufferSource> but Uint8Array
   // satisfies that contract at runtime. The cast silences the TS dom-lib mismatch.
   const reader = body
@@ -135,11 +141,16 @@ export async function* parseSSEResponse(
     }
   };
 
+  // Normalise incoming text to \n-only so event boundary detection (\n\n)
+  // works regardless of whether the server sends \r\n or \r line endings.
+  const normalise = (s: string) =>
+    s.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
   try {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      buffer += value;
+      buffer += normalise(value);
 
       let boundary: number;
       while ((boundary = buffer.indexOf('\n\n')) !== -1) {

@@ -97,7 +97,7 @@ async function handleResponse<T>(
     case 'raw':
       return response as T;
     case 'sse':
-      return parseSSEResponse(response.body!) as T;
+      return parseSSEResponse(response.body) as T;
     case 'text':
       data = (await trackedResponse.text()) as T;
       break;

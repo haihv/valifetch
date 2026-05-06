@@ -138,6 +138,47 @@ describe('parseSSEResponse', () => {
     expect(events[0].data).toBe('before');
     expect(events[1].data).toBe('after');
   });
+
+  it('handles CRLF line endings from servers that send \\r\\n', async () => {
+    const events = await collectEvents(
+      parseSSEResponse(makeSSEBody('event: update\r\ndata: payload\r\n\r\n'))
+    );
+
+    expect(events).toHaveLength(1);
+    expect(events[0].type).toBe('update');
+    expect(events[0].data).toBe('payload');
+  });
+
+  it('handles bare \\r line endings', async () => {
+    const events = await collectEvents(
+      parseSSEResponse(makeSSEBody('data: hello\r\r'))
+    );
+
+    expect(events).toHaveLength(1);
+    expect(events[0].data).toBe('hello');
+  });
+
+  it('parses events split across multiple stream chunks', async () => {
+    // The event boundary \n\n straddles two separate chunks — exercises buffering
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('data: hel'));
+        controller.enqueue(new TextEncoder().encode('lo\n\ndata: world\n\n'));
+        controller.close();
+      },
+    });
+
+    const events = await collectEvents(parseSSEResponse(body));
+
+    expect(events).toHaveLength(2);
+    expect(events[0].data).toBe('hello');
+    expect(events[1].data).toBe('world');
+  });
+
+  it('yields nothing and returns immediately for a null body', async () => {
+    const events = await collectEvents(parseSSEResponse(null));
+    expect(events).toHaveLength(0);
+  });
 });
 
 describe('responseType: sse (integration with valifetch)', () => {
@@ -194,5 +235,20 @@ describe('responseType: sse (integration with valifetch)', () => {
     await expect(
       valifetch.get('https://api.example.com/sse', { responseType: 'sse' })
     ).resolves.not.toThrow();
+  });
+
+  it('returns an empty iterable for a null-body response (e.g. 204)', async () => {
+    fetchSpy.mockResolvedValue(new Response(null, { status: 204 }));
+
+    const stream = (await valifetch.get('https://api.example.com/sse', {
+      responseType: 'sse',
+      throwHttpErrors: false,
+    })) as AsyncIterable<MessageEvent>;
+
+    const events: MessageEvent[] = [];
+    for await (const event of stream) {
+      events.push(event);
+    }
+    expect(events).toHaveLength(0);
   });
 });
