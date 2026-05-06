@@ -76,6 +76,89 @@ export async function parseJsonResponse<T extends GenericSchema>(
 }
 
 /**
+ * Parses a Server-Sent Events (SSE) response body into an `AsyncIterable<MessageEvent>`.
+ *
+ * Each SSE event block (separated by a blank line) is decoded according to the
+ * [SSE specification](https://html.spec.whatwg.org/multipage/server-sent-events.html):
+ * - `data:` lines accumulate and are joined with `\n`
+ * - `event:` sets the event type (default `'message'`)
+ * - `id:` sets `lastEventId`
+ * - `retry:` is parsed but not yielded (reconnect hint, not applicable to a one-shot fetch)
+ * - Lines starting with `:` are comments and are ignored
+ *
+ * @param body - The raw `ReadableStream<Uint8Array>` from `response.body`
+ * @returns An `AsyncIterable<MessageEvent>` that yields one event per SSE frame
+ */
+export async function* parseSSEResponse(
+  body: ReadableStream<Uint8Array>
+): AsyncIterable<MessageEvent> {
+  // TextDecoderStream's writable is typed as WritableStream<BufferSource> but Uint8Array
+  // satisfies that contract at runtime. The cast silences the TS dom-lib mismatch.
+  const reader = body
+    .pipeThrough(
+      new TextDecoderStream() as unknown as ReadableWritablePair<
+        string,
+        Uint8Array
+      >
+    )
+    .getReader();
+  let buffer = '';
+
+  const dispatchEvent = function* (block: string): Iterable<MessageEvent> {
+    if (!block.trim()) return;
+
+    let data = '';
+    let eventType = 'message';
+    let lastEventId = '';
+
+    for (const line of block.split('\n')) {
+      if (line.startsWith(':')) continue;
+
+      const colonIndex = line.indexOf(':');
+      const field = colonIndex === -1 ? line : line.slice(0, colonIndex);
+      // RFC: if colon is present, strip exactly one leading space from value
+      const rawValue = colonIndex === -1 ? '' : line.slice(colonIndex + 1);
+      const value = rawValue.startsWith(' ') ? rawValue.slice(1) : rawValue;
+
+      if (field === 'data') {
+        data = data === '' ? value : `${data}\n${value}`;
+      } else if (field === 'event') {
+        eventType = value;
+      } else if (field === 'id') {
+        lastEventId = value;
+      }
+      // 'retry' field is intentionally ignored for one-shot fetch usage
+    }
+
+    if (data !== '') {
+      yield new MessageEvent(eventType, { data, lastEventId });
+    }
+  };
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += value;
+
+      let boundary: number;
+      while ((boundary = buffer.indexOf('\n\n')) !== -1) {
+        const block = buffer.slice(0, boundary);
+        buffer = buffer.slice(boundary + 2);
+        yield* dispatchEvent(block);
+      }
+    }
+
+    // Flush any trailing event that wasn't followed by a blank line
+    if (buffer.trim()) {
+      yield* dispatchEvent(buffer);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+/**
  * Wraps a Response so that `onDownloadProgress` is called as body bytes arrive.
  * Reads `Content-Length` for total; percent is omitted when the header is absent.
  * Returns the original response unchanged when its body is null.

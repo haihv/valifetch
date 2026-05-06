@@ -18,6 +18,7 @@ valifetch wraps native `fetch` with:
 - Valibot schema validation on request body, response, path params, and search params
 - Full TypeScript inference from schemas
 - Retry with exponential backoff + `Retry-After` header support, timeout, hooks, deduplication, download progress
+- SSE (`responseType: 'sse'`) — returns `AsyncIterable<MessageEvent>` with built-in SSE frame parsing
 
 ## Quick start
 
@@ -78,7 +79,7 @@ valifetch.options(url, options) // CancellablePromise<T>
 | `prefixUrl` | string | Base URL |
 | `timeout` | number | Ms before TIMEOUT_ERROR |
 | `retry` | RetryOptions \| number \| false | Retry config |
-| `responseType` | `'json'` \| `'text'` \| `'blob'` \| `'arrayBuffer'` \| `'formData'` \| `'stream'` \| `'raw'` | Response format |
+| `responseType` | `'json'` \| `'text'` \| `'blob'` \| `'arrayBuffer'` \| `'formData'` \| `'stream'` \| `'raw'` \| `'sse'` | Response format |
 | `validateResponse` | boolean | Validate response against `responseSchema` (default: true) |
 | `validateRequest` | boolean | Validate body/params/search schemas (default: true) |
 | `dedupe` | boolean | Deduplicate concurrent identical requests |

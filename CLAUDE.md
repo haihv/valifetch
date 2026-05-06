@@ -38,7 +38,7 @@ valifetch.get(url, opts)
 | ------------------------------ | ----------------------------------------------------------------------------------------- |
 | `src/core/valifetch.ts`        | Instance creation (`create`, `extend`, `callable`), HTTP method dispatch, options merging |
 | `src/core/request.ts`          | Builds `Request` object; validates request body/params/search against schemas; handles `json` and `form` bodies |
-| `src/core/response.ts`         | Status checking, JSON parsing, response schema validation                                 |
+| `src/core/response.ts`         | Status checking, JSON parsing, response schema validation, SSE frame parsing (`parseSSEResponse`) |
 | `src/core/retry.ts`            | Exponential backoff with jitter; default 2 retries on `[408, 413, 429, 500–504]`          |
 | `src/core/hooks.ts`            | `beforeRequest`, `afterResponse`, `afterParseResponse` hook runners                       |
 | `src/errors/ValifetchError.ts` | Custom error class with typed error codes                                                 |

@@ -189,6 +189,43 @@ describe('integration — real HTTP server', () => {
     });
   });
 
+  it('responseType sse — collects all events from a real chunked SSE stream', async () => {
+    const { start, stop } = createTestServer((_req, res) => {
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        Connection: 'keep-alive',
+      });
+      res.write('data: first\n\n');
+      res.write('event: update\ndata: second\n\n');
+      res.write('id: 3\ndata: third\n\n');
+      res.end();
+    });
+
+    const url = await start();
+
+    try {
+      const stream = (await valifetch.get(url, {
+        responseType: 'sse',
+      })) as AsyncIterable<MessageEvent>;
+
+      const events: MessageEvent[] = [];
+      for await (const event of stream) {
+        events.push(event);
+      }
+
+      expect(events).toHaveLength(3);
+      expect(events[0].type).toBe('message');
+      expect(events[0].data).toBe('first');
+      expect(events[1].type).toBe('update');
+      expect(events[1].data).toBe('second');
+      expect(events[2].lastEventId).toBe('3');
+      expect(events[2].data).toBe('third');
+    } finally {
+      await stop();
+    }
+  });
+
   it('Retry-After header — client waits the prescribed delay before retrying 429', async () => {
     let requestCount = 0;
     const startTime = Date.now();

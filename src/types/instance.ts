@@ -35,7 +35,8 @@ export type ResponseType =
   | 'arrayBuffer'
   | 'formData'
   | 'stream'
-  | 'raw';
+  | 'raw'
+  | 'sse';
 
 /**
  * Options for GET-like methods (no body)
