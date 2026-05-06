@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   calculateRetryDelay,
   DEFAULT_RETRY_OPTIONS,
+  getRetryAfterDelay,
   normalizeRetryOptions,
   shouldRetry,
   shouldRetryNetworkError,
@@ -367,6 +368,59 @@ describe('core/retry', () => {
         // Assert - promise resolved
         expect(true).toBe(true);
       }
+    });
+  });
+
+  describe('getRetryAfterDelay', () => {
+    it('returns null when Retry-After header is absent', () => {
+      const response = new Response(null, { status: 429 });
+      expect(getRetryAfterDelay(response)).toBeNull();
+    });
+
+    it('parses a seconds integer value', () => {
+      const response = new Response(null, {
+        status: 429,
+        headers: { 'retry-after': '120' },
+      });
+      expect(getRetryAfterDelay(response)).toBe(120_000);
+    });
+
+    it('parses a zero seconds value', () => {
+      const response = new Response(null, {
+        status: 429,
+        headers: { 'retry-after': '0' },
+      });
+      expect(getRetryAfterDelay(response)).toBe(0);
+    });
+
+    it('parses an HTTP-date value in the future', () => {
+      const futureDate = new Date(Date.now() + 60_000);
+      const response = new Response(null, {
+        status: 429,
+        headers: { 'retry-after': futureDate.toUTCString() },
+      });
+      const delay = getRetryAfterDelay(response);
+      // toUTCString() truncates sub-second precision, so the delay may be up to
+      // ~1 s less than 60 000 ms. Allow a 1 200 ms window.
+      expect(delay).toBeGreaterThan(58_800);
+      expect(delay).toBeLessThanOrEqual(60_000);
+    });
+
+    it('clamps an HTTP-date in the past to 0', () => {
+      const pastDate = new Date(Date.now() - 10_000);
+      const response = new Response(null, {
+        status: 429,
+        headers: { 'retry-after': pastDate.toUTCString() },
+      });
+      expect(getRetryAfterDelay(response)).toBe(0);
+    });
+
+    it('returns null for an unparseable value', () => {
+      const response = new Response(null, {
+        status: 429,
+        headers: { 'retry-after': 'not-a-number-or-date' },
+      });
+      expect(getRetryAfterDelay(response)).toBeNull();
     });
   });
 

@@ -1820,4 +1820,68 @@ describe('core/valifetch', () => {
       ).rejects.toMatchObject({ code: 'HTTP_ERROR' });
     });
   });
+
+  describe('Retry-After header support', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('uses Retry-After seconds delay instead of exponential backoff on 429', async () => {
+      fetchSpy
+        .mockResolvedValueOnce(
+          new Response('{}', {
+            status: 429,
+            headers: { 'retry-after': '5' },
+          })
+        )
+        .mockResolvedValueOnce(
+          new Response('{}', {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          })
+        );
+
+      const api = valifetch.create({
+        retry: { limit: 1, methods: ['GET'], statusCodes: [429] },
+      });
+
+      const promise = api.get('https://api.example.com/rate-limited');
+
+      // Advance exactly 5 000 ms — the Retry-After prescribed delay
+      await vi.advanceTimersByTimeAsync(5_000);
+      await promise;
+
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it('falls back to exponential backoff when Retry-After header is absent', async () => {
+      fetchSpy
+        .mockResolvedValueOnce(new Response('{}', { status: 429 }))
+        .mockResolvedValueOnce(
+          new Response('{}', {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          })
+        );
+
+      const api = valifetch.create({
+        retry: {
+          limit: 1,
+          methods: ['GET'],
+          statusCodes: [429],
+          delay: () => 1_000,
+        },
+      });
+
+      const promise = api.get('https://api.example.com/rate-limited');
+      await vi.advanceTimersByTimeAsync(1_000);
+      await promise;
+
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+    });
+  });
 });
