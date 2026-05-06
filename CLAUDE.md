@@ -38,7 +38,7 @@ valifetch.get(url, opts)
 | ------------------------------ | ----------------------------------------------------------------------------------------- |
 | `src/core/valifetch.ts`        | Instance creation (`create`, `extend`, `callable`), HTTP method dispatch, options merging |
 | `src/core/request.ts`          | Builds `Request` object; validates request body/params/search against schemas; handles `json` and `form` bodies |
-| `src/core/response.ts`         | Status checking, JSON parsing, response schema validation                                 |
+| `src/core/response.ts`         | Status checking, JSON parsing, response schema validation, SSE frame parsing (`parseSSEResponse`) |
 | `src/core/retry.ts`            | Exponential backoff with jitter; default 2 retries on `[408, 413, 429, 500–504]`          |
 | `src/core/hooks.ts`            | `beforeRequest`, `afterResponse`, `afterParseResponse` hook runners                       |
 | `src/errors/ValifetchError.ts` | Custom error class with typed error codes                                                 |
@@ -66,6 +66,8 @@ Integration tests live in `tests/integration/` and spin up a real `http.createSe
 - Timeout — server never responds; asserts `TIMEOUT_ERROR` within the configured `timeout` ms
 - `afterResponse` 401-refresh — hook re-fetches with refreshed token and replacement response flows through the full pipeline
 - `prefixUrl` path joining — trailing-slash normalization and search-param encoding round-trips
+- `responseType: 'sse'` — real chunked `text/event-stream` response; verifies event type, data, and lastEventId
+- `Retry-After` header — server returns 429 with `Retry-After: 1`; client waits ≥ 900 ms before retry
 
 Integration tests are not run in the pre-commit hook (too slow); they run in CI alongside unit tests.
 

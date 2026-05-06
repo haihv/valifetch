@@ -166,7 +166,7 @@ type Options = {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS'; // HTTP method (for callable syntax)
 
   // Response format
-  responseType?: 'json' | 'text' | 'blob' | 'arrayBuffer' | 'formData' | 'stream' | 'raw';
+  responseType?: 'json' | 'text' | 'blob' | 'arrayBuffer' | 'formData' | 'stream' | 'raw' | 'sse';
 
   // Configuration
   prefixUrl?: string; // Base URL prefix
@@ -176,7 +176,7 @@ type Options = {
   validateRequest?: boolean; // Enable request validation (default: true)
   throwHttpErrors?: boolean; // Throw on non-2xx status (default: true)
   dedupe?: boolean; // Deduplicate concurrent identical requests (default: false)
-  onDownloadProgress?: (event: DownloadProgressEvent) => void; // Download progress callback (not called for responseType 'stream' or 'raw')
+  onDownloadProgress?: (event: DownloadProgressEvent) => void; // Download progress callback (not called for responseType 'stream', 'raw', or 'sse')
 
   // Hooks
   hooks?: {
@@ -303,6 +303,14 @@ const stream = await valifetch.get('https://example.com/large-file', {
 const response = await valifetch.get('https://example.com', {
   responseType: 'raw',
 });
+
+// SSE — returns AsyncIterable<MessageEvent>, parses the SSE frame protocol internally
+const events = await valifetch.get('https://api.example.com/stream', {
+  responseType: 'sse',
+});
+for await (const event of events) {
+  console.log(event.type, event.data); // event.type defaults to 'message'
+}
 ```
 
 ### Create an Instance

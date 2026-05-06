@@ -21,6 +21,7 @@ import { buildRequest } from './request';
 import {
   checkResponseStatus,
   parseJsonResponse,
+  parseSSEResponse,
   wrapResponseWithProgress,
 } from './response';
 import {
@@ -79,11 +80,12 @@ async function handleResponse<T>(
   checkResponseStatus(response, request, throwHttpErrors);
 
   // Pipe body through a progress-tracking TransformStream before parsing.
-  // Skip for 'stream' and 'raw' since the caller takes ownership of the body.
+  // Skip for 'stream', 'raw', and 'sse' since the caller owns the body/iterable.
   const trackedResponse =
     options.onDownloadProgress &&
     responseType !== 'stream' &&
-    responseType !== 'raw'
+    responseType !== 'raw' &&
+    responseType !== 'sse'
       ? wrapResponseWithProgress(response, options.onDownloadProgress)
       : response;
 
@@ -94,6 +96,8 @@ async function handleResponse<T>(
       return response.body as T;
     case 'raw':
       return response as T;
+    case 'sse':
+      return parseSSEResponse(response.body) as T;
     case 'text':
       data = (await trackedResponse.text()) as T;
       break;

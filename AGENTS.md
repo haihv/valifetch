@@ -120,7 +120,13 @@ controller.abort();
 ### SSE / streaming
 
 ```typescript
-// Get the raw ReadableStream
+// First-class SSE — returns AsyncIterable<MessageEvent>, parses the SSE frame protocol
+const events = await api.get('/events', { responseType: 'sse' });
+for await (const event of events) {
+  console.log(event.type, event.data); // event.type defaults to 'message'
+}
+
+// Raw ReadableStream (manual parsing)
 const stream = await api.get('/events', { responseType: 'stream' });
 const reader = stream.getReader();
 ```
@@ -171,7 +177,7 @@ try {
 | `prefixUrl` | Base URL for the instance |
 | `timeout` | Ms until TIMEOUT_ERROR |
 | `retry` | `{ limit, statusCodes, methods, delay }` or just a number |
-| `responseType` | `'json'` (default) \| `'text'` \| `'blob'` \| `'arrayBuffer'` \| `'formData'` \| `'stream'` \| `'raw'` |
+| `responseType` | `'json'` (default) \| `'text'` \| `'blob'` \| `'arrayBuffer'` \| `'formData'` \| `'stream'` \| `'raw'` \| `'sse'` |
 | `validateResponse` | Validate response against `responseSchema` (default: `true`) |
 | `validateRequest` | Validate body/params/search schemas (default: `true`) |
 | `dedupe` | Collapse concurrent identical requests into one |
@@ -181,7 +187,7 @@ try {
 ## What NOT to do
 
 - Don't call `.json()` on the result — valifetch parses JSON automatically
-- Don't use `responseType: 'stream'` then also set `responseSchema` — they're incompatible
+- Don't use `responseType: 'stream'` or `'sse'` then also set `responseSchema` — they're incompatible
 - Don't set both `json` and `form` on the same request
 - Don't use `responseSchema` with `head()` — it always returns `void` regardless
 - Don't import from `valifetch/types` at runtime — it contains zero runtime code; use `import type` only
