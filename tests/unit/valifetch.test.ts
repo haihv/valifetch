@@ -1851,8 +1851,12 @@ describe('core/valifetch', () => {
 
       const promise = api.get('https://api.example.com/rate-limited');
 
-      // Advance exactly 5 000 ms — the Retry-After prescribed delay
-      await vi.advanceTimersByTimeAsync(5_000);
+      // After 4 999 ms the retry sleep has not yet fired — only the first fetch ran
+      await vi.advanceTimersByTimeAsync(4_999);
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+      // One more ms fires the 5 000 ms sleep and the retry fetch completes
+      await vi.advanceTimersByTimeAsync(1);
       await promise;
 
       expect(fetchSpy).toHaveBeenCalledTimes(2);

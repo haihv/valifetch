@@ -228,12 +228,13 @@ describe('integration — real HTTP server', () => {
 
   it('Retry-After header — client waits the prescribed delay before retrying 429', async () => {
     let requestCount = 0;
-    const startTime = Date.now();
+    let firstRequestTime = 0;
     let retryTime = 0;
 
     const { start, stop } = createTestServer((_req, res) => {
       requestCount++;
       if (requestCount === 1) {
+        firstRequestTime = Date.now();
         res.writeHead(429, { 'retry-after': '1' });
         res.end();
       } else {
@@ -252,8 +253,8 @@ describe('integration — real HTTP server', () => {
 
       expect(result).toEqual({ ok: true });
       expect(requestCount).toBe(2);
-      // Retry-After: 1 → at least ~1 000 ms elapsed between first request and retry
-      expect(retryTime - startTime).toBeGreaterThanOrEqual(900);
+      // Retry-After: 1 → at least ~1 000 ms between first request arrival and retry
+      expect(retryTime - firstRequestTime).toBeGreaterThanOrEqual(900);
     } finally {
       await stop();
     }
