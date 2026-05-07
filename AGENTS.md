@@ -104,6 +104,8 @@ const api = valifetch.create({
 });
 ```
 
+When a retryable response includes a `Retry-After` header (e.g. on a 429), valifetch automatically uses the server-prescribed delay instead of the exponential backoff formula. Both integer-seconds (`Retry-After: 120`) and HTTP-date formats are supported.
+
 ### Cancellation
 
 ```typescript
