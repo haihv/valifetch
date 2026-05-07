@@ -7,6 +7,7 @@ export default defineConfig({
     error: 'src/error.ts',
     types: 'src/types.ts',
     auth: 'src/auth.ts',
+    mock: 'src/mock.ts',
   },
   format: ['cjs', 'esm'],
   dts: true,

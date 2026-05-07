@@ -45,6 +45,8 @@ valifetch.get(url, opts)
 | `src/url/`                     | URL building and `:param` → value path replacement                                        |
 | `src/validation/validate.ts`   | Thin wrapper around `valibot.safeParse`                                                   |
 | `src/types/`                   | All TypeScript types (options, hooks, instance, path-param inference) — no runtime code   |
+| `src/mock/`                    | `createMock()` — testing utility; intercepts via `beforeRequest` hook, no `globalThis.fetch` patching |
+| `src/auth.ts`                  | `bearerAuth`, `basicAuth`, `jwtRefresh` — `beforeRequest` hook factories for common auth patterns |
 
 ### Instance inheritance
 
@@ -52,7 +54,7 @@ valifetch.get(url, opts)
 
 ### Package exports
 
-Three subpath exports: `.` (main), `./error` (error class), `./types` (types only, zero runtime). All dual CJS/ESM via tsup. `valibot` is a peer dependency — not bundled.
+Five subpath exports: `.` (main), `./error` (error class), `./types` (types only, zero runtime), `./auth` (auth hooks), `./mock` (testing utilities). All dual CJS/ESM via tsup. `valibot` is a peer dependency — not bundled.
 
 ### Testing
 

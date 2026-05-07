@@ -194,11 +194,45 @@ try {
 - Don't use `responseSchema` with `head()` — it always returns `void` regardless
 - Don't import from `valifetch/types` at runtime — it contains zero runtime code; use `import type` only
 
+## Testing utilities
+
+Use `valifetch/mock` in test files to intercept requests without patching `globalThis.fetch`:
+
+```typescript
+import { createMock } from 'valifetch/mock';
+import valifetch from 'valifetch';
+
+const mock = createMock();
+mock.get('/users').reply(200, [{ id: 1 }]);          // permanent fixture
+mock.post('/users').replyOnce(201, { id: 2 });        // consumed once, then falls through
+
+const api = valifetch.extend({ hooks: mock.hooks });  // attach to instance
+
+await api.get('https://api.example.com/users');
+
+mock.calls();      // MockCall[] — all intercepted requests in order
+mock.lastCall();   // MockCall | undefined — most recent intercepted request
+mock.reset();      // clear handlers and calls (call between tests)
+```
+
+`MockCall` fields:
+- `method` — HTTP method string
+- `url` — full request URL
+- `headers` — `Record<string, string>`
+- `body` — JSON-parsed object, string, or `null` (no body)
+- `searchParams` — `URLSearchParams`
+
+URL patterns: exact path string, `:param` wildcard, `*` wildcard, or `RegExp` (tested against full URL).
+Method: HTTP method string, or `'*'` to match any method via `mock.when('*', pattern)`.
+
+Unmatched requests fall through to the real `fetch` (no error).
+
 ## Subpath imports
 
 ```typescript
 import valifetch from 'valifetch';                       // default instance + create/extend
 import { ValifetchError } from 'valifetch/error';        // error class
 import { bearerAuth, basicAuth, jwtRefresh } from 'valifetch/auth'; // auth hooks
+import { createMock } from 'valifetch/mock';             // testing mock (test files only)
 import type { ValifetchOptions } from 'valifetch/types'; // types only
 ```

@@ -46,6 +46,16 @@
         "types": "./dist/auth.d.cts",
         "default": "./dist/auth.cjs"
       }
+    },
+    "./mock": {
+      "import": {
+        "types": "./dist/mock.d.ts",
+        "default": "./dist/mock.js"
+      },
+      "require": {
+        "types": "./dist/mock.d.cts",
+        "default": "./dist/mock.cjs"
+      }
     }
   },
   "files": ["dist", "README.md", "CHANGELOG.md", "LICENSE"],

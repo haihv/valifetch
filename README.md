@@ -636,6 +636,61 @@ const authApi = valifetch.create({
 
 All three factories return a plain `BeforeRequestHook` — they compose freely with any other hooks.
 
+## Testing Utilities (`valifetch/mock`)
+
+The `valifetch/mock` subpath provides `createMock()` — a lightweight mock that intercepts requests via the `beforeRequest` hook, without patching `globalThis.fetch`. Works in Vitest and Jest.
+
+```typescript
+import { createMock } from 'valifetch/mock';
+import valifetch from 'valifetch';
+
+const mock = createMock();
+
+// Register fixture responses
+mock.get('/users').reply(200, [{ id: 1, name: 'Alice' }]);
+mock.post('/users').reply(201, { id: 2, name: 'Bob' });
+
+// Attach to an instance
+const api = valifetch.extend({ hooks: mock.hooks });
+
+// Make requests normally — matched routes never reach the network
+const users = await api.get('https://api.example.com/users');
+
+// Assert on what was sent
+const call = mock.lastCall();
+console.log(call?.method);      // 'GET'
+console.log(call?.url);         // 'https://api.example.com/users'
+console.log(call?.headers);     // { 'content-type': 'application/json', ... }
+console.log(call?.body);        // parsed request body (JSON object, string, or null)
+console.log(call?.searchParams); // URLSearchParams
+
+mock.calls();     // all recorded calls in order
+mock.lastCall();  // last recorded call, or undefined
+
+mock.reset();     // clear handlers and calls between tests
+```
+
+### URL patterns
+
+```typescript
+mock.get('/users/:id').reply(200, { id: 1 });        // :param wildcard
+mock.get('/files/*').reply(200, { file: true });      // * wildcard
+mock.get(/\/posts\/\d+$/).reply(200, { post: true }); // RegExp (tested against full URL)
+mock.when('*', '/ping').reply(200, { ok: true });     // any method
+```
+
+### Response queuing
+
+`reply` registers a permanent fixture. `replyOnce` registers one that is consumed on the first match — useful for simulating retries:
+
+```typescript
+mock.get('/flaky')
+  .replyOnce(503, { error: 'Service Unavailable' }) // first call → 503
+  .reply(200, { data: 'ok' });                       // subsequent calls → 200
+```
+
+Body values are always `JSON.stringify`-serialised. Pass `undefined` (omit the argument) for a bodyless response (e.g. status 204). Status codes that must not carry a body per the HTTP spec (101, 204, 205, 304) always produce a bodyless response regardless of the `body` argument.
+
 ## Tree-Shaking & Subpath Imports
 
 Valifetch is fully tree-shakeable. For minimal bundle size, you can import just what you need:
@@ -649,6 +704,9 @@ import { ValifetchError } from 'valifetch/error';
 
 // Subpath import - just the auth helpers (zero runtime cost if unused)
 import { bearerAuth, basicAuth, jwtRefresh } from 'valifetch/auth';
+
+// Subpath import - testing utilities (import in test files only)
+import { createMock } from 'valifetch/mock';
 
 // Subpath import - just types (no runtime code)
 import type {

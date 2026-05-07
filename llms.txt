@@ -147,12 +147,38 @@ const users = await api('/users');                          // GET
 const user  = await api('/users', { method: 'POST', json: { name: 'Jane' } });
 ```
 
+## Testing (valifetch/mock)
+
+```typescript
+import { createMock } from 'valifetch/mock';
+
+const mock = createMock();
+mock.get('/users').reply(200, [{ id: 1 }]);     // permanent fixture
+mock.post('/users').replyOnce(201, { id: 2 });  // consumed once, then falls through
+mock.get('/users/:id').reply(200, { id: 1 });   // :param wildcard
+mock.get(/\/posts\/\d+$/).reply(200, {});       // RegExp (tested against full URL)
+mock.when('*', '/ping').reply(200, {});         // any method
+
+const api = valifetch.extend({ hooks: mock.hooks }); // attach
+await api.get('https://api.example.com/users');
+
+const call = mock.lastCall();
+// call.method, call.url, call.headers, call.body, call.searchParams
+mock.calls();  // all recorded calls
+mock.reset();  // clear between tests
+```
+
+Body values are always `JSON.stringify`-serialised. Omit body for a bodyless response.
+Null-body status codes (101, 204, 205, 304) always produce a bodyless response.
+Unmatched requests fall through to the real `fetch`.
+
 ## Subpath exports
 
 ```typescript
 import valifetch from 'valifetch';                   // main
 import { ValifetchError } from 'valifetch/error';    // error class only
 import { bearerAuth } from 'valifetch/auth';         // auth helpers
+import { createMock } from 'valifetch/mock';         // testing mock (test files only)
 import type { ValifetchOptions } from 'valifetch/types'; // types only, zero runtime
 ```
 
