@@ -36,6 +36,10 @@ jobs:
       - name: Run tests with coverage
         run: npm run test:coverage
 
+      - name: Run benchmarks (verify clean exit)
+        if: matrix.node-version == 24
+        run: npm run bench
+
       - name: Build package
         if: matrix.node-version == 24
         run: npm run build

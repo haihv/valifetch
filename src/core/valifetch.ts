@@ -3,6 +3,8 @@ import { ValifetchError } from '../errors/ValifetchError';
 import type {
   AfterParseResponseHook,
   CancellablePromise,
+  DebugEvent,
+  DebugOption,
   DownloadProgressEvent,
   Hooks,
   HttpMethod,
@@ -63,6 +65,7 @@ type RequestOptions = {
   method?: HttpMethod;
   dedupe?: boolean;
   onDownloadProgress?: (event: DownloadProgressEvent) => void;
+  debug?: DebugOption;
 };
 
 const EMPTY = {} as RequestOptions;
@@ -77,7 +80,7 @@ async function handleResponse<T>(
   afterParseResponseHooks?: AfterParseResponseHook[]
 ): Promise<T> {
   const responseType = options.responseType ?? 'json';
-  checkResponseStatus(response, request, throwHttpErrors);
+  await checkResponseStatus(response, request, throwHttpErrors);
 
   // Pipe body through a progress-tracking TransformStream before parsing.
   // Skip for 'stream', 'raw', and 'sse' since the caller owns the body/iterable.
@@ -130,6 +133,15 @@ async function handleResponse<T>(
   );
 }
 
+function emitDebug(debug: DebugOption | undefined, event: DebugEvent): void {
+  if (!debug) return;
+  if (debug === true) {
+    console.debug('[valifetch]', event);
+  } else {
+    debug(event);
+  }
+}
+
 const dedupeCache = new Map<string, Promise<unknown>>();
 
 function executeRequest<T>(
@@ -176,6 +188,8 @@ async function executeRequestCore<T>(
   options: RequestOptions,
   instanceOptions: ValifetchInstanceOptions
 ): Promise<T> {
+  const debug = options.debug ?? instanceOptions.debug;
+
   const {
     request: initialRequest,
     normalizedOptions,
@@ -191,6 +205,13 @@ async function executeRequestCore<T>(
   );
 
   if (hookResult instanceof Response) {
+    emitDebug(debug, { type: 'request', request: initialRequest });
+    emitDebug(debug, {
+      type: 'response',
+      request: initialRequest,
+      response: hookResult,
+      attempt: 1,
+    });
     return handleResponse<T>(
       hookResult,
       initialRequest,
@@ -239,15 +260,25 @@ async function executeRequestCore<T>(
 
   let lastError: Error | undefined;
   let attemptCount = 0;
+  let lastRequestSent: Request = request;
   const maxAttempts = retryOptions === false ? 1 : retryOptions.limit + 1;
 
   while (attemptCount < maxAttempts) {
     try {
       const signal = setupTimeout();
       const requestToSend = attemptCount > 0 ? request.clone() : request;
+      lastRequestSent = requestToSend;
 
+      emitDebug(debug, { type: 'request', request: requestToSend });
       const response = await fetch(requestToSend, { signal });
       clearTimeoutIfSet();
+
+      emitDebug(debug, {
+        type: 'response',
+        request: requestToSend,
+        response,
+        attempt: attemptCount + 1,
+      });
 
       if (
         retryOptions !== false &&
@@ -258,6 +289,13 @@ async function executeRequestCore<T>(
         const delay =
           getRetryAfterDelay(response) ??
           calculateRetryDelay(attemptCount - 1, retryOptions);
+        emitDebug(debug, {
+          type: 'retry',
+          request: requestToSend,
+          attempt: attemptCount,
+          delay,
+          reason: 'status',
+        });
         await sleep(delay);
         continue;
       }
@@ -288,6 +326,10 @@ async function executeRequestCore<T>(
             (timeoutController?.signal.reason as Error)?.message ===
               'Request timed out';
 
+          if (!isTimeout) {
+            emitDebug(debug, { type: 'cancel', request: lastRequestSent });
+          }
+
           throw new ValifetchError({
             message: isTimeout ? 'Request timed out' : 'Request was aborted',
             code: isTimeout ? 'TIMEOUT_ERROR' : 'ABORT_ERROR',
@@ -312,7 +354,18 @@ async function executeRequestCore<T>(
         }
 
         attemptCount++;
-        await sleep(calculateRetryDelay(attemptCount - 1, retryOptions));
+        const networkDelay = calculateRetryDelay(
+          attemptCount - 1,
+          retryOptions
+        );
+        emitDebug(debug, {
+          type: 'retry',
+          request,
+          attempt: attemptCount,
+          delay: networkDelay,
+          reason: 'network',
+        });
+        await sleep(networkDelay);
         continue;
       }
 
@@ -549,6 +602,7 @@ function mergeOptions(
   if (child.integrity !== undefined) result.integrity = child.integrity;
   if (child.keepalive !== undefined) result.keepalive = child.keepalive;
   if (child.mode !== undefined) result.mode = child.mode;
+  if (child.debug !== undefined) result.debug = child.debug;
 
   const mergedHooks = mergeHooks(parent.hooks, child.hooks);
   const mergedHeaders = mergeHeaders(parent.headers, child.headers);

@@ -15,6 +15,7 @@ npm run build                         # build to dist/ via tsup
 npm run check                         # Biome check (lint + format + imports)
 npm run check:fix                     # Biome check with auto-fix
 npm run typecheck                     # tsc --noEmit
+npm run bench                         # run all benchmarks (bench/ directory)
 ```
 
 ## Architecture
@@ -27,7 +28,7 @@ Valifetch is a type-safe HTTP client built on native `fetch` with Valibot schema
 valifetch.get(url, opts)
   → buildRequest()        src/core/request.ts     — URL construction, path params, body/schema validation
   → executeRequest()      src/core/valifetch.ts    — fetch + retry loop, timeout, beforeRequest hooks
-  → checkResponseStatus() src/core/response.ts     — throws ValifetchError on 4xx/5xx
+  → checkResponseStatus() src/core/response.ts     — async; throws ValifetchError on 4xx/5xx with parsed responseBody
   → parseJsonResponse()   src/core/response.ts     — JSON parse + optional Valibot schema validation
   → afterResponse/afterParseResponse hooks
 ```
@@ -38,10 +39,10 @@ valifetch.get(url, opts)
 | ------------------------------ | ----------------------------------------------------------------------------------------- |
 | `src/core/valifetch.ts`        | Instance creation (`create`, `extend`, `callable`), HTTP method dispatch, options merging |
 | `src/core/request.ts`          | Builds `Request` object; validates request body/params/search against schemas; handles `json` and `form` bodies |
-| `src/core/response.ts`         | Status checking, JSON parsing, response schema validation, SSE frame parsing (`parseSSEResponse`) |
+| `src/core/response.ts`         | Status checking (async, attaches `responseBody`), JSON parsing, schema validation, SSE frame parsing |
 | `src/core/retry.ts`            | Exponential backoff with jitter; default 2 retries on `[408, 413, 429, 500–504]`          |
 | `src/core/hooks.ts`            | `beforeRequest`, `afterResponse`, `afterParseResponse` hook runners                       |
-| `src/errors/ValifetchError.ts` | Custom error class with typed error codes                                                 |
+| `src/errors/ValifetchError.ts` | Custom error class with typed error codes; `responseBody` field on `HTTP_ERROR`           |
 | `src/url/`                     | URL building and `:param` → value path replacement                                        |
 | `src/validation/validate.ts`   | Thin wrapper around `valibot.safeParse`                                                   |
 | `src/types/`                   | All TypeScript types (options, hooks, instance, path-param inference) — no runtime code   |
@@ -75,6 +76,7 @@ Integration tests are not run in the pre-commit hook (too slow); they run in CI 
 
 ## Rules
 
+- **Benchmarks must stay in sync with code.** Any change to a public function signature (including sync → async) must be reflected in the corresponding `bench/` file in the same commit. After any change touching `src/core/` or `src/errors/`, run `npm run bench` and verify it exits cleanly (no unhandled rejections, no errors). The benchmark numbers in `README.md` and `llms.txt` must be updated whenever the comparison bench results shift materially.
 - **Docs must stay in sync with code.** Any change to public API, options, behaviour, or architecture must be reflected in `README.md` (and this file if architecture changes). Do not merge code changes without updating the relevant docs.
 - **`llms.txt` and `AGENTS.md` must stay in sync with code.** Any change to public API, options, error codes, hook signatures, auth helpers, or behaviour must also be reflected in both `llms.txt` and `AGENTS.md`. These are agent-facing docs — stale information causes agents to generate broken code. Update them in the same commit as the code change.
 - **Every exported symbol must have JSDoc.** This includes top-level exports and all members of exported types/classes (fields, methods, getters). Plain `//` comments do not count; use `/** */` blocks.

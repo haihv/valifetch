@@ -84,6 +84,7 @@ valifetch.options(url, options) // CancellablePromise<T>
 | `validateRequest` | boolean | Validate body/params/search schemas (default: true) |
 | `dedupe` | boolean | Deduplicate concurrent identical requests |
 | `onDownloadProgress` | function | Progress callback `{ loaded, total, percent }` |
+| `debug` | `true` \| `(event: DebugEvent) => void` | Structured lifecycle logging (request, response, retry, cancel) |
 | `hooks` | object | `beforeRequest`, `afterResponse`, `afterParseResponse` arrays |
 
 ## Auth helpers (valifetch/auth)
@@ -108,6 +109,7 @@ try {
     if (e.code === 'HTTP_ERROR') {
       console.log(e.status);               // convenience getter for e.response?.status
       console.log(e.statusText);           // convenience getter for e.response?.statusText
+      console.log(e.responseBody);         // parsed server error body — only populated on HTTP_ERROR (JSON object or plain text)
     } else if (e.code === 'VALIDATION_ERROR') {
       console.log(e.issues);              // convenience getter for e.validation?.issues ?? []
       console.log(e.validation?.target);  // 'response' | 'body' | 'params' | 'search'
@@ -146,6 +148,29 @@ const api = valifetch.create({ prefixUrl: 'https://api.example.com' }).callable(
 const users = await api('/users');                          // GET
 const user  = await api('/users', { method: 'POST', json: { name: 'Jane' } });
 ```
+
+## Debug mode
+
+> Do not use `debug: true` in production — raw `Request`/`Response` objects including credentials are logged.
+
+```typescript
+// debug: true → console.debug('[valifetch]', event) for every lifecycle event
+const api = valifetch.create({ debug: true });
+
+// debug: fn → custom handler, full type on DebugEvent
+import type { DebugEvent } from 'valifetch/types';
+const api = valifetch.create({
+  debug: (event: DebugEvent) => {
+    if (event.type === 'request')  console.log('→', event.request.url);
+    if (event.type === 'response') console.log('←', event.response.status, `attempt ${event.attempt}`);
+    if (event.type === 'retry')    console.log('↺', `delay ${event.delay}ms reason ${event.reason}`);
+    if (event.type === 'cancel')   console.log('✕', event.request.url);
+  },
+});
+```
+
+`DebugEvent` discriminated union — `type` narrows the payload: `request` (+ `request`) | `response` (+ `request`, `attempt`) | `retry` (+ `request`, `attempt`, `delay`, `reason: 'status'|'network'`) | `cancel` (+ `request`).
+Child instances inherit `debug` from `extend()`; child value overrides parent.
 
 ## Testing (valifetch/mock)
 

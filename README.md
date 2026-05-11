@@ -20,6 +20,8 @@ A type-safe HTTP client built on native `fetch` with [Valibot](https://valibot.d
 - **Retry Logic** - Exponential backoff with jitter for failed requests
 - **Timeout & Cancellation** - AbortController support with configurable timeout
 - **Download Progress** - Track response body bytes received via `onDownloadProgress`
+- **HTTP Error Body** - Server error details auto-attached to `ValifetchError.responseBody` on non-2xx responses
+- **Debug Mode** - Structured lifecycle logging via `debug: true` or a custom event handler
 - **Hooks** - `beforeRequest`, `afterResponse`, and `afterParseResponse` interceptors
 - **Instances** - Create configured instances with `create()` and `extend()`
 - **Minimal** - Tree-shakeable, valibot as peer dependency, ~17KB bundle
@@ -177,6 +179,7 @@ type Options = {
   throwHttpErrors?: boolean; // Throw on non-2xx status (default: true)
   dedupe?: boolean; // Deduplicate concurrent identical requests (default: false)
   onDownloadProgress?: (event: DownloadProgressEvent) => void; // Download progress callback (not called for responseType 'stream', 'raw', or 'sse')
+  debug?: true | ((event: DebugEvent) => void); // Structured lifecycle logging (request, response, retry, cancel)
 
   // Hooks
   hooks?: {
@@ -521,6 +524,45 @@ const data = await valifetch.get('https://api.example.com/large-file.json', {
 
 > **Note:** `onDownloadProgress` is not called when `responseType` is `'stream'` or `'raw'`, because in those modes the caller takes direct ownership of the response body.
 
+### Debug Mode
+
+Enable structured lifecycle logging for development by passing `debug: true` (emits via `console.debug`) or a custom function.
+
+> **Warning:** `debug: true` logs raw `Request` and `Response` objects including headers (e.g. `Authorization`, cookies). Do not enable it in production.
+
+```typescript
+// Emit all events to console.debug
+const api = valifetch.create({ debug: true });
+
+// Custom handler — full type safety on event
+import type { DebugEvent } from 'valifetch/types';
+
+const api = valifetch.create({
+  debug: (event: DebugEvent) => {
+    if (event.type === 'request') {
+      console.log('→', event.request.method, event.request.url);
+    } else if (event.type === 'response') {
+      console.log('←', event.response.status, `(attempt ${event.attempt})`);
+    } else if (event.type === 'retry') {
+      console.log(`↺ retry attempt ${event.attempt}, delay ${event.delay}ms, reason: ${event.reason}`);
+    } else if (event.type === 'cancel') {
+      console.log('✕ cancelled:', event.request.url);
+    }
+  },
+});
+```
+
+`DebugEvent` is a discriminated union — the `type` field narrows the payload:
+
+| `type` | Extra fields |
+|---|---|
+| `'request'` | `request: Request` |
+| `'response'` | `request`, `response: Response`, `attempt: number` |
+| `'retry'` | `request`, `attempt`, `delay: number`, `reason: 'status' \| 'network'` |
+| `'cancel'` | `request` |
+
+> `debug` is inherited by child instances created with `extend()`. A child can override it by passing its own `debug` value.
+
 ### Error Handling
 
 ```typescript
@@ -539,6 +581,7 @@ try {
         break;
       case 'HTTP_ERROR':
         console.log('HTTP error:', error.response?.status);
+        console.log('Error body:', error.responseBody); // parsed JSON or plain text from the server
         break;
       case 'TIMEOUT_ERROR':
         console.log('Request timed out');

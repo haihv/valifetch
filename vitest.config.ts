@@ -16,9 +16,11 @@ export default defineConfig({
       include: ['src/**/*.ts'],
       exclude: [
         'src/types/**/*.ts',
+        'src/mock/types.ts',
         'src/index.ts',
         'src/error.ts',
         'src/types.ts',
+        'src/mock.ts',
       ],
       thresholds: {
         lines: 100,

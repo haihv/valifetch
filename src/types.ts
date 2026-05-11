@@ -18,6 +18,8 @@ export type {
   // Instance
   CancellablePromise,
   // Options
+  DebugEvent,
+  DebugOption,
   DownloadProgressEvent,
   ErrorCode,
   // Path params

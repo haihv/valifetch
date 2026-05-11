@@ -33,13 +33,13 @@ function makeResponse(body: unknown, status = 200): Response {
 }
 
 describe('response', () => {
-  bench('checkResponseStatus — 200 (no-op)', () => {
-    checkResponseStatus(makeResponse(null, 200), DUMMY_REQUEST, true);
+  bench('checkResponseStatus — 200 (no-op)', async () => {
+    await checkResponseStatus(makeResponse(null, 200), DUMMY_REQUEST, true);
   });
 
-  bench('checkResponseStatus — 404 (throws)', () => {
+  bench('checkResponseStatus — 404 (throws)', async () => {
     try {
-      checkResponseStatus(makeResponse(null, 404), DUMMY_REQUEST, true);
+      await checkResponseStatus(makeResponse(null, 404), DUMMY_REQUEST, true);
     } catch {
       // expected
     }
