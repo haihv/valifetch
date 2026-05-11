@@ -260,12 +260,14 @@ async function executeRequestCore<T>(
 
   let lastError: Error | undefined;
   let attemptCount = 0;
+  let lastRequestSent: Request = request;
   const maxAttempts = retryOptions === false ? 1 : retryOptions.limit + 1;
 
   while (attemptCount < maxAttempts) {
     try {
       const signal = setupTimeout();
       const requestToSend = attemptCount > 0 ? request.clone() : request;
+      lastRequestSent = requestToSend;
 
       emitDebug(debug, { type: 'request', request: requestToSend });
       const response = await fetch(requestToSend, { signal });
@@ -325,7 +327,7 @@ async function executeRequestCore<T>(
               'Request timed out';
 
           if (!isTimeout) {
-            emitDebug(debug, { type: 'cancel', request });
+            emitDebug(debug, { type: 'cancel', request: lastRequestSent });
           }
 
           throw new ValifetchError({

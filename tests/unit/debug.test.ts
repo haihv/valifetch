@@ -222,6 +222,46 @@ describe('debug option', () => {
     expect(cancelEvent).toBeDefined();
   });
 
+  it('cancel event carries the in-flight request (cloned on retries)', async () => {
+    // First call: network error triggers a retry.
+    // Second call (the retry clone): hangs until aborted by .cancel().
+    fetchSpy
+      .mockRejectedValueOnce(new Error('Network error'))
+      .mockImplementationOnce(
+        (_input, init) =>
+          new Promise((_resolve, reject) => {
+            const signal = init?.signal as AbortSignal | undefined;
+            if (signal?.aborted) {
+              reject(new DOMException('Aborted', 'AbortError'));
+              return;
+            }
+            signal?.addEventListener('abort', () => {
+              reject(new DOMException('Aborted', 'AbortError'));
+            });
+          })
+      );
+
+    const events: DebugEvent[] = [];
+    const api = valifetch.extend({
+      debug: (e) => events.push(e),
+      retry: { limit: 1, delay: () => 0 },
+    });
+
+    const req = api.get(`${BASE}/slow`);
+    // Let the first attempt fail and the retry attempt start
+    await new Promise((r) => setTimeout(r, 10));
+    req.cancel();
+
+    await req.catch(() => undefined);
+
+    const cancelEvent = events.find((e) => e.type === 'cancel') as Extract<
+      DebugEvent,
+      { type: 'cancel' }
+    >;
+    expect(cancelEvent).toBeDefined();
+    expect(cancelEvent.request.url).toBe(`${BASE}/slow`);
+  });
+
   // ── hook-intercepted requests ────────────────────────────────────────────
 
   it('emits request and response events for hook-intercepted (mock) requests', async () => {
