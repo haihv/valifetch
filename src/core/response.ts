@@ -18,23 +18,44 @@ export type HandleResponseOptions = {
 };
 
 /**
+ * Attempt to read the error response body as JSON, falling back to text.
+ * Clones the response so the original stream is not consumed.
+ * Returns `undefined` when the body cannot be read.
+ */
+async function parseErrorBody(response: Response): Promise<unknown> {
+  try {
+    return await response.clone().json();
+  } catch {
+    try {
+      return (await response.clone().text()) || undefined;
+    } catch {
+      /* v8 ignore next 1 */
+      return undefined;
+    }
+  }
+}
+
+/**
  * Throw a `ValifetchError` with code `HTTP_ERROR` when the response status is not OK.
+ * On error, the parsed response body is attached to `error.responseBody`.
  * No-ops when `throwHttpErrors` is `false`.
  * @param response - The fetch `Response`
  * @param request - The originating `Request`
  * @param throwHttpErrors - Whether to throw on non-2xx responses
  */
-export function checkResponseStatus(
+export async function checkResponseStatus(
   response: Response,
   request: Request,
   throwHttpErrors: boolean
-): void {
+): Promise<void> {
   if (!response.ok && throwHttpErrors) {
+    const responseBody = await parseErrorBody(response);
     throw new ValifetchError({
       message: `Request failed with status ${response.status}: ${response.statusText}`,
       code: 'HTTP_ERROR',
       request,
       response,
+      responseBody,
     });
   }
 }

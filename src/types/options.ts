@@ -54,6 +54,53 @@ export type ErrorCode =
 export type ValidationTarget = 'response' | 'body' | 'params' | 'search';
 
 /**
+ * A structured event emitted during the request lifecycle when `debug` is enabled.
+ * Each variant carries the data relevant to that stage of the pipeline.
+ */
+export type DebugEvent =
+  | {
+      /** Fired before each request attempt, including retries and hook-intercepted requests */
+      type: 'request';
+      /** The outgoing request */
+      request: Request;
+    }
+  | {
+      /** Fired after `fetch()` resolves with a response */
+      type: 'response';
+      /** The originating request */
+      request: Request;
+      /** The raw response received */
+      response: Response;
+      /** Which attempt number this response came from (1-based) */
+      attempt: number;
+    }
+  | {
+      /** Fired when a retry is about to be scheduled */
+      type: 'retry';
+      /** The originating request */
+      request: Request;
+      /** Which attempt just failed (1-based) */
+      attempt: number;
+      /** Delay in milliseconds before the next attempt */
+      delay: number;
+      /** Why the retry was triggered */
+      reason: 'status' | 'network';
+    }
+  | {
+      /** Fired when the request is cancelled via `.cancel()` or an AbortController */
+      type: 'cancel';
+      /** The request that was cancelled */
+      request: Request;
+    };
+
+/**
+ * Controls structured debug logging of request lifecycle events.
+ * - `true` — emits events via `console.debug('[valifetch]', event)`
+ * - function — receives each `DebugEvent` directly for custom handling
+ */
+export type DebugOption = true | ((event: DebugEvent) => void);
+
+/**
  * Progress event fired during response body download
  */
 export type DownloadProgressEvent = {
@@ -94,6 +141,11 @@ export type ValifetchBaseOptions = Omit<RequestInit, 'body' | 'method'> & {
    * Not called when `responseType` is `'stream'` or `'raw'` (caller owns the stream).
    */
   onDownloadProgress?: (event: DownloadProgressEvent) => void;
+  /**
+   * Enable structured debug logging of request lifecycle events.
+   * Pass `true` to emit via `console.debug`, or a function to handle events directly.
+   */
+  debug?: DebugOption;
 };
 
 /**

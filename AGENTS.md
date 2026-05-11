@@ -145,6 +145,7 @@ try {
     if (e.code === 'HTTP_ERROR') {
       console.log(e.status);              // convenience getter for e.response?.status
       console.log(e.statusText);          // convenience getter for e.response?.statusText
+      console.log(e.responseBody);        // parsed server error body — only populated on HTTP_ERROR (JSON object or plain text)
     } else if (e.code === 'VALIDATION_ERROR') {
       console.log(e.issues);             // convenience getter for e.validation?.issues ?? []
       console.log(e.validation?.target); // 'response' | 'body' | 'params' | 'search'
@@ -184,6 +185,7 @@ try {
 | `validateRequest` | Validate body/params/search schemas (default: `true`) |
 | `dedupe` | Collapse concurrent identical requests into one |
 | `throwHttpErrors` | Default `true`; set `false` to handle non-2xx manually |
+| `debug` | `true` (console.debug) or `(event: DebugEvent) => void` — lifecycle logging |
 | `hooks` | `{ beforeRequest, afterResponse, afterParseResponse }` |
 
 ## What NOT to do

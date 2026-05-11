@@ -27,7 +27,7 @@ Valifetch is a type-safe HTTP client built on native `fetch` with Valibot schema
 valifetch.get(url, opts)
   → buildRequest()        src/core/request.ts     — URL construction, path params, body/schema validation
   → executeRequest()      src/core/valifetch.ts    — fetch + retry loop, timeout, beforeRequest hooks
-  → checkResponseStatus() src/core/response.ts     — throws ValifetchError on 4xx/5xx
+  → checkResponseStatus() src/core/response.ts     — async; throws ValifetchError on 4xx/5xx with parsed responseBody
   → parseJsonResponse()   src/core/response.ts     — JSON parse + optional Valibot schema validation
   → afterResponse/afterParseResponse hooks
 ```
@@ -38,10 +38,10 @@ valifetch.get(url, opts)
 | ------------------------------ | ----------------------------------------------------------------------------------------- |
 | `src/core/valifetch.ts`        | Instance creation (`create`, `extend`, `callable`), HTTP method dispatch, options merging |
 | `src/core/request.ts`          | Builds `Request` object; validates request body/params/search against schemas; handles `json` and `form` bodies |
-| `src/core/response.ts`         | Status checking, JSON parsing, response schema validation, SSE frame parsing (`parseSSEResponse`) |
+| `src/core/response.ts`         | Status checking (async, attaches `responseBody`), JSON parsing, schema validation, SSE frame parsing |
 | `src/core/retry.ts`            | Exponential backoff with jitter; default 2 retries on `[408, 413, 429, 500–504]`          |
 | `src/core/hooks.ts`            | `beforeRequest`, `afterResponse`, `afterParseResponse` hook runners                       |
-| `src/errors/ValifetchError.ts` | Custom error class with typed error codes                                                 |
+| `src/errors/ValifetchError.ts` | Custom error class with typed error codes; `responseBody` field on `HTTP_ERROR`           |
 | `src/url/`                     | URL building and `:param` → value path replacement                                        |
 | `src/validation/validate.ts`   | Thin wrapper around `valibot.safeParse`                                                   |
 | `src/types/`                   | All TypeScript types (options, hooks, instance, path-param inference) — no runtime code   |

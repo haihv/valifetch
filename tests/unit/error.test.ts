@@ -376,6 +376,43 @@ describe('errors/ValifetchError', () => {
     });
   });
 
+  describe('responseBody', () => {
+    it('stores responseBody when provided', () => {
+      const error = new ValifetchError({
+        message: 'Not found',
+        code: 'HTTP_ERROR',
+        responseBody: { error: 'not found' },
+      });
+
+      expect(error.responseBody).toEqual({ error: 'not found' });
+    });
+
+    it('responseBody is undefined when not provided', () => {
+      const error = new ValifetchError({
+        message: 'Not found',
+        code: 'HTTP_ERROR',
+      });
+
+      expect(error.responseBody).toBeUndefined();
+    });
+
+    it('responseBody accepts any type (string, object, array)', () => {
+      const withString = new ValifetchError({
+        message: 'err',
+        code: 'HTTP_ERROR',
+        responseBody: 'plain text error',
+      });
+      const withArray = new ValifetchError({
+        message: 'err',
+        code: 'HTTP_ERROR',
+        responseBody: [1, 2, 3],
+      });
+
+      expect(withString.responseBody).toBe('plain text error');
+      expect(withArray.responseBody).toEqual([1, 2, 3]);
+    });
+  });
+
   describe('readonly properties', () => {
     it('should have readonly code property', () => {
       // Arrange

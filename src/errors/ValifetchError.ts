@@ -29,6 +29,11 @@ export type ValifetchErrorOptions = {
   validation?: ValidationErrorInfo | undefined;
   /** Original error cause */
   cause?: Error | undefined;
+  /**
+   * Parsed response body on `HTTP_ERROR`.
+   * JSON-parsed object/array, plain text string, or `undefined` when unreadable.
+   */
+  responseBody?: unknown;
 };
 
 /**
@@ -44,6 +49,11 @@ export class ValifetchError extends Error {
   readonly response?: Response;
   /** Validation error details (if validation failed) */
   readonly validation?: ValidationErrorInfo;
+  /**
+   * Parsed response body on `HTTP_ERROR`.
+   * JSON-parsed object/array, plain text string, or `undefined` when unreadable.
+   */
+  readonly responseBody?: unknown;
 
   constructor(options: ValifetchErrorOptions) {
     super(options.message, { cause: options.cause });
@@ -52,6 +62,7 @@ export class ValifetchError extends Error {
     this.request = options.request;
     this.response = options.response;
     this.validation = options.validation;
+    this.responseBody = options.responseBody;
 
     // Maintain proper stack trace in V8 (captureStackTrace is a V8 extension)
     const ErrorWithCapture = Error as typeof Error & {

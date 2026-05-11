@@ -13,182 +13,209 @@ describe('core/response', () => {
 
   describe('checkResponseStatus', () => {
     describe('when response is OK', () => {
-      it('should not throw for 200 status', () => {
-        // Arrange
+      it('should not throw for 200 status', async () => {
         const response = new Response('{}', { status: 200 });
         const request = createRequest();
 
-        // Act & Assert
-        expect(() =>
+        await expect(
           checkResponseStatus(response, request, true)
-        ).not.toThrow();
+        ).resolves.toBeUndefined();
       });
 
-      it('should not throw for 201 status', () => {
-        // Arrange
+      it('should not throw for 201 status', async () => {
         const response = new Response('{}', { status: 201 });
         const request = createRequest();
 
-        // Act & Assert
-        expect(() =>
+        await expect(
           checkResponseStatus(response, request, true)
-        ).not.toThrow();
+        ).resolves.toBeUndefined();
       });
 
-      it('should not throw for 204 status', () => {
-        // Arrange
+      it('should not throw for 204 status', async () => {
         const response = new Response(null, { status: 204 });
         const request = createRequest();
 
-        // Act & Assert
-        expect(() =>
+        await expect(
           checkResponseStatus(response, request, true)
-        ).not.toThrow();
+        ).resolves.toBeUndefined();
       });
     });
 
     describe('when response is not OK and throwHttpErrors is true', () => {
-      it('should throw ValifetchError for 400 status', () => {
-        // Arrange
+      it('should throw ValifetchError for 400 status', async () => {
         const response = new Response('Bad Request', {
           status: 400,
           statusText: 'Bad Request',
         });
         const request = createRequest();
 
-        // Act & Assert
-        expect(() => checkResponseStatus(response, request, true)).toThrow(
-          ValifetchError
-        );
+        await expect(
+          checkResponseStatus(response, request, true)
+        ).rejects.toThrow(ValifetchError);
       });
 
-      it('should throw ValifetchError for 401 status', () => {
-        // Arrange
+      it('should throw ValifetchError for 401 status', async () => {
         const response = new Response('Unauthorized', {
           status: 401,
           statusText: 'Unauthorized',
         });
         const request = createRequest();
 
-        // Act & Assert
-        expect(() => checkResponseStatus(response, request, true)).toThrow(
-          ValifetchError
-        );
+        await expect(
+          checkResponseStatus(response, request, true)
+        ).rejects.toThrow(ValifetchError);
       });
 
-      it('should throw ValifetchError for 404 status', () => {
-        // Arrange
+      it('should throw ValifetchError for 404 status', async () => {
         const response = new Response('Not Found', {
           status: 404,
           statusText: 'Not Found',
         });
         const request = createRequest();
 
-        // Act & Assert
-        expect(() => checkResponseStatus(response, request, true)).toThrow(
-          ValifetchError
-        );
+        await expect(
+          checkResponseStatus(response, request, true)
+        ).rejects.toThrow(ValifetchError);
       });
 
-      it('should throw ValifetchError for 500 status', () => {
-        // Arrange
+      it('should throw ValifetchError for 500 status', async () => {
         const response = new Response('Internal Server Error', {
           status: 500,
           statusText: 'Internal Server Error',
         });
         const request = createRequest();
 
-        // Act & Assert
-        expect(() => checkResponseStatus(response, request, true)).toThrow(
-          ValifetchError
+        await expect(
+          checkResponseStatus(response, request, true)
+        ).rejects.toThrow(ValifetchError);
+      });
+
+      it('should include correct error code', async () => {
+        const response = new Response('Not Found', {
+          status: 404,
+          statusText: 'Not Found',
+        });
+        const request = createRequest();
+
+        const error = await checkResponseStatus(response, request, true).catch(
+          (e) => e
+        );
+        expect((error as ValifetchError).code).toBe('HTTP_ERROR');
+      });
+
+      it('should include request in error', async () => {
+        const response = new Response('Error', { status: 500 });
+        const request = createRequest();
+
+        const error = await checkResponseStatus(response, request, true).catch(
+          (e) => e
+        );
+        expect((error as ValifetchError).request).toBe(request);
+      });
+
+      it('should include response in error', async () => {
+        const response = new Response('Error', { status: 500 });
+        const request = createRequest();
+
+        const error = await checkResponseStatus(response, request, true).catch(
+          (e) => e
+        );
+        expect((error as ValifetchError).response).toBe(response);
+      });
+
+      it('should include status in error message', async () => {
+        const response = new Response('Not Found', {
+          status: 404,
+          statusText: 'Not Found',
+        });
+        const request = createRequest();
+
+        const error = await checkResponseStatus(response, request, true).catch(
+          (e) => e
+        );
+        expect((error as ValifetchError).message).toContain('404');
+        expect((error as ValifetchError).message).toContain('Not Found');
+      });
+
+      it('attaches JSON-parsed responseBody when error body is JSON', async () => {
+        const response = new Response('{"error":"not found"}', {
+          status: 404,
+          headers: { 'Content-Type': 'application/json' },
+        });
+        const request = createRequest();
+
+        const error = await checkResponseStatus(response, request, true).catch(
+          (e) => e
+        );
+        expect((error as ValifetchError).responseBody).toEqual({
+          error: 'not found',
+        });
+      });
+
+      it('attaches text responseBody when error body is plain text', async () => {
+        const response = new Response('Internal Server Error', {
+          status: 500,
+          headers: { 'Content-Type': 'text/plain' },
+        });
+        const request = createRequest();
+
+        const error = await checkResponseStatus(response, request, true).catch(
+          (e) => e
+        );
+        expect((error as ValifetchError).responseBody).toBe(
+          'Internal Server Error'
         );
       });
 
-      it('should include correct error code', () => {
-        // Arrange
-        const response = new Response('Not Found', {
-          status: 404,
-          statusText: 'Not Found',
-        });
+      it('attaches undefined responseBody for empty body', async () => {
+        const response = new Response('', { status: 422 });
         const request = createRequest();
 
-        // Act & Assert
-        try {
-          checkResponseStatus(response, request, true);
-          expect.fail('Should have thrown');
-        } catch (error) {
-          expect((error as ValifetchError).code).toBe('HTTP_ERROR');
-        }
+        const error = await checkResponseStatus(response, request, true).catch(
+          (e) => e
+        );
+        expect((error as ValifetchError).responseBody).toBeUndefined();
       });
 
-      it('should include request in error', () => {
-        // Arrange
-        const response = new Response('Error', { status: 500 });
+      it('keeps original response object on error.response', async () => {
+        const response = new Response('{"err":1}', { status: 400 });
         const request = createRequest();
 
-        // Act & Assert
-        try {
-          checkResponseStatus(response, request, true);
-          expect.fail('Should have thrown');
-        } catch (error) {
-          expect((error as ValifetchError).request).toBe(request);
-        }
-      });
-
-      it('should include response in error', () => {
-        // Arrange
-        const response = new Response('Error', { status: 500 });
-        const request = createRequest();
-
-        // Act & Assert
-        try {
-          checkResponseStatus(response, request, true);
-          expect.fail('Should have thrown');
-        } catch (error) {
-          expect((error as ValifetchError).response).toBe(response);
-        }
-      });
-
-      it('should include status in error message', () => {
-        // Arrange
-        const response = new Response('Not Found', {
-          status: 404,
-          statusText: 'Not Found',
-        });
-        const request = createRequest();
-
-        // Act & Assert
-        try {
-          checkResponseStatus(response, request, true);
-          expect.fail('Should have thrown');
-        } catch (error) {
-          expect((error as ValifetchError).message).toContain('404');
-          expect((error as ValifetchError).message).toContain('Not Found');
-        }
+        const error = await checkResponseStatus(response, request, true).catch(
+          (e) => e
+        );
+        expect((error as ValifetchError).response).toBe(response);
       });
     });
 
     describe('when throwHttpErrors is false', () => {
-      it('should not throw for non-OK response', () => {
-        // Arrange
+      it('should not throw for non-OK response', async () => {
         const response = new Response('Not Found', { status: 404 });
         const request = createRequest();
 
-        // Act & Assert
-        expect(() =>
+        await expect(
           checkResponseStatus(response, request, false)
-        ).not.toThrow();
+        ).resolves.toBeUndefined();
       });
 
-      it('should not throw for 500 status', () => {
-        // Arrange
+      it('should not throw for 500 status', async () => {
         const response = new Response('Server Error', { status: 500 });
         const request = createRequest();
 
-        // Act & Assert
-        expect(() =>
+        await expect(
           checkResponseStatus(response, request, false)
-        ).not.toThrow();
+        ).resolves.toBeUndefined();
+      });
+
+      it('does not attach responseBody when throwHttpErrors is false', async () => {
+        const response = new Response('{"err":1}', { status: 400 });
+        const request = createRequest();
+
+        // No throw, no error, no responseBody consumed
+        await checkResponseStatus(response, request, false);
+        // Verify body is still readable (not consumed)
+        const body = await response.json();
+        expect(body).toEqual({ err: 1 });
       });
     });
   });
