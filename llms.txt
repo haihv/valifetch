@@ -169,7 +169,7 @@ const api = valifetch.create({
 });
 ```
 
-`DebugEvent` discriminated union — `type` narrows the payload: `request` | `response` (+ `attempt`) | `retry` (+ `attempt`, `delay`, `reason: 'status'|'network'`) | `cancel`.
+`DebugEvent` discriminated union — `type` narrows the payload: `request` (+ `request`) | `response` (+ `request`, `attempt`) | `retry` (+ `request`, `attempt`, `delay`, `reason: 'status'|'network'`) | `cancel` (+ `request`).
 Child instances inherit `debug` from `extend()`; child value overrides parent.
 
 ## Testing (valifetch/mock)

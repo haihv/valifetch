@@ -79,7 +79,7 @@ export type DebugEvent =
       type: 'retry';
       /** The originating request */
       request: Request;
-      /** Which attempt just failed (1-based) */
+      /** Which attempt just failed (1-based); `1` means the first attempt failed and a second is pending */
       attempt: number;
       /** Delay in milliseconds before the next attempt */
       delay: number;
