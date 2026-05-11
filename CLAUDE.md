@@ -15,6 +15,7 @@ npm run build                         # build to dist/ via tsup
 npm run check                         # Biome check (lint + format + imports)
 npm run check:fix                     # Biome check with auto-fix
 npm run typecheck                     # tsc --noEmit
+npm run bench                         # run all benchmarks (bench/ directory)
 ```
 
 ## Architecture
@@ -75,6 +76,7 @@ Integration tests are not run in the pre-commit hook (too slow); they run in CI 
 
 ## Rules
 
+- **Benchmarks must stay in sync with code.** Any change to a public function signature (including sync → async) must be reflected in the corresponding `bench/` file in the same commit. After any change touching `src/core/` or `src/errors/`, run `npm run bench` and verify it exits cleanly (no unhandled rejections, no errors). The benchmark numbers in `README.md` and `llms.txt` must be updated whenever the comparison bench results shift materially.
 - **Docs must stay in sync with code.** Any change to public API, options, behaviour, or architecture must be reflected in `README.md` (and this file if architecture changes). Do not merge code changes without updating the relevant docs.
 - **`llms.txt` and `AGENTS.md` must stay in sync with code.** Any change to public API, options, error codes, hook signatures, auth helpers, or behaviour must also be reflected in both `llms.txt` and `AGENTS.md`. These are agent-facing docs — stale information causes agents to generate broken code. Update them in the same commit as the code change.
 - **Every exported symbol must have JSDoc.** This includes top-level exports and all members of exported types/classes (fields, methods, getters). Plain `//` comments do not count; use `/** */` blocks.
