@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-05-11
+
+### Added
+
+- **`responseBody` on `HTTP_ERROR`** — `checkResponseStatus` is now async and clones the response to parse the server's error detail (JSON → text → `undefined`) before throwing. The result is available as `ValifetchError.responseBody` so callers no longer need to re-fetch or re-parse the error body. ([#31](https://github.com/haihv/valifetch/pull/31))
+- **`debug` lifecycle option** — pass `debug: true` to emit structured `DebugEvent` objects via `console.debug`, or pass a function to receive each event directly. Four event types cover the full request lifecycle: `request` (per attempt), `response`, `retry` (with delay and reason), and `cancel` (user abort only). Inherited through `extend()`; child value overrides parent. ([#31](https://github.com/haihv/valifetch/pull/31))
+- **`valifetch/mock` subpath** — `createMock()` testing utility that intercepts requests via the `beforeRequest` hook (no `globalThis.fetch` patching). Supports per-URL handlers, wildcard fallback, call history inspection, and `mockOnce` for one-shot responses. ([#32](https://github.com/haihv/valifetch/pull/32))
+- **`responseType: 'sse'`** — built-in Server-Sent Events frame parsing. Returns an async iterable of typed `SseEvent` objects (`{ event, data, id, retry }`) from a `text/event-stream` response. ([#29](https://github.com/haihv/valifetch/pull/29))
+- **`Retry-After` header support** — on 429 responses the client now reads the `Retry-After` header (seconds or HTTP-date) and waits at least that long before retrying, up to the configured `maxDelay`. ([#28](https://github.com/haihv/valifetch/pull/28))
+
+### Documentation
+
+- Add `llms.txt` and `AGENTS.md` for AI agent discoverability — machine-readable API reference covering all options, error codes, hook signatures, and auth helpers.
+
 ## [0.5.1] - 2026-05-02
 
 ### Added
