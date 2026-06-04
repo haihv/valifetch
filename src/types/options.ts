@@ -29,7 +29,7 @@ export type SearchParamsInit =
 export type RetryOptions = {
   /** Max retry attempts (default: 2) */
   limit?: number;
-  /** Methods to retry (default: GET, PUT, HEAD, DELETE, OPTIONS, TRACE) */
+  /** Methods to retry (default: GET, PUT, HEAD, DELETE, OPTIONS) */
   methods?: HttpMethod[];
   /** Status codes to retry (default: 408, 413, 429, 500, 502, 503, 504) */
   statusCodes?: number[];
@@ -201,8 +201,6 @@ export type ValifetchOptions<
   searchSchema?: TSearchSchema;
   /** JSON body - validated against bodySchema if provided */
   json?: TBodySchema extends GenericSchema ? InferInput<TBodySchema> : unknown;
-  /** Form body — FormData sends multipart/form-data; URLSearchParams or plain object sends application/x-www-form-urlencoded */
-  form?: FormData | URLSearchParams | Record<string, string>;
   /** URL path parameters */
   params?: TParamsSchema extends GenericSchema
     ? InferInput<TParamsSchema>
