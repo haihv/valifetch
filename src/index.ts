@@ -28,6 +28,10 @@ export type {
   // Hooks
   BeforeRequestHook,
   CancellablePromise,
+  // Debug + progress
+  DebugEvent,
+  DebugOption,
+  DownloadProgressEvent,
   ErrorCode,
   // Path params
   ExtractPathParams,
