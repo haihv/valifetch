@@ -1888,4 +1888,136 @@ describe('core/valifetch', () => {
       expect(fetchSpy).toHaveBeenCalledTimes(2);
     });
   });
+
+  describe('parallel requests', () => {
+    const jsonResponse = (body: unknown) =>
+      new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+    // Rejects with an AbortError as soon as the request's signal aborts,
+    // handling the case where the signal is already aborted before fetch runs.
+    const mockAbortableFetch = () => {
+      fetchSpy.mockImplementation(
+        (_req, init) =>
+          new Promise((_, reject) => {
+            const signal = init?.signal;
+            const onAbort = () =>
+              reject(
+                Object.assign(new Error('Aborted'), { name: 'AbortError' })
+              );
+            if (signal?.aborted) {
+              onAbort();
+              return;
+            }
+            signal?.addEventListener('abort', onAbort);
+          })
+      );
+    };
+
+    describe('all', () => {
+      it('resolves to a tuple preserving each element type', async () => {
+        // Act
+        const result = await valifetch.all([
+          Promise.resolve(1),
+          Promise.resolve('two'),
+          Promise.resolve({ ok: true }),
+        ]);
+
+        // Assert (the type arguments fail to compile if tuple inference breaks)
+        expect<number>(result[0]).toBe(1);
+        expect<string>(result[1]).toBe('two');
+        expect<{ ok: boolean }>(result[2]).toEqual({ ok: true });
+      });
+
+      it('runs real requests in parallel', async () => {
+        // Arrange
+        fetchSpy
+          .mockResolvedValueOnce(jsonResponse({ id: 1 }))
+          .mockResolvedValueOnce(jsonResponse({ id: 2 }));
+
+        // Act
+        const [u1, u2] = await valifetch.all([
+          valifetch.get('https://api.example.com/users/1'),
+          valifetch.get('https://api.example.com/users/2'),
+        ]);
+
+        // Assert
+        expect(u1).toEqual({ id: 1 });
+        expect(u2).toEqual({ id: 2 });
+      });
+
+      it('rejects as soon as one input rejects', async () => {
+        // Act & Assert
+        await expect(
+          valifetch.all([Promise.resolve(1), Promise.reject(new Error('boom'))])
+        ).rejects.toThrow('boom');
+      });
+
+      it('cancel() aborts in-flight requests and ignores non-cancellable inputs', async () => {
+        // Arrange
+        mockAbortableFetch();
+        const inflight = valifetch.get('https://api.example.com/slow', {
+          retry: false,
+        });
+        const batch = valifetch.all([inflight, Promise.resolve(1), null]);
+
+        // Act
+        batch.cancel();
+
+        // Assert
+        await expect(batch).rejects.toBeInstanceOf(ValifetchError);
+        await expect(inflight).rejects.toMatchObject({ code: 'ABORT_ERROR' });
+      });
+    });
+
+    describe('allSettled', () => {
+      it('resolves once all settle, never rejecting', async () => {
+        // Act
+        const results = await valifetch.allSettled([
+          Promise.resolve('ok'),
+          Promise.reject(new Error('nope')),
+        ]);
+
+        // Assert
+        expect(results[0]).toEqual({ status: 'fulfilled', value: 'ok' });
+        expect(results[1].status).toBe('rejected');
+        expect((results[1] as PromiseRejectedResult).reason).toBeInstanceOf(
+          Error
+        );
+      });
+
+      it('exposes a cancel() that aborts in-flight requests', async () => {
+        // Arrange
+        mockAbortableFetch();
+        const inflight = valifetch.get('https://api.example.com/slow', {
+          retry: false,
+        });
+        const batch = valifetch.allSettled([inflight]);
+
+        // Act
+        batch.cancel();
+        const [r] = await batch;
+
+        // Assert
+        expect(r.status).toBe('rejected');
+      });
+    });
+
+    describe('callable instance', () => {
+      it('exposes all() and allSettled()', async () => {
+        // Arrange
+        const api = valifetch.callable();
+
+        // Act
+        const all = await api.all([Promise.resolve(1), Promise.resolve(2)]);
+        const settled = await api.allSettled([Promise.resolve('x')]);
+
+        // Assert
+        expect(all).toEqual([1, 2]);
+        expect(settled[0]).toEqual({ status: 'fulfilled', value: 'x' });
+      });
+    });
+  });
 });
