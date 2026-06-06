@@ -193,6 +193,8 @@ try {
 - Don't call `.json()` on the result — valifetch parses JSON automatically
 - Don't use `responseType: 'stream'` or `'sse'` then also set `responseSchema` — they're incompatible
 - Don't set both `json` and `form` on the same request
+- Don't look for a generic `body` option — use `json` (validated against `bodySchema`) or `form`; the native `body` is intentionally removed
+- Don't pass `responseType` to `create()` / `extend()` — it's per-call only, because it changes each call's return type
 - Don't use `responseSchema` with `head()` — it always returns `void` regardless
 - Don't import from `valifetch/types` at runtime — it contains zero runtime code; use `import type` only
 

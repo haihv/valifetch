@@ -74,6 +74,15 @@ Integration tests live in `tests/integration/` and spin up a real `http.createSe
 
 Integration tests are not run in the pre-commit hook (too slow); they run in CI alongside unit tests.
 
+### API design decisions (locked for 1.0)
+
+These choices are intentional — do not "fix" the asymmetries without a deliberate breaking-change decision. User-facing rationale lives in `README.md` ("API Design Decisions").
+
+- **`searchParams` (+ `searchSchema`) vs `params` (+ `paramsSchema`).** `searchParams` mirrors `URL.searchParams` and ky; the stem mismatch with `searchSchema` is accepted in favour of platform alignment.
+- **`json` / `form`, no generic `body`.** Native `body` is stripped via `Omit<RequestInit, 'body'>`; all bodies go through the typed/validated `json` or `form` path.
+- **`responseType` is per-call only.** It changes the call's return type, which cannot be typed at instance-creation time, so it is deliberately absent from `ValifetchBaseOptions` / `ValifetchInstanceOptions`.
+- **`ValifetchError.cause` is `unknown`.** Matches the standard `Error.cause`; accepts any thrown value without wrapping.
+
 ## Rules
 
 - **Benchmarks must stay in sync with code.** Any change to a public function signature (including sync → async) must be reflected in the corresponding `bench/` file in the same commit. After any change touching `src/core/` or `src/errors/`, run `npm run bench` and verify it exits cleanly (no unhandled rejections, no errors). The benchmark numbers in `README.md` and `llms.txt` must be updated whenever the comparison bench results shift materially.

@@ -50,6 +50,18 @@ describe('errors/ValifetchError', () => {
       expect(error.validation).toBe(validation);
     });
 
+    it('should accept a non-Error cause (matching standard Error.cause)', () => {
+      // Arrange & Act
+      const error = new ValifetchError({
+        message: 'Boom',
+        code: 'NETWORK_ERROR',
+        cause: 'a thrown string',
+      });
+
+      // Assert
+      expect(error.cause).toBe('a thrown string');
+    });
+
     it('should be instanceof Error', () => {
       // Arrange & Act
       const error = new ValifetchError({

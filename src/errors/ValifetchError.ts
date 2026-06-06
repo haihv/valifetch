@@ -27,8 +27,12 @@ export type ValifetchErrorOptions = {
   response?: Response | undefined;
   /** Validation error details (if validation failed) */
   validation?: ValidationErrorInfo | undefined;
-  /** Original error cause */
-  cause?: Error | undefined;
+  /**
+   * Original error cause. Typed as `unknown` to match the standard
+   * `Error.cause`, so any thrown value (not just an `Error`) can be passed
+   * through without wrapping.
+   */
+  cause?: unknown;
   /**
    * Parsed response body on `HTTP_ERROR`.
    * JSON-parsed object/array, plain text string, or `undefined` when unreadable.
