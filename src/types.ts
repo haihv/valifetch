@@ -9,6 +9,12 @@
  *
  * @module
  */
+
+// Error detail types (also available from the root and `valifetch/error` entries)
+export type {
+  ValidationErrorInfo,
+  ValifetchErrorOptions,
+} from './errors/ValifetchError';
 export type {
   // Hooks
   AfterParseResponseHook,
