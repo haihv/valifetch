@@ -19,10 +19,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
@@ -64,7 +64,11 @@ jobs:
 
       - name: Upload test results to Codecov
         if: matrix.node-version == 24 && !cancelled()
-        uses: codecov/test-results-action@v1
+        uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: test-results/junit.xml
+          report_type: test_results
+          disable_search: true
+          # Reporting only — never fail CI on a transient Codecov upload error.
+          fail_ci_if_error: false
