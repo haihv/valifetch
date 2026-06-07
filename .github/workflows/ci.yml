@@ -57,7 +57,10 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage/cobertura-coverage.xml
           disable_search: true
-          fail_ci_if_error: true
+          # Coverage reporting only — the 100% threshold is already enforced by
+          # the test:coverage step (vitest). Do not fail CI on transient Codecov
+          # upload/verification errors.
+          fail_ci_if_error: false
 
       - name: Upload test results to Codecov
         if: matrix.node-version == 24 && !cancelled()
