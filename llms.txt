@@ -87,6 +87,13 @@ valifetch.options(url, options) // CancellablePromise<T>
 | `debug` | `true` \| `(event: DebugEvent) => void` | Structured lifecycle logging (request, response, retry, cancel) |
 | `hooks` | object | `beforeRequest`, `afterResponse`, `afterParseResponse` arrays |
 
+## Design notes (intentional, locked)
+
+- `searchParams` (+ `searchSchema`) is the query option; `params` (+ `paramsSchema`) is the path option. `searchParams` mirrors `URL.searchParams` / ky — the stem mismatch with `searchSchema` is deliberate.
+- No generic `body` option — use `json` (validated against `bodySchema`) or `form`. Native `body` is removed via `Omit<RequestInit, 'body'>`.
+- `responseType` is per-call only (not on `create()`/`extend()`) because it changes the return type.
+- `ValifetchError.cause` is `unknown` (matches the standard `Error.cause`); any thrown value can be passed through.
+
 ## Auth helpers (valifetch/auth)
 
 ```typescript

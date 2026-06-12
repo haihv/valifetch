@@ -764,6 +764,15 @@ import type {
 
 The package uses code splitting internally, so shared code between entry points is only loaded once.
 
+## API Design Decisions
+
+A few naming and ergonomics choices are intentional and locked for stability. They are documented here so the asymmetries don't read as accidental:
+
+- **`searchParams` vs `params`.** Query values use `searchParams` (+ `searchSchema`); path values use `params` (+ `paramsSchema`). The `searchParams` key deliberately mirrors the web platform's `URL.searchParams` / `URLSearchParams` and the equivalent option in `ky`, so the value key (`searchParams`) and its schema (`searchSchema`) use slightly different stems. This platform alignment is preferred over internal symmetry.
+- **`json` / `form` instead of a generic `body`.** Request bodies are set via `json` (auto-stringified, validated against `bodySchema`) or `form` (`FormData` / `URLSearchParams` / `Record<string, string>`). There is no generic `body` option — the native `body` is intentionally removed via `Omit<RequestInit, 'body'>` so that body handling always goes through the typed, validated path.
+- **`responseType` is per-call only.** `responseType` lives on the per-request options, not on `create()` / `extend()` instance options. It changes the **return type** of a call (`'blob'` → `Blob`, `'sse'` → `AsyncIterable<MessageEvent>`, etc.), which cannot be expressed at instance-creation time without losing type safety. Set it on each call instead.
+- **`ValifetchError.cause` is `unknown`.** Matching the standard `Error.cause`, the `cause` option accepts any thrown value, not just an `Error`, so non-`Error` throws pass through without wrapping.
+
 ## Requirements
 
 - Node.js >= 20.0.0 (uses native fetch)
