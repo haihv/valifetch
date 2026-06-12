@@ -191,6 +191,50 @@ export type CallableInstance = {
     url: TPath,
     options?: GetOptions<TPath, TResponseSchema, TParamsSchema, TSearchSchema>
   ): CancellablePromise<ResolveResponseType<TData, TResponseSchema>>;
+  /**
+   * Run multiple requests in parallel and resolve to a tuple of their results,
+   * preserving each element's type (sugar over `Promise.all`). Rejects as soon
+   * as any input rejects.
+   *
+   * The returned promise is cancellable: `.cancel()` aborts every input that
+   * exposes a `.cancel()` method (e.g. other valifetch requests).
+   *
+   * @example
+   * ```ts
+   * const [user, posts] = await api.all([
+   *   api.get('/users/1', { responseSchema: UserSchema }),
+   *   api.get('/posts', { responseSchema: PostsSchema }),
+   * ]);
+   * ```
+   */
+  all<T extends readonly unknown[] | []>(
+    requests: T
+  ): CancellablePromise<{ -readonly [P in keyof T]: Awaited<T[P]> }>;
+
+  /**
+   * Run multiple requests in parallel and resolve once all have settled, never
+   * rejecting (sugar over `Promise.allSettled`). Each result is a standard
+   * `PromiseSettledResult`: `{ status: 'fulfilled', value }` or
+   * `{ status: 'rejected', reason }` (the `reason` is typically a `ValifetchError`).
+   *
+   * The returned promise is cancellable: `.cancel()` aborts every input that
+   * exposes a `.cancel()` method.
+   *
+   * @example
+   * ```ts
+   * const results = await api.allSettled([api.get('/a'), api.get('/b')]);
+   * for (const r of results) {
+   *   if (r.status === 'fulfilled') console.log(r.value);
+   *   else console.error(r.reason);
+   * }
+   * ```
+   */
+  allSettled<T extends readonly unknown[] | []>(
+    requests: T
+  ): CancellablePromise<{
+    -readonly [P in keyof T]: PromiseSettledResult<Awaited<T[P]>>;
+  }>;
+
   /** Create new instance with defaults */
   create(options?: ValifetchInstanceOptions): CallableInstance;
   /** Extend current instance with additional options */
@@ -328,6 +372,50 @@ export type ValifetchInstance = {
     url: TPath,
     options?: GetOptions<TPath, TResponseSchema, TParamsSchema, TSearchSchema>
   ): CancellablePromise<ResolveResponseType<TData, TResponseSchema>>;
+
+  /**
+   * Run multiple requests in parallel and resolve to a tuple of their results,
+   * preserving each element's type (sugar over `Promise.all`). Rejects as soon
+   * as any input rejects.
+   *
+   * The returned promise is cancellable: `.cancel()` aborts every input that
+   * exposes a `.cancel()` method (e.g. other valifetch requests).
+   *
+   * @example
+   * ```ts
+   * const [user, posts] = await api.all([
+   *   api.get('/users/1', { responseSchema: UserSchema }),
+   *   api.get('/posts', { responseSchema: PostsSchema }),
+   * ]);
+   * ```
+   */
+  all<T extends readonly unknown[] | []>(
+    requests: T
+  ): CancellablePromise<{ -readonly [P in keyof T]: Awaited<T[P]> }>;
+
+  /**
+   * Run multiple requests in parallel and resolve once all have settled, never
+   * rejecting (sugar over `Promise.allSettled`). Each result is a standard
+   * `PromiseSettledResult`: `{ status: 'fulfilled', value }` or
+   * `{ status: 'rejected', reason }` (the `reason` is typically a `ValifetchError`).
+   *
+   * The returned promise is cancellable: `.cancel()` aborts every input that
+   * exposes a `.cancel()` method.
+   *
+   * @example
+   * ```ts
+   * const results = await api.allSettled([api.get('/a'), api.get('/b')]);
+   * for (const r of results) {
+   *   if (r.status === 'fulfilled') console.log(r.value);
+   *   else console.error(r.reason);
+   * }
+   * ```
+   */
+  allSettled<T extends readonly unknown[] | []>(
+    requests: T
+  ): CancellablePromise<{
+    -readonly [P in keyof T]: PromiseSettledResult<Awaited<T[P]>>;
+  }>;
 
   /** Create new instance with defaults */
   create(options?: ValifetchInstanceOptions): ValifetchInstance;

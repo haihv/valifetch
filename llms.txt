@@ -64,6 +64,23 @@ valifetch.head(url, options)    // CancellablePromise<void> — no body; respons
 valifetch.options(url, options) // CancellablePromise<T>
 ```
 
+## Parallel requests
+
+```typescript
+// all() — tuple of results, preserves element types, rejects on first failure
+const [user, posts] = await valifetch.all([
+  valifetch.get('/users/1', { responseSchema: UserSchema }),
+  valifetch.get('/posts', { responseSchema: PostsSchema }),
+]);
+
+// allSettled() — never rejects; standard PromiseSettledResult per request
+const results = await valifetch.allSettled([valifetch.get('/a'), valifetch.get('/b')]);
+
+// Both return a CancellablePromise; .cancel() aborts every cancellable input
+const batch = valifetch.all([valifetch.get('/a'), valifetch.get('/b')]);
+batch.cancel();
+```
+
 ## Key options
 
 | Option | Type | Description |

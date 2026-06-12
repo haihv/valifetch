@@ -148,6 +148,10 @@ instance.extend((parentOptions) => newOptions);
 
 // Wrap instance for callable syntax
 instance.callable();
+
+// Run requests in parallel (typed tuple results; cancellable)
+instance.all([req1, req2]);
+instance.allSettled([req1, req2]);
 ```
 
 ### Options
@@ -387,6 +391,35 @@ const adminApi = api.extend({
   headers: { 'X-Admin': 'true' },
 });
 await adminApi('/admin/stats');
+```
+
+### Parallel Requests
+
+`all()` runs multiple requests in parallel and resolves to a tuple of their results, with each element's type preserved (sugar over `Promise.all`). It rejects as soon as any request rejects:
+
+```typescript
+const [user, posts] = await api.all([
+  api.get('/users/1', { responseSchema: UserSchema }),
+  api.get('/posts', { responseSchema: PostsSchema }),
+]);
+// user: User, posts: Post[]
+```
+
+`allSettled()` waits for every request to settle and never rejects — each result is a standard `PromiseSettledResult` (`{ status: 'fulfilled', value }` or `{ status: 'rejected', reason }`, where `reason` is typically a `ValifetchError`):
+
+```typescript
+const results = await api.allSettled([api.get('/a'), api.get('/b')]);
+for (const r of results) {
+  if (r.status === 'fulfilled') console.log(r.value);
+  else console.error(r.reason);
+}
+```
+
+Both return a `CancellablePromise`: calling `.cancel()` aborts every input that exposes a `.cancel()` method (other valifetch requests), and silently ignores plain promises:
+
+```typescript
+const batch = api.all([api.get('/a'), api.get('/b')]);
+batch.cancel(); // aborts both in-flight requests
 ```
 
 ### Hooks

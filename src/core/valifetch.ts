@@ -390,6 +390,14 @@ type Instance = ValifetchInstance & {
   merged: ValifetchInstanceOptions | undefined;
 };
 
+// Abort every input that exposes a `.cancel()` method; ignore plain promises
+// and non-cancellable values so mixed arrays are safe.
+function cancelAll(requests: readonly unknown[]): void {
+  for (const req of requests) {
+    (req as { cancel?: () => void } | null | undefined)?.cancel?.();
+  }
+}
+
 const getInstanceOptions = (instance: Instance): ValifetchInstanceOptions =>
   instance.merged ??
   (instance.parent
@@ -459,6 +467,18 @@ const proto = {
       getInstanceOptions(this)
     );
   },
+  all(requests: readonly unknown[]) {
+    const promise = Promise.all(requests) as CancellablePromise<unknown[]>;
+    promise.cancel = () => cancelAll(requests);
+    return promise;
+  },
+  allSettled(requests: readonly unknown[]) {
+    const promise = Promise.allSettled(requests) as CancellablePromise<
+      PromiseSettledResult<unknown>[]
+    >;
+    promise.cancel = () => cancelAll(requests);
+    return promise;
+  },
   create(newOptions?: ValifetchInstanceOptions) {
     return createInstance(newOptions ?? EMPTY);
   },
@@ -516,6 +536,8 @@ function callable(instance: ValifetchInstance) {
   fn.delete = inst.delete.bind(inst);
   fn.head = inst.head.bind(inst);
   fn.options = inst.options.bind(inst);
+  fn.all = inst.all.bind(inst);
+  fn.allSettled = inst.allSettled.bind(inst);
 
   fn.create = (options?: ValifetchInstanceOptions) =>
     callable(inst.create(options));

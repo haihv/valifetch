@@ -133,6 +133,23 @@ const stream = await api.get('/events', { responseType: 'stream' });
 const reader = stream.getReader();
 ```
 
+### Parallel requests
+
+```typescript
+// all() — typed tuple of results; rejects on first failure (sugar over Promise.all)
+const [user, posts] = await api.all([
+  api.get('/users/1', { responseSchema: UserSchema }),
+  api.get('/posts', { responseSchema: PostsSchema }),
+]);
+
+// allSettled() — never rejects; standard PromiseSettledResult per request
+const results = await api.allSettled([api.get('/a'), api.get('/b')]);
+
+// Both return a CancellablePromise; .cancel() aborts every cancellable input
+const batch = api.all([api.get('/a'), api.get('/b')]);
+batch.cancel();
+```
+
 ### Error handling
 
 ```typescript
