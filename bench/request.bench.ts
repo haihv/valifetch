@@ -25,7 +25,7 @@ describe('buildRequest', () => {
 
   bench('json body + bodySchema validation', async () => {
     await buildRequest(
-      URL,
+      TEST_URL,
       'POST',
       { json: { name: 'Alice', age: 30 }, bodySchema: flatBodySchema },
       INSTANCE_OPTS
@@ -61,7 +61,7 @@ describe('buildRequest', () => {
 
   bench('instance headers + request headers merge', async () => {
     await buildRequest(
-      URL,
+      TEST_URL,
       'GET',
       { headers: { 'X-Request-ID': 'abc123' } },
       { headers: { Authorization: 'Bearer token' } }
