@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-06-21
+
+### Added
+
+- **`all()` / `allSettled()` parallel request helpers** — run multiple requests concurrently with full tuple-type preservation (sugar over `Promise.all` / `Promise.allSettled`). The returned promise is cancellable: `.cancel()` aborts every input that exposes a `.cancel()` method. ([#34](https://github.com/haihv/valifetch/pull/34))
+
+### Changed
+
+- **`ValifetchError.cause` widened to `unknown`** — matches the standard `Error.cause` and accepts any thrown value without wrapping. The intentional 1.0 API decisions (`searchParams`/`searchSchema`, `json`/`form` over a generic `body`, per-call `responseType`, `cause: unknown`) are now documented in the README under "API Design Decisions". ([#35](https://github.com/haihv/valifetch/pull/35))
+
+### Fixed
+
+- **Type-export alignment** — the same types are now exported consistently across the `.`, `./types`, and `./error` entry points. ([#33](https://github.com/haihv/valifetch/pull/33))
+- Remove a duplicate `form` option and correct stale retry-method documentation in the option types. ([#32](https://github.com/haihv/valifetch/pull/32))
+
+### Maintenance
+
+- Pin `esbuild` to `^0.28.1` and bump `form-data` / `undici` to clear dev-dependency advisories; `npm audit` now reports 0 vulnerabilities. ([#37](https://github.com/haihv/valifetch/pull/37), [#38](https://github.com/haihv/valifetch/pull/38))
+- Fix two `buildRequest` benchmarks that passed the global `URL` constructor instead of a URL string, so the suite runs cleanly. ([#39](https://github.com/haihv/valifetch/pull/39))
+- CI: replace the deprecated Codecov test-results action and harden against transient Codecov upload errors. ([#36](https://github.com/haihv/valifetch/pull/36))
+
 ## [0.6.0] - 2026-05-11
 
 ### Added
