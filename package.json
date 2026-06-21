@@ -107,6 +107,9 @@
   "peerDependencies": {
     "valibot": ">=1.0.0"
   },
+  "overrides": {
+    "esbuild": "^0.28.1"
+  },
   "devDependencies": {
     "@biomejs/biome": "^2.4.14",
     "@codecov/rollup-plugin": "^2.0.1",
