@@ -104,6 +104,28 @@ const api = valifetch.create({
 });
 ```
 
+### Custom retry predicate
+
+```typescript
+// Custom retry predicate — true = retry, false = never, undefined = defer to
+// statusCodes + methods. Consulted for every failed response and network error,
+// before `beforeRetry`, always bounded by `limit`. May be async.
+const api = valifetch.create({
+  retry: {
+    limit: 3,
+    shouldRetry: async ({ reason, response }) => {
+      if (reason === 'network') return true; // retry POSTs on network errors
+      if (response.status === 409) {
+        return (await response.clone().json()).code === 'STALE_VERSION';
+      }
+      return undefined;
+    },
+  },
+});
+```
+
+`shouldRetry(ctx)` receives `{ request, retryCount, reason, response | error }` (`reason: 'status'` → `response`, `'network'` → `error`, `retryCount` 1-based). Return `true` to retry even when `statusCodes`/`methods` would not, `false` to never retry this failure, `undefined` to defer to the built-in status-code + method check. May be async; always bounded by `limit`; never consulted for an ok response; runs before `beforeRetry` (returning `false` skips those hooks); a throwing predicate aborts the request with that error. The context type is `RetryContext`, also the base of `BeforeRetryState`.
+
 When a retryable response includes a `Retry-After` header (e.g. on a 429), valifetch automatically uses the server-prescribed delay instead of the exponential backoff formula. Both integer-seconds (`Retry-After: 120`) and HTTP-date formats are supported.
 
 ### Interrupt retry or transform errors
@@ -236,7 +258,7 @@ try {
 | `searchParams` | Query string; instance value is a default, per-request value merges on top (request wins per key). Explicit `undefined`/`null` on a request key removes the instance default for that key. Instance defaults are appended to any query string already in the request path, not merged into it. |
 | `prefixUrl` | Base URL for the instance |
 | `timeout` | Ms until TIMEOUT_ERROR (default: none — never times out; `0` also disables) |
-| `retry` | `{ limit, statusCodes, methods, delay }` or just a number. Defaults: `limit: 2`, `methods: ['GET','PUT','HEAD','DELETE','OPTIONS']`, `statusCodes: [408,413,429,500,502,503,504]`, `delay(attempt) = 0.3 * 2**attempt`s + 20% jitter, capped 30s |
+| `retry` | `{ limit, statusCodes, methods, delay, shouldRetry(ctx) }` or just a number. Defaults: `limit: 2`, `methods: ['GET','PUT','HEAD','DELETE','OPTIONS']`, `statusCodes: [408,413,429,500,502,503,504]`, `delay(attempt) = 0.3 * 2**attempt`s + 20% jitter, capped 30s |
 | `responseType` | `'json'` (default) \| `'text'` \| `'blob'` \| `'arrayBuffer'` \| `'formData'` \| `'stream'` \| `'raw'` \| `'sse'`; per-call only, not on `create()`/`extend()` |
 | `validateResponse` | Validate response against `responseSchema` (default: `true`) |
 | `validateRequest` | Validate body/params/search schemas (default: `true`) |

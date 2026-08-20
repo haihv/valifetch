@@ -1,10 +1,19 @@
-import type { HttpMethod, RetryOptions } from '../types';
+import type { HttpMethod, RetryContext, RetryOptions } from '../types';
+
+/**
+ * Retry options with every built-in field resolved to a concrete value.
+ * `shouldRetry` stays optional — it has no default.
+ */
+export type NormalizedRetryOptions = Required<
+  Omit<RetryOptions, 'shouldRetry'>
+> &
+  Pick<RetryOptions, 'shouldRetry'>;
 
 /**
  * Default retry configuration: 2 retries on idempotent methods and common transient status codes,
  * with exponential backoff + 20% jitter, capped at 30 s.
  */
-export const DEFAULT_RETRY_OPTIONS: Required<RetryOptions> = {
+export const DEFAULT_RETRY_OPTIONS: NormalizedRetryOptions = {
   limit: 2,
   methods: ['GET', 'PUT', 'HEAD', 'DELETE', 'OPTIONS'],
   statusCodes: [408, 413, 429, 500, 502, 503, 504],
@@ -24,7 +33,7 @@ export const DEFAULT_RETRY_OPTIONS: Required<RetryOptions> = {
  */
 export function normalizeRetryOptions(
   retry: RetryOptions | number | false | undefined
-): Required<RetryOptions> | false {
+): NormalizedRetryOptions | false {
   if (retry === false) {
     return false;
   }
@@ -147,4 +156,29 @@ export function getRetryAfterDelay(response: Response): number | null {
   if (Number.isFinite(date)) return Math.max(0, date - Date.now());
 
   return null;
+}
+
+/**
+ * Decide whether to retry, consulting `options.shouldRetry` first and falling back
+ * to the built-in check.
+ * @param context - The failure being considered for a retry
+ * @param options - Normalized retry configuration
+ * @param defaultDecision - The built-in status-code + method check to defer to
+ * @returns `true` when the failure should be retried
+ */
+export async function resolveRetryDecision(
+  context: RetryContext,
+  options: NormalizedRetryOptions,
+  defaultDecision: () => boolean
+): Promise<boolean> {
+  // `limit` bounds the predicate too, so a `() => true` predicate cannot retry forever.
+  if (context.retryCount > options.limit) {
+    return false;
+  }
+
+  const verdict = options.shouldRetry
+    ? await options.shouldRetry(context)
+    : undefined;
+
+  return verdict ?? defaultDecision();
 }

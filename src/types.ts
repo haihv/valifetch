@@ -46,6 +46,7 @@ export type {
   PathParamsRecord,
   PostOptions,
   ResponseType,
+  RetryContext,
   RetryOptions,
   SearchParamsInit,
   ValidationTarget,

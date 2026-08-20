@@ -32,6 +32,7 @@ import {
   calculateRetryDelay,
   getRetryAfterDelay,
   normalizeRetryOptions,
+  resolveRetryDecision,
   shouldRetry,
   shouldRetryNetworkError,
   sleep,
@@ -365,8 +366,12 @@ async function runRequest<T>(
   // this method, so the non-retryable hot path (e.g. POST) keeps sending the
   // template directly. `shouldRetryNetworkError` at attempt 0 answers exactly
   // "could this method ever be retried", covering both limit and method checks.
+  // A `shouldRetry` predicate can retry any method, so body-bearing requests must
+  // be cloned regardless of the built-in method guard.
   const mayRetry =
-    retryOptions !== false && shouldRetryNetworkError(method, 0, retryOptions);
+    retryOptions !== false &&
+    (retryOptions.shouldRetry !== undefined ||
+      shouldRetryNetworkError(method, 0, retryOptions));
 
   while (attemptCount < maxAttempts) {
     const requestToSend =
@@ -413,11 +418,21 @@ async function runRequest<T>(
             cause: error,
           });
 
-        if (
-          retryOptions === false ||
-          attemptCount >= maxAttempts - 1 ||
-          !shouldRetryNetworkError(method, attemptCount, retryOptions)
-        ) {
+        const retryNow =
+          retryOptions !== false &&
+          attemptCount < maxAttempts - 1 &&
+          (await resolveRetryDecision(
+            {
+              request,
+              retryCount: attemptCount + 1,
+              reason: 'network',
+              error,
+            },
+            retryOptions,
+            () => shouldRetryNetworkError(method, attemptCount, retryOptions)
+          ));
+
+        if (!retryNow) {
           throw networkError();
         }
 
@@ -463,10 +478,22 @@ async function runRequest<T>(
       attempt: attemptCount + 1,
     });
 
+    // Only failed responses are retry candidates — a `shouldRetry` predicate is
+    // never consulted for a successful response.
     const shouldRetryStatus =
       retryOptions !== false &&
+      !response.ok &&
       attemptCount < maxAttempts - 1 &&
-      shouldRetry(method, response.status, attemptCount, retryOptions);
+      (await resolveRetryDecision(
+        {
+          request,
+          retryCount: attemptCount + 1,
+          reason: 'status',
+          response,
+        },
+        retryOptions,
+        () => shouldRetry(method, response.status, attemptCount, retryOptions)
+      ));
 
     if (shouldRetryStatus) {
       const outcome = await runBeforeRetryHooks(

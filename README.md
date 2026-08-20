@@ -499,7 +499,7 @@ const api = valifetch.create({
 
 Hook signatures are positional and deliberately ky-aligned (`beforeRequest(request, options)`, `afterResponse(request, options, response)`, `afterParseResponse(data, response, request)`, `beforeRetry(state)`, `beforeError(error)`) rather than a single unified state object — see [API Design Decisions](#api-design-decisions). A hook that throws propagates that error as-is and aborts the request; it is never wrapped.
 
-**`beforeRetry`** runs before each retry is scheduled. Return `stop` (exported sentinel) to abort retrying and treat the original failure as final; return a new `Request` to replace the request for all remaining attempts; return nothing (or void) to proceed with the normal backoff. Hooks run in order; returning `stop` short-circuits the remaining hooks. `beforeRetry` only runs for failures that are retryable under your `retry` config (status codes / methods / limit); a hook that throws aborts the request with that error.
+**`beforeRetry`** runs before each retry is scheduled. Return `stop` (exported sentinel) to abort retrying and treat the original failure as final; return a new `Request` to replace the request for all remaining attempts; return nothing (or void) to proceed with the normal backoff. Hooks run in order; returning `stop` short-circuits the remaining hooks. `beforeRetry` only runs for failures that are retryable under your `retry` config (status codes / methods / limit, or a `shouldRetry` verdict); a hook that throws aborts the request with that error.
 
 **`beforeError`** runs just before any `ValifetchError` is thrown, including `HTTP_ERROR`, `VALIDATION_ERROR`, `PARSE_ERROR`, `TIMEOUT_ERROR`, `ABORT_ERROR`, and `NETWORK_ERROR`. Each hook receives the error and must return it — mutate and return the same instance, or return a replacement. Hooks chain: output of one becomes input to the next.
 
@@ -512,6 +512,17 @@ const api = valifetch.create({
     methods: ['GET', 'PUT'], // Methods to retry (also guards network-error retries)
     statusCodes: [408, 429, 500, 502, 503, 504], // Status codes to retry
     delay: (attempt) => Math.min(1000 * 2 ** attempt, 30000), // Backoff
+    // Custom predicate — overrides the statusCodes/methods verdict
+    shouldRetry: async ({ reason, response }) => {
+      // Network failures: retry POSTs too (this API is idempotent by request id)
+      if (reason === 'network') return true;
+      // Retry a 409 only when the server says the version was stale
+      if (response.status === 409) {
+        const body = await response.clone().json();
+        return body.code === 'STALE_VERSION';
+      }
+      return undefined; // defer to statusCodes + methods
+    },
   },
 });
 
@@ -525,6 +536,8 @@ const api3 = valifetch.create({ retry: false });
 **Defaults:** `limit: 2`, `methods: ['GET', 'PUT', 'HEAD', 'DELETE', 'OPTIONS']`, `statusCodes: [408, 413, 429, 500, 502, 503, 504]`, `delay(attempt) = 0.3 * 2 ** attempt` seconds plus up to 20% random jitter, capped at 30 s (≈0.3 s, 0.6 s, 1.2 s, …). `RetryOptions.delay(attempt)` is 0-based — `delay(0)` computes the first retry's delay.
 
 Retry applies to both HTTP error responses (matching `statusCodes`) and network-level errors (e.g. `TypeError: Failed to fetch`). In both cases the same `methods` guard applies — non-idempotent methods like `POST` and `PATCH` are not retried by default to prevent duplicate submissions.
+
+**`shouldRetry(context)`** is a custom predicate consulted for every failed response and every network error. `context` is `{ request, retryCount, reason, response | error }` — `reason: 'status'` carries `response`, `reason: 'network'` carries `error`, and `retryCount` is 1-based (`1` = the first retry). Return `true` to retry even when `statusCodes` / `methods` would not, `false` to never retry this failure, or `undefined` to defer to the built-in status-code + method check. It may be async — the response is passed unconsumed, so `response.clone().json()` is safe. The predicate is always bounded by `limit`, is never consulted for a successful (`response.ok`) response, and runs *before* the `beforeRetry` hooks — returning `false` skips them entirely. A predicate that throws aborts the request with that error.
 
 When a retryable response includes a `Retry-After` header (e.g. on a 429), valifetch uses the server-prescribed delay instead of the exponential backoff formula. Both integer-seconds (`Retry-After: 120`) and HTTP-date formats are supported.
 
@@ -854,6 +867,7 @@ import { createMock } from 'valifetch/mock';
 import type {
   ValifetchOptions,
   RetryOptions,
+  RetryContext,
   BeforeRequestHook,
   BeforeRetryHook,
   BeforeRetryState,

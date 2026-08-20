@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`RetryOptions.shouldRetry` predicate** — `shouldRetry(ctx)` receives `{ request, retryCount, reason, response | error }` and returns `true` (retry even if status/method would not), `false` (never), or `undefined` (defer to the built-in check); may be async; always bounded by `limit`; runs before `beforeRetry`. New `RetryContext` type (also the base of `BeforeRetryState`).
 - **`beforeRetry` / `beforeError` hooks** — `beforeRetry` runs before each retry is scheduled and can return the exported `stop` sentinel to abort retrying or a new `Request` to replace the request for remaining attempts; `beforeError` runs just before any `ValifetchError` is thrown and can mutate or replace it. New types `BeforeRetryHook`, `BeforeRetryState`, `BeforeErrorHook`.
 
 ### Changed
