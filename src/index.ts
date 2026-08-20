@@ -11,6 +11,10 @@
  * const user = await valifetch.get('/users/1', { responseSchema: UserSchema });
  * ```
  *
+ * All public types, including the `valifetch/auth` and `valifetch/mock`
+ * option types, are also available from the zero-runtime `valifetch/types`
+ * entry point.
+ *
  * @module
  */
 export { stop } from './core/stop';

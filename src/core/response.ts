@@ -42,6 +42,7 @@ async function parseErrorBody(response: Response): Promise<unknown> {
  * @param response - The fetch `Response`
  * @param request - The originating `Request`
  * @param throwHttpErrors - Whether to throw on non-2xx responses
+ * @returns A promise that resolves when the response is OK (or `throwHttpErrors` is `false`); otherwise rejects with `ValifetchError`
  */
 export async function checkResponseStatus(
   response: Response,
@@ -71,15 +72,18 @@ export async function parseJsonResponse<T extends GenericSchema>(
   const { response, request, responseSchema, validateResponse } = options;
 
   let data: unknown;
+  let text: string | undefined;
   try {
-    data = await response.json();
+    text = await response.text();
+    data = JSON.parse(text);
   } catch (error) {
     throw new ValifetchError({
       message: 'Failed to parse response as JSON',
       code: 'PARSE_ERROR',
       request,
       response,
-      cause: error instanceof Error ? error : undefined,
+      cause: error,
+      responseBody: text,
     });
   }
 
@@ -194,6 +198,9 @@ export async function* parseSSEResponse(
  * Wraps a Response so that `onDownloadProgress` is called as body bytes arrive.
  * Reads `Content-Length` for total; percent is omitted when the header is absent.
  * Returns the original response unchanged when its body is null.
+ * @param response - The fetch `Response` to wrap
+ * @param onDownloadProgress - Called with `{ loaded, total, percent }` as each chunk arrives
+ * @returns A new `Response` whose body streams through the progress callback, or the original response when it has no body
  */
 export function wrapResponseWithProgress(
   response: Response,

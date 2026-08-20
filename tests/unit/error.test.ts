@@ -318,6 +318,35 @@ describe('errors/ValifetchError', () => {
       });
     });
 
+    describe('target', () => {
+      it('should return the validation target when present', () => {
+        // Arrange
+        const error = new ValifetchError({
+          message: 'Validation failed',
+          code: 'VALIDATION_ERROR',
+          validation: {
+            target: 'search',
+            issues: [],
+            input: {},
+          },
+        });
+
+        // Act & Assert
+        expect(error.target).toBe('search');
+      });
+
+      it('should return undefined when no validation info', () => {
+        // Arrange
+        const error = new ValifetchError({
+          message: 'Network error',
+          code: 'NETWORK_ERROR',
+        });
+
+        // Act & Assert
+        expect(error.target).toBeUndefined();
+      });
+    });
+
     describe('status', () => {
       it('should return response status when present', () => {
         // Arrange

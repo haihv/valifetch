@@ -6,7 +6,7 @@ import type { Hooks, HttpMethod } from '../types';
  */
 export type MockCall = {
   /** HTTP method of the intercepted request */
-  method: string;
+  method: HttpMethod;
   /** Full URL of the intercepted request */
   url: string;
   /** Request headers as a plain string-to-string object */
@@ -36,6 +36,7 @@ export type MockHandler = {
    *   Pass `null` to produce a JSON `null` response. Omit entirely only for genuinely bodyless statuses
    *   (e.g. 204 No Content) — omitting on a 200/201 response will cause valifetch's JSON parser to throw.
    * @param headers - Additional response headers
+   * @returns The same `MockHandler`, for chaining additional `reply`/`replyOnce` calls.
    */
   reply(status: number, body?: unknown, headers?: HeadersInit): MockHandler;
   /**
@@ -46,6 +47,7 @@ export type MockHandler = {
    *   Pass `null` to produce a JSON `null` response. Omit entirely only for genuinely bodyless statuses
    *   (e.g. 204 No Content) — omitting on a 200/201 response will cause valifetch's JSON parser to throw.
    * @param headers - Additional response headers
+   * @returns The same `MockHandler`, for chaining additional `reply`/`replyOnce` calls.
    */
   replyOnce(status: number, body?: unknown, headers?: HeadersInit): MockHandler;
 };

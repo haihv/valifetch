@@ -405,12 +405,12 @@ describe('core/response', () => {
         }
       });
 
-      it('should handle non-Error thrown during JSON parse', async () => {
+      it('should pass through a non-Error rejection as cause', async () => {
         // Arrange
         const response = {
           ok: true,
           status: 200,
-          json: () => Promise.reject('non-error'),
+          text: () => Promise.reject('non-error'),
         } as unknown as Response;
         const request = createRequest();
 
@@ -424,7 +424,26 @@ describe('core/response', () => {
           });
           expect.fail('Should have thrown');
         } catch (error) {
-          expect((error as ValifetchError).cause).toBeUndefined();
+          expect((error as ValifetchError).cause).toBe('non-error');
+        }
+      });
+
+      it('should attach the raw text as responseBody on parse failure', async () => {
+        // Arrange
+        const response = new Response('not json', { status: 200 });
+        const request = createRequest();
+
+        // Act & Assert
+        try {
+          await parseJsonResponse({
+            response,
+            request,
+            validateResponse: false,
+            throwHttpErrors: true,
+          });
+          expect.fail('Should have thrown');
+        } catch (error) {
+          expect((error as ValifetchError).responseBody).toBe('not json');
         }
       });
     });
