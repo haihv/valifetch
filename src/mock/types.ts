@@ -14,7 +14,8 @@ export type MockCall = {
   /**
    * Parsed request body.
    * JSON-parsed object/array when `Content-Type` is `application/json`,
-   * raw string for other text bodies, `null` when the request has no body.
+   * decoded text for every other body (including raw `body` payloads),
+   * `null` when the request has no body.
    */
   body: unknown;
   /** URL search/query parameters */

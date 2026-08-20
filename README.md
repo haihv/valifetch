@@ -15,7 +15,7 @@ A type-safe HTTP client built on native `fetch` with [Valibot](https://valibot.d
 - **Schema Validation** - Validate response, body, path params, and search params with Valibot
 - **Type Inference** - Full TypeScript inference from schemas
 - **Auto-parsed Responses** - JSON responses are automatically parsed, no `.json()` needed
-- **File Uploads** - Send `FormData`, `URLSearchParams`, or plain objects via the `form` option
+- **File Uploads** - Send `FormData`, `URLSearchParams`, or plain objects via the `form` option, or raw bytes and streams via `body`
 - **Path Parameters** - Support for `/users/:id` syntax with validation
 - **Retry Logic** - Exponential backoff with jitter for failed requests
 - **Timeout & Cancellation** - AbortController support with configurable timeout
@@ -136,7 +136,7 @@ valifetch.head(url, options);
 valifetch.options(url, options);
 ```
 
-> **Note:** `head()` always resolves `void` and does not accept `responseSchema` or `responseType` — the type system rejects them. `get()` and `head()` are bodyless and do not accept `json` or `form`; those stay on `post`/`put`/`patch`/`delete`/`options`.
+> **Note:** `head()` always resolves `void` and does not accept `responseSchema` or `responseType` — the type system rejects them. `get()` and `head()` are bodyless and do not accept `json`, `form`, or `body`; those stay on `post`/`put`/`patch`/`delete`/`options`.
 
 ### Instance Functions
 
@@ -169,6 +169,7 @@ type Options = {
   // Request data (request-only — not accepted on create()/extend())
   json?: object; // JSON body (auto-stringified, sets Content-Type: application/json); not accepted on get()/head()
   form?: FormData | URLSearchParams | Record<string, string>; // Form body — FormData → multipart/form-data; URLSearchParams/object → application/x-www-form-urlencoded; not accepted on get()/head()
+  body?: RawBody; // Raw body (string | Blob | ArrayBuffer | ArrayBufferView | ReadableStream<Uint8Array>) sent as-is, no validation, no Content-Type inference; not accepted on get()/head()
   params?: object; // Path parameters for :param replacement
   searchParams?: string | URLSearchParams | Record<string, string | number | boolean | null | undefined> | Array<[string, string | number | boolean]>; // Query string parameters — instance value is a default, merged with (and overridden per-key by) the per-request value
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS'; // HTTP method (for callable syntax)
@@ -205,7 +206,7 @@ type Options = {
 };
 ```
 
-> **Note:** `form`, `signal`, and `window` are request-only and are omitted from `create()` / `extend()` instance options. `priority` is available on both instance and per-request options and is forwarded to `fetch` unchanged.
+> **Note:** `json`, `form`, `body`, `signal`, and `window` are request-only and are omitted from `create()` / `extend()` instance options. `priority` is available on both instance and per-request options and is forwarded to `fetch` unchanged.
 
 ## Examples
 
@@ -274,7 +275,40 @@ await api.post('/login', {
 });
 ```
 
-> **Note:** `form` and `json` are mutually exclusive — only one should be set per request.
+> **Note:** `json`, `form`, and `body` are mutually exclusive — setting more than one on a request throws a `TypeError`.
+
+### Raw Bodies
+
+When a request body is neither JSON nor a form — a pre-serialised payload, a binary blob, a streamed upload — use the `body` escape hatch. It is sent exactly as given.
+
+```typescript
+// Pre-serialised payload — set the Content-Type yourself
+await api.post('/events', {
+  body: '{"type":"ping"}',
+  headers: { 'content-type': 'application/json' },
+});
+
+// Binary upload
+await api.put('/blobs/abc', {
+  body: new Blob([bytes]),
+  headers: { 'content-type': 'application/octet-stream' },
+});
+
+// Streamed upload — `duplex: 'half'` is added automatically
+await api.put('/blobs/abc', {
+  body: fileStream,
+  headers: { 'content-type': 'application/octet-stream' },
+});
+```
+
+Rules:
+
+- **No validation.** `bodySchema` applies to `json` only; a raw `body` is never validated.
+- **No `Content-Type` inference.** Valifetch never sets one for a raw body — set it yourself. (The platform `Request` constructor still applies its own spec default for `string` and `Blob` bodies.)
+- **Mutually exclusive** with `json` and `form`; setting more than one throws a `TypeError`.
+- **Request-only**, and rejected on the bodyless methods (`get`, `head`, `delete`, `options`).
+- **`duplex: 'half'`** is added automatically for `ReadableStream` bodies, which the runtime requires.
+- **Retries re-send the body.** The request is cloned before each attempt, so `Blob`, `ArrayBuffer`, and string bodies re-send identically. A `ReadableStream` body is teed on clone, which buffers the stream in memory — pass `retry: false` for large streamed uploads if that matters.
 
 ### Search Parameters
 
@@ -866,6 +900,7 @@ import { createMock } from 'valifetch/mock';
 // Subpath import - just types (no runtime code)
 import type {
   ValifetchOptions,
+  RawBody,
   RetryOptions,
   RetryContext,
   BeforeRequestHook,
@@ -887,7 +922,7 @@ The package uses code splitting internally, so shared code between entry points 
 A few naming and ergonomics choices are intentional and locked for stability. They are documented here so the asymmetries don't read as accidental:
 
 - **`searchParams` vs `params`.** Query values use `searchParams` (+ `searchSchema`); path values use `params` (+ `paramsSchema`). The `searchParams` key deliberately mirrors the web platform's `URL.searchParams` / `URLSearchParams` and the equivalent option in `ky`, so the value key (`searchParams`) and its schema (`searchSchema`) use slightly different stems. This platform alignment is preferred over internal symmetry.
-- **`json` / `form` instead of a generic `body`.** Request bodies are set via `json` (auto-stringified, validated against `bodySchema`) or `form` (`FormData` / `URLSearchParams` / `Record<string, string>`). There is no generic `body` option — the native `body` is intentionally removed via `Omit<RequestInit, 'body'>` so that body handling always goes through the typed, validated path.
+- **`json` / `form` / `body`.** Structured bodies go through `json` (validated against `bodySchema`) or `form`; `body` is the raw escape hatch (string, `Blob`, `ArrayBuffer`, typed array, `ReadableStream`) sent as-is with no validation or `Content-Type` inference. Exactly one may be set per request; none is accepted at instance level.
 - **`responseType` is per-call only.** `responseType` lives on the per-request options, not on `create()` / `extend()` instance options. It changes the **return type** of a call (`'blob'` → `Blob`, `'sse'` → `AsyncIterable<MessageEvent>`, etc.), which cannot be expressed at instance-creation time without losing type safety. Set it on each call instead.
 - **`ValifetchError.cause` is `unknown`.** Matching the standard `Error.cause`, the `cause` option accepts any thrown value, not just an `Error`, so non-`Error` throws pass through without wrapping.
 - **Hook signatures stay ky-aligned and positional.** `beforeRequest(request, options)`, `afterResponse(request, options, response)`, `afterParseResponse(data, response, request)`, `beforeRetry(state)`, `beforeError(error)` are not being unified into a single state-object signature — matching ky's conventions is deliberate, and a hook that throws propagates that error as-is (never wrapped) to abort the request. `beforeError` only ever sees `ValifetchError`s.
