@@ -19,7 +19,10 @@ export type {
   // Hooks
   AfterParseResponseHook,
   AfterResponseHook,
+  BeforeErrorHook,
   BeforeRequestHook,
+  BeforeRetryHook,
+  BeforeRetryState,
   CallableInstance,
   // Instance
   CancellablePromise,

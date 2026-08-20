@@ -27,10 +27,11 @@ Valifetch is a type-safe HTTP client built on native `fetch` with Valibot schema
 ```
 valifetch.get(url, opts)
   → buildRequest()        src/core/request.ts     — URL construction, path params, body/schema validation
-  → executeRequest()      src/core/valifetch.ts    — fetch + retry loop, timeout, beforeRequest hooks
+  → executeRequest()      src/core/valifetch.ts    — fetch + retry loop, timeout, beforeRequest hooks; beforeRetry hooks run inside retry loop
   → checkResponseStatus() src/core/response.ts     — async; throws ValifetchError on 4xx/5xx with parsed responseBody
   → parseJsonResponse()   src/core/response.ts     — JSON parse + optional Valibot schema validation
   → afterResponse/afterParseResponse hooks
+  → beforeError hooks (catches & transforms ValifetchError before throwing to caller)
 ```
 
 ### Key modules
@@ -41,7 +42,8 @@ valifetch.get(url, opts)
 | `src/core/request.ts`          | Builds `Request` object; validates request body/params/search against schemas; handles `json` and `form` bodies |
 | `src/core/response.ts`         | Status checking (async, attaches `responseBody`), JSON parsing, schema validation, SSE frame parsing |
 | `src/core/retry.ts`            | Exponential backoff with jitter; default 2 retries on `[408, 413, 429, 500–504]`          |
-| `src/core/hooks.ts`            | `beforeRequest`, `afterResponse`, `afterParseResponse` hook runners                       |
+| `src/core/hooks.ts`            | `beforeRequest`, `afterResponse`, `afterParseResponse`, `beforeRetry`, `beforeError` hook runners; re-exports `stop` |
+| `src/core/stop.ts`             | The `stop` sentinel (`Symbol.for('valifetch.stop')`) — a leaf module with no imports, so `src/types/hooks.ts` can reference it without a module cycle |
 | `src/errors/ValifetchError.ts` | Custom error class with typed error codes; `responseBody` field on `HTTP_ERROR`           |
 | `src/url/`                     | URL building and `:param` → value path replacement                                        |
 | `src/validation/validate.ts`   | Thin wrapper around `valibot.safeParse`                                                   |

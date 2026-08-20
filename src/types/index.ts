@@ -1,7 +1,10 @@
 export type {
   AfterParseResponseHook,
   AfterResponseHook,
+  BeforeErrorHook,
   BeforeRequestHook,
+  BeforeRetryHook,
+  BeforeRetryState,
   Hooks,
 } from './hooks';
 export type {

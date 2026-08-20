@@ -22,7 +22,7 @@ A type-safe HTTP client built on native `fetch` with [Valibot](https://valibot.d
 - **Download Progress** - Track response body bytes received via `onDownloadProgress`
 - **HTTP Error Body** - Server error details auto-attached to `ValifetchError.responseBody` on non-2xx responses
 - **Debug Mode** - Structured lifecycle logging via `debug: true` or a custom event handler
-- **Hooks** - `beforeRequest`, `afterResponse`, and `afterParseResponse` interceptors
+- **Hooks** - `beforeRequest`, `afterResponse`, `afterParseResponse`, `beforeRetry`, and `beforeError` interceptors
 - **Instances** - Create configured instances with `create()` and `extend()`
 - **Minimal** - Tree-shakeable, valibot as peer dependency, ~17KB bundle
 - **Lightweight Instances** - Shared prototype pattern: each instance has only 1-2 own properties
@@ -190,6 +190,8 @@ type Options = {
     beforeRequest?: BeforeRequestHook[];
     afterResponse?: AfterResponseHook[];
     afterParseResponse?: AfterParseResponseHook[];
+    beforeRetry?: BeforeRetryHook[];
+    beforeError?: BeforeErrorHook[];
   };
 
   // Standard fetch options
@@ -425,6 +427,8 @@ batch.cancel(); // aborts both in-flight requests
 ### Hooks
 
 ```typescript
+import valifetch, { stop } from 'valifetch';
+
 const api = valifetch.create({
   prefixUrl: 'https://api.example.com',
   hooks: {
@@ -458,9 +462,32 @@ const api = valifetch.create({
         },
       }),
     ],
+    beforeRetry: [
+      ({ request, response, retryCount }) => {
+        // Give up early on a second 429 instead of waiting out the backoff
+        if (retryCount > 1 && response?.status === 429) return stop;
+        // Tag retried attempts so the server can detect duplicates
+        return new Request(request, {
+          headers: {
+            ...Object.fromEntries(request.headers),
+            'x-retry-attempt': String(retryCount),
+          },
+        });
+      },
+    ],
+    beforeError: [
+      (error) => {
+        error.message = `[api] ${error.message}`;
+        return error;
+      },
+    ],
   },
 });
 ```
+
+**`beforeRetry`** runs before each retry is scheduled. Return `stop` (exported sentinel) to abort retrying and treat the original failure as final; return a new `Request` to replace the request for all remaining attempts; return nothing (or void) to proceed with the normal backoff. Hooks run in order; returning `stop` short-circuits the remaining hooks. `beforeRetry` only runs for failures that are retryable under your `retry` config (status codes / methods / limit); a hook that throws aborts the request with that error.
+
+**`beforeError`** runs just before any `ValifetchError` is thrown, including `HTTP_ERROR`, `VALIDATION_ERROR`, `PARSE_ERROR`, `TIMEOUT_ERROR`, `ABORT_ERROR`, and `NETWORK_ERROR`. Each hook receives the error and must return it — mutate and return the same instance, or return a replacement. Hooks chain: output of one becomes input to the next.
 
 ### Retry Configuration
 
@@ -789,6 +816,9 @@ import type {
   ValifetchOptions,
   RetryOptions,
   BeforeRequestHook,
+  BeforeRetryHook,
+  BeforeRetryState,
+  BeforeErrorHook,
   AfterResponseHook,
   AfterParseResponseHook,
   CallableInstance,

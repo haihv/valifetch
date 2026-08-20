@@ -85,6 +85,24 @@ describe('request deduplication', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 
+  it('should not emit an unhandled rejection when a deduped request fails', async () => {
+    // Arrange
+    mockFetch({ message: 'boom' }, 500);
+    const unhandled = vi.fn();
+    process.on('unhandledRejection', unhandled);
+
+    // Act
+    await valifetch
+      .get('https://api.example.com/broken', { dedupe: true, retry: false })
+      .catch(() => undefined);
+    // Unhandled rejections are reported on a later macrotask tick
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    process.off('unhandledRejection', unhandled);
+
+    // Assert
+    expect(unhandled).not.toHaveBeenCalled();
+  });
+
   it('should not deduplicate requests with different HTTP methods', async () => {
     mockFetch({ id: 1 });
 

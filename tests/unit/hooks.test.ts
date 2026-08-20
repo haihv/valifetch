@@ -2,12 +2,19 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   runAfterParseResponseHooks,
   runAfterResponseHooks,
+  runBeforeErrorHooks,
   runBeforeRequestHooks,
+  runBeforeRetryHooks,
+  stop,
 } from '../../src/core/hooks';
+import { ValifetchError } from '../../src/errors/ValifetchError';
 import type {
   AfterParseResponseHook,
   AfterResponseHook,
+  BeforeErrorHook,
   BeforeRequestHook,
+  BeforeRetryHook,
+  BeforeRetryState,
   NormalizedOptions,
 } from '../../src/types';
 
@@ -646,6 +653,140 @@ describe('core/hooks', () => {
           users: [],
           _meta: { totalCount: '100', page: '1' },
         });
+      });
+    });
+  });
+
+  describe('runBeforeRetryHooks', () => {
+    const createRetryState = (): BeforeRetryState => ({
+      request: new Request('https://api.example.com/users'),
+      options: createMockOptions(),
+      retryCount: 1,
+      reason: 'status',
+      response: new Response(null, { status: 503 }),
+    });
+
+    describe('when no hooks provided', () => {
+      it('should return the state request when hooks is undefined', async () => {
+        // Arrange
+        const state = createRetryState();
+
+        // Act
+        const result = await runBeforeRetryHooks(state, undefined);
+
+        // Assert
+        expect(result).toBe(state.request);
+      });
+
+      it('should return the state request when hooks array is empty', async () => {
+        // Arrange
+        const state = createRetryState();
+
+        // Act
+        const result = await runBeforeRetryHooks(state, []);
+
+        // Assert
+        expect(result).toBe(state.request);
+      });
+    });
+
+    describe('when hooks return void', () => {
+      it('should keep the original request', async () => {
+        // Arrange
+        const state = createRetryState();
+        const hook = vi.fn<BeforeRetryHook>(() => undefined);
+
+        // Act
+        const result = await runBeforeRetryHooks(state, [hook]);
+
+        // Assert
+        expect(hook).toHaveBeenCalledWith(state);
+        expect(result).toBe(state.request);
+      });
+    });
+
+    describe('when a hook returns a Request', () => {
+      it('should replace the request and pass it to later hooks', async () => {
+        // Arrange
+        const state = createRetryState();
+        const replacement = new Request('https://api.example.com/retry');
+        const seen: Request[] = [];
+        const first: BeforeRetryHook = () => replacement;
+        const second: BeforeRetryHook = (next) => {
+          seen.push(next.request);
+        };
+
+        // Act
+        const result = await runBeforeRetryHooks(state, [first, second]);
+
+        // Assert
+        expect(result).toBe(replacement);
+        expect(seen).toEqual([replacement]);
+      });
+    });
+
+    describe('when a hook returns stop', () => {
+      it('should short-circuit and skip remaining hooks', async () => {
+        // Arrange
+        const state = createRetryState();
+        const first: BeforeRetryHook = () => stop;
+        const second = vi.fn<BeforeRetryHook>(() => undefined);
+
+        // Act
+        const result = await runBeforeRetryHooks(state, [first, second]);
+
+        // Assert
+        expect(result).toBe(stop);
+        expect(second).not.toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('runBeforeErrorHooks', () => {
+    const createError = (): ValifetchError =>
+      new ValifetchError({ message: 'boom', code: 'HTTP_ERROR' });
+
+    describe('when no hooks provided', () => {
+      it('should return the original error when hooks is undefined', async () => {
+        // Arrange
+        const error = createError();
+
+        // Act
+        const result = await runBeforeErrorHooks(error, undefined);
+
+        // Assert
+        expect(result).toBe(error);
+      });
+
+      it('should return the original error when hooks array is empty', async () => {
+        // Arrange
+        const error = createError();
+
+        // Act
+        const result = await runBeforeErrorHooks(error, []);
+
+        // Assert
+        expect(result).toBe(error);
+      });
+    });
+
+    describe('when hooks replace the error', () => {
+      it('should chain each hook result into the next', async () => {
+        // Arrange
+        const error = createError();
+        const replacement = new ValifetchError({
+          message: 'replaced',
+          code: 'NETWORK_ERROR',
+        });
+        const first: BeforeErrorHook = () => replacement;
+        const second = vi.fn<BeforeErrorHook>((received) => received);
+
+        // Act
+        const result = await runBeforeErrorHooks(error, [first, second]);
+
+        // Assert
+        expect(second).toHaveBeenCalledWith(replacement);
+        expect(result).toBe(replacement);
       });
     });
   });

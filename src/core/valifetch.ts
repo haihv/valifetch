@@ -17,9 +17,12 @@ import type {
 import {
   runAfterParseResponseHooks,
   runAfterResponseHooks,
+  runBeforeErrorHooks,
   runBeforeRequestHooks,
+  runBeforeRetryHooks,
+  stop,
 } from './hooks';
-import { buildRequest } from './request';
+import { buildRequest, HOOK_KEYS } from './request';
 import {
   checkResponseStatus,
   parseJsonResponse,
@@ -142,6 +145,13 @@ function emitDebug(debug: DebugOption | undefined, event: DebugEvent): void {
   }
 }
 
+function concatArrays<T>(first?: T[], second?: T[]): T[] | undefined {
+  if (!first && !second) return undefined;
+  if (!first) return second;
+  if (!second) return first;
+  return first.concat(second);
+}
+
 const dedupeCache = new Map<string, Promise<unknown>>();
 
 function executeRequest<T>(
@@ -176,13 +186,41 @@ function executeRequest<T>(
 
   if (dedupe) {
     dedupeCache.set(key, promise);
-    void promise.finally(() => dedupeCache.delete(key));
+    // `.finally()` returns a NEW promise that re-rejects; leaving it unhandled
+    // surfaces as an unhandled rejection even when the caller catches. Attaching
+    // the cleanup as both handlers settles this branch of the chain instead.
+    const cleanup = (): void => {
+      dedupeCache.delete(key);
+    };
+    void promise.then(cleanup, cleanup);
   }
 
   return promise;
 }
 
 async function executeRequestCore<T>(
+  url: string,
+  method: HttpMethod,
+  options: RequestOptions,
+  instanceOptions: ValifetchInstanceOptions
+): Promise<T> {
+  try {
+    return await runRequest<T>(url, method, options, instanceOptions);
+  } catch (error) {
+    if (error instanceof ValifetchError) {
+      // Hooks are read straight from the raw options because buildRequest may
+      // throw before normalized options exist.
+      const hooks = concatArrays(
+        instanceOptions.hooks?.beforeError,
+        options.hooks?.beforeError
+      );
+      throw await runBeforeErrorHooks(error, hooks);
+    }
+    throw error;
+  }
+}
+
+async function runRequest<T>(
   url: string,
   method: HttpMethod,
   options: RequestOptions,
@@ -223,7 +261,7 @@ async function executeRequestCore<T>(
     );
   }
 
-  const request = hookResult;
+  let request = hookResult;
   const retryOptions = normalizeRetryOptions(
     options.retry !== undefined ? options.retry : instanceOptions.retry
   );
@@ -263,59 +301,29 @@ async function executeRequestCore<T>(
   let lastRequestSent: Request = request;
   const maxAttempts = retryOptions === false ? 1 : retryOptions.limit + 1;
 
+  // Sending the template request marks it used, so a later `.clone()` (or a
+  // `new Request(request, ...)` inside a beforeRetry hook) would throw. Guard by
+  // sending a clone instead — but only when a retry is actually reachable for
+  // this method, so the non-retryable hot path (e.g. POST) keeps sending the
+  // template directly. `shouldRetryNetworkError` at attempt 0 answers exactly
+  // "could this method ever be retried", covering both limit and method checks.
+  const mayRetry =
+    retryOptions !== false && shouldRetryNetworkError(method, 0, retryOptions);
+
   while (attemptCount < maxAttempts) {
+    const requestToSend =
+      request.body !== null && mayRetry ? request.clone() : request;
+    lastRequestSent = requestToSend;
+
+    let response: Response;
+
+    // Only `fetch` belongs inside the try: hook exceptions must propagate to the
+    // caller untouched rather than being misread as network failures.
     try {
       const signal = setupTimeout();
-      const requestToSend = attemptCount > 0 ? request.clone() : request;
-      lastRequestSent = requestToSend;
-
       emitDebug(debug, { type: 'request', request: requestToSend });
-      const response = await fetch(requestToSend, { signal });
+      response = await fetch(requestToSend, { signal });
       clearTimeoutIfSet();
-
-      emitDebug(debug, {
-        type: 'response',
-        request: requestToSend,
-        response,
-        attempt: attemptCount + 1,
-      });
-
-      if (
-        retryOptions !== false &&
-        attemptCount < maxAttempts - 1 &&
-        shouldRetry(method, response.status, attemptCount, retryOptions)
-      ) {
-        attemptCount++;
-        const delay =
-          getRetryAfterDelay(response) ??
-          calculateRetryDelay(attemptCount - 1, retryOptions);
-        emitDebug(debug, {
-          type: 'retry',
-          request: requestToSend,
-          attempt: attemptCount,
-          delay,
-          reason: 'status',
-        });
-        await sleep(delay);
-        continue;
-      }
-
-      const finalResponse = await runAfterResponseHooks(
-        request,
-        normalizedOptions,
-        response,
-        normalizedOptions.hooks?.afterResponse
-      );
-
-      return handleResponse<T>(
-        finalResponse,
-        request,
-        options,
-        responseSchema,
-        validateResponse,
-        throwHttpErrors,
-        normalizedOptions.hooks?.afterParseResponse
-      );
     } catch (error) {
       clearTimeoutIfSet();
 
@@ -340,19 +348,38 @@ async function executeRequestCore<T>(
 
         lastError = error;
 
-        if (
-          retryOptions === false ||
-          attemptCount >= maxAttempts - 1 ||
-          !shouldRetryNetworkError(method, attemptCount, retryOptions)
-        ) {
-          throw new ValifetchError({
+        const networkError = (): ValifetchError =>
+          new ValifetchError({
             message: error.message || 'Network request failed',
             code: 'NETWORK_ERROR',
             request,
             cause: error,
           });
+
+        if (
+          retryOptions === false ||
+          attemptCount >= maxAttempts - 1 ||
+          !shouldRetryNetworkError(method, attemptCount, retryOptions)
+        ) {
+          throw networkError();
         }
 
+        const outcome = await runBeforeRetryHooks(
+          {
+            request,
+            options: normalizedOptions,
+            retryCount: attemptCount + 1,
+            reason: 'network',
+            error,
+          },
+          normalizedOptions.hooks?.beforeRetry
+        );
+
+        if (outcome === stop) {
+          throw networkError();
+        }
+
+        request = outcome;
         attemptCount++;
         const networkDelay = calculateRetryDelay(
           attemptCount - 1,
@@ -360,7 +387,7 @@ async function executeRequestCore<T>(
         );
         emitDebug(debug, {
           type: 'retry',
-          request,
+          request: requestToSend,
           attempt: attemptCount,
           delay: networkDelay,
           reason: 'network',
@@ -371,6 +398,67 @@ async function executeRequestCore<T>(
 
       throw error;
     }
+
+    emitDebug(debug, {
+      type: 'response',
+      request: requestToSend,
+      response,
+      attempt: attemptCount + 1,
+    });
+
+    const shouldRetryStatus =
+      retryOptions !== false &&
+      attemptCount < maxAttempts - 1 &&
+      shouldRetry(method, response.status, attemptCount, retryOptions);
+
+    if (shouldRetryStatus) {
+      const outcome = await runBeforeRetryHooks(
+        {
+          request,
+          options: normalizedOptions,
+          retryCount: attemptCount + 1,
+          reason: 'status',
+          response,
+        },
+        normalizedOptions.hooks?.beforeRetry
+      );
+
+      // `stop` aborts the retry loop; the response falls through to the
+      // normal handling path as if retries were exhausted.
+      if (outcome !== stop) {
+        request = outcome;
+        attemptCount++;
+        const delay =
+          getRetryAfterDelay(response) ??
+          calculateRetryDelay(attemptCount - 1, retryOptions);
+        emitDebug(debug, {
+          type: 'retry',
+          request: requestToSend,
+          attempt: attemptCount,
+          delay,
+          reason: 'status',
+        });
+        await sleep(delay);
+        continue;
+      }
+    }
+
+    const finalResponse = await runAfterResponseHooks(
+      request,
+      normalizedOptions,
+      response,
+      normalizedOptions.hooks?.afterResponse
+    );
+
+    return await handleResponse<T>(
+      finalResponse,
+      request,
+      options,
+      responseSchema,
+      validateResponse,
+      throwHttpErrors,
+      normalizedOptions.hooks?.afterParseResponse
+    );
   }
 
   // Defensive: should never reach here as the loop always exits via return or throw
@@ -550,26 +638,23 @@ function callable(instance: ValifetchInstance) {
   return fn;
 }
 
-function concatArrays<T>(first?: T[], second?: T[]): T[] | undefined {
-  if (!first && !second) return undefined;
-  if (!first) return second;
-  if (!second) return first;
-  return first.concat(second);
-}
-
 function mergeHooks(parent?: Hooks, child?: Hooks): Hooks | undefined {
   if (!parent && !child) return undefined;
   if (!parent) return child;
   if (!child) return parent;
 
-  return {
-    beforeRequest: concatArrays(parent.beforeRequest, child.beforeRequest),
-    afterResponse: concatArrays(parent.afterResponse, child.afterResponse),
-    afterParseResponse: concatArrays(
-      parent.afterParseResponse,
-      child.afterParseResponse
-    ),
-  };
+  // Loosely typed accumulator: TS cannot relate `Hooks[K]` element types across
+  // a generic key iteration.
+  const merged: Record<string, unknown[] | undefined> = {};
+
+  for (const key of HOOK_KEYS) {
+    merged[key] = concatArrays(
+      parent[key] as unknown[] | undefined,
+      child[key] as unknown[] | undefined
+    );
+  }
+
+  return merged as Hooks;
 }
 
 function copyHeaders(

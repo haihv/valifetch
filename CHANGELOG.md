@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **`beforeRetry` / `beforeError` hooks** — `beforeRetry` runs before each retry is scheduled and can return the exported `stop` sentinel to abort retrying or a new `Request` to replace the request for remaining attempts; `beforeError` runs just before any `ValifetchError` is thrown and can mutate or replace it. New types `BeforeRetryHook`, `BeforeRetryState`, `BeforeErrorHook`.
+
+### Fixed
+
+- Requests with a body (e.g. `PUT` + `json`) are now retried correctly — previously the second attempt failed with a spurious `NETWORK_ERROR` because the already-sent request could not be cloned.
+- `dedupe: true` no longer produces an unhandled promise rejection when the shared request fails.
+
 ## [0.7.0] - 2026-06-21
 
 ### Added

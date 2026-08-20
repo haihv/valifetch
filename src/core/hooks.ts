@@ -1,9 +1,16 @@
+import { ValifetchError } from '../errors/ValifetchError';
 import type {
   AfterParseResponseHook,
   AfterResponseHook,
+  BeforeErrorHook,
   BeforeRequestHook,
+  BeforeRetryHook,
+  BeforeRetryState,
   NormalizedOptions,
 } from '../types';
+import { stop } from './stop';
+
+export { stop };
 
 /**
  * Run all `beforeRequest` hooks in order.
@@ -99,4 +106,68 @@ export async function runAfterParseResponseHooks<T>(
   }
 
   return currentData;
+}
+
+/**
+ * Run all `beforeRetry` hooks in order.
+ * If a hook returns `stop`, the chain short-circuits and `stop` is returned
+ * immediately (remaining hooks are skipped). If a hook returns a `Request`, it
+ * replaces the request seen by subsequent hooks and becomes the return value.
+ * @param state - The retry state passed to each hook
+ * @param hooks - Array of hooks to run
+ * @returns The (possibly replaced) `Request`, or `stop` to abort retrying
+ */
+export async function runBeforeRetryHooks(
+  state: BeforeRetryState,
+  hooks?: BeforeRetryHook[]
+): Promise<Request | typeof stop> {
+  if (!hooks || hooks.length === 0) {
+    return state.request;
+  }
+
+  let currentState = state;
+
+  for (const hook of hooks) {
+    const result = await hook(currentState);
+
+    if (result === stop) {
+      return stop;
+    }
+
+    if (result instanceof Request) {
+      currentState = { ...currentState, request: result };
+    }
+  }
+
+  return currentState.request;
+}
+
+/**
+ * Run all `beforeError` hooks in order.
+ * A hook that returns a `ValifetchError` replaces the error passed to the next
+ * hook and finally returned to the caller. Any other return value (including a
+ * hook that forgets to return) is ignored so the pipeline never throws a
+ * non-error value.
+ * @param error - The error about to be thrown
+ * @param hooks - Array of hooks to run
+ * @returns The (possibly replaced) error to throw
+ */
+export async function runBeforeErrorHooks(
+  error: ValifetchError,
+  hooks?: BeforeErrorHook[]
+): Promise<ValifetchError> {
+  if (!hooks || hooks.length === 0) {
+    return error;
+  }
+
+  let currentError = error;
+
+  for (const hook of hooks) {
+    const next = await hook(currentError);
+    if (next instanceof ValifetchError) {
+      currentError = next;
+    }
+  }
+
+  return currentError;
 }
