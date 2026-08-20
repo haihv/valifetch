@@ -2,18 +2,17 @@ import type { GenericSchema } from 'valibot';
 import { ValifetchError } from '../errors/ValifetchError';
 import type {
   AfterParseResponseHook,
+  CallableInstance,
   CancellablePromise,
   DebugEvent,
   DebugOption,
-  DownloadProgressEvent,
   Hooks,
   HttpMethod,
-  ResponseType,
-  RetryOptions,
-  SearchParamsInit,
+  NormalizedOptions,
   ValifetchInstance,
   ValifetchInstanceOptions,
 } from '../types';
+import { buildUrl, mergeSearchParams } from '../url/builder';
 import {
   runAfterParseResponseHooks,
   runAfterResponseHooks,
@@ -22,7 +21,7 @@ import {
   runBeforeRetryHooks,
   stop,
 } from './hooks';
-import { buildRequest, HOOK_KEYS } from './request';
+import { buildRequest, HOOK_KEYS, type RequestOptions } from './request';
 import {
   checkResponseStatus,
   parseJsonResponse,
@@ -38,45 +37,24 @@ import {
   sleep,
 } from './retry';
 
-type RequestOptions = {
-  prefixUrl?: string;
-  timeout?: number;
-  searchParams?: SearchParamsInit;
-  validateResponse?: boolean;
-  validateRequest?: boolean;
-  throwHttpErrors?: boolean;
-  retry?: RetryOptions | number | false;
-  hooks?: Hooks;
-  headers?: HeadersInit;
-  signal?: AbortSignal | null;
-  responseSchema?: GenericSchema;
-  bodySchema?: GenericSchema;
-  paramsSchema?: GenericSchema;
-  searchSchema?: GenericSchema;
-  json?: unknown;
-  form?: FormData | URLSearchParams | Record<string, string>;
-  params?: Record<string, string | number>;
-  credentials?: RequestCredentials;
-  cache?: RequestCache;
-  redirect?: RequestRedirect;
-  referrer?: string;
-  referrerPolicy?: ReferrerPolicy;
-  integrity?: string;
-  keepalive?: boolean;
-  mode?: RequestMode;
-  responseType?: ResponseType;
-  method?: HttpMethod;
-  dedupe?: boolean;
-  onDownloadProgress?: (event: DownloadProgressEvent) => void;
-  debug?: DebugOption;
-};
+// Frozen so the shared default options object can never be mutated by accident.
+const EMPTY = Object.freeze({}) as RequestOptions;
 
-const EMPTY = {} as RequestOptions;
+/**
+ * Sentinel abort reason for the timeout path. Compared by identity so a caller
+ * aborting with their own `Error('Request timed out')` still yields ABORT_ERROR.
+ */
+class TimeoutAbortError extends Error {
+  constructor() {
+    super('Request timed out');
+    this.name = 'TimeoutAbortError';
+  }
+}
 
 async function handleResponse<T>(
   response: Response,
   request: Request,
-  options: RequestOptions,
+  options: NormalizedOptions,
   responseSchema: GenericSchema | undefined,
   validateResponse: boolean,
   throwHttpErrors: boolean,
@@ -95,6 +73,22 @@ async function handleResponse<T>(
       ? wrapResponseWithProgress(response, options.onDownloadProgress)
       : response;
 
+  // Body reads can reject (malformed multipart, detached stream, ...); surface
+  // those as PARSE_ERROR instead of leaking the raw platform TypeError.
+  const read = async <R>(kind: string, body: Promise<R>): Promise<R> => {
+    try {
+      return await body;
+    } catch (error) {
+      throw new ValifetchError({
+        message: `Failed to parse response as ${kind}`,
+        code: 'PARSE_ERROR',
+        request,
+        response,
+        cause: error,
+      });
+    }
+  };
+
   let data: T;
 
   switch (responseType) {
@@ -105,16 +99,16 @@ async function handleResponse<T>(
     case 'sse':
       return parseSSEResponse(response.body) as T;
     case 'text':
-      data = (await trackedResponse.text()) as T;
+      data = (await read('text', trackedResponse.text())) as T;
       break;
     case 'blob':
-      data = (await trackedResponse.blob()) as T;
+      data = (await read('blob', trackedResponse.blob())) as T;
       break;
     case 'arrayBuffer':
-      data = (await trackedResponse.arrayBuffer()) as T;
+      data = (await read('arrayBuffer', trackedResponse.arrayBuffer())) as T;
       break;
     case 'formData':
-      data = (await trackedResponse.formData()) as T;
+      data = (await read('formData', trackedResponse.formData())) as T;
       break;
     case 'json':
     default:
@@ -152,7 +146,50 @@ function concatArrays<T>(first?: T[], second?: T[]): T[] | undefined {
   return first.concat(second);
 }
 
-const dedupeCache = new Map<string, Promise<unknown>>();
+// Per-instance dedupe caches, keyed by the instance's resolved options object
+// (stable per instance) so two instances never share in-flight requests.
+const dedupeCaches = new WeakMap<
+  ValifetchInstanceOptions,
+  Map<string, Promise<unknown>>
+>();
+
+function getDedupeCache(
+  instanceOptions: ValifetchInstanceOptions
+): Map<string, Promise<unknown>> {
+  let cache = dedupeCaches.get(instanceOptions);
+  if (!cache) {
+    cache = new Map();
+    dedupeCaches.set(instanceOptions, cache);
+  }
+  return cache;
+}
+
+/**
+ * Build the dedupe key from the method and the fully-resolved URL.
+ * Returns `undefined` when the URL cannot be built (missing path param, invalid
+ * URL) so the call skips deduplication and `buildRequest` reports the real error.
+ */
+function resolveDedupeKey(
+  url: string,
+  method: HttpMethod,
+  options: RequestOptions,
+  instanceOptions: ValifetchInstanceOptions
+): string | undefined {
+  try {
+    const resolved = buildUrl({
+      prefixUrl: options.prefixUrl ?? instanceOptions.prefixUrl,
+      path: url,
+      params: options.params,
+      searchParams: mergeSearchParams(
+        instanceOptions.searchParams,
+        options.searchParams
+      ),
+    });
+    return `${method}:${resolved.toString()}`;
+  } catch {
+    return undefined;
+  }
+}
 
 function executeRequest<T>(
   url: string,
@@ -169,10 +206,15 @@ function executeRequest<T>(
   };
 
   const dedupe = options.dedupe ?? instanceOptions.dedupe;
-  const key = `${method}:${url}`;
+  const key = dedupe
+    ? resolveDedupeKey(url, method, options, instanceOptions)
+    : undefined;
+  const cache = key === undefined ? undefined : getDedupeCache(instanceOptions);
 
-  if (dedupe) {
-    const cached = dedupeCache.get(key) as CancellablePromise<T> | undefined;
+  if (cache) {
+    const cached = cache.get(key as string) as
+      | CancellablePromise<T>
+      | undefined;
     if (cached) return cached;
   }
 
@@ -184,13 +226,14 @@ function executeRequest<T>(
   ) as CancellablePromise<T>;
   promise.cancel = () => cancelController.abort();
 
-  if (dedupe) {
-    dedupeCache.set(key, promise);
+  if (cache) {
+    const cacheKey = key as string;
+    cache.set(cacheKey, promise);
     // `.finally()` returns a NEW promise that re-rejects; leaving it unhandled
     // surfaces as an unhandled rejection even when the caller catches. Attaching
     // the cleanup as both handlers settles this branch of the chain instead.
     const cleanup = (): void => {
-      dedupeCache.delete(key);
+      cache.delete(cacheKey);
     };
     void promise.then(cleanup, cleanup);
   }
@@ -250,10 +293,19 @@ async function runRequest<T>(
       response: hookResult,
       attempt: 1,
     });
-    return handleResponse<T>(
-      hookResult,
+    // A hook-provided response still runs through afterResponse, so mocks and
+    // interceptors see the same pipeline as a real fetch.
+    const hookResponse = await runAfterResponseHooks(
       initialRequest,
-      options,
+      normalizedOptions,
+      hookResult,
+      normalizedOptions.hooks?.afterResponse
+    );
+
+    return handleResponse<T>(
+      hookResponse,
+      initialRequest,
+      normalizedOptions,
       responseSchema,
       validateResponse,
       throwHttpErrors,
@@ -278,12 +330,18 @@ async function runRequest<T>(
 
     timeoutController = new AbortController();
 
-    baseSignal.addEventListener('abort', () => {
-      timeoutController?.abort(baseSignal.reason);
-    });
+    // An already-aborted caller signal never fires 'abort', which would leave the
+    // timeout controller (the signal fetch actually receives) permanently open.
+    if (baseSignal.aborted) {
+      timeoutController.abort(baseSignal.reason);
+    } else {
+      baseSignal.addEventListener('abort', () => {
+        timeoutController?.abort(baseSignal.reason);
+      });
+    }
 
     timeoutId = setTimeout(() => {
-      timeoutController?.abort(new Error('Request timed out'));
+      timeoutController?.abort(new TimeoutAbortError());
     }, timeout);
 
     return timeoutController.signal;
@@ -330,9 +388,8 @@ async function runRequest<T>(
       if (error instanceof Error) {
         if (error.name === 'AbortError' || timeoutController?.signal.aborted) {
           const isTimeout =
-            error.message === 'Request timed out' ||
-            (timeoutController?.signal.reason as Error)?.message ===
-              'Request timed out';
+            error instanceof TimeoutAbortError ||
+            timeoutController?.signal.reason instanceof TimeoutAbortError;
 
           if (!isTimeout) {
             emitDebug(debug, { type: 'cancel', request: lastRequestSent });
@@ -453,7 +510,7 @@ async function runRequest<T>(
     return await handleResponse<T>(
       finalResponse,
       request,
-      options,
+      normalizedOptions,
       responseSchema,
       validateResponse,
       throwHttpErrors,
@@ -496,62 +553,63 @@ const getInstanceOptions = (instance: Instance): ValifetchInstanceOptions =>
     : instance.opts);
 
 const proto = {
-  get(this: Instance, url: string, options?: RequestOptions) {
+  get(this: Instance, url: string, requestOptions?: RequestOptions) {
     return executeRequest(
       url,
       'GET',
-      options ?? EMPTY,
+      requestOptions ?? EMPTY,
       getInstanceOptions(this)
     );
   },
-  post(this: Instance, url: string, options?: RequestOptions) {
+  post(this: Instance, url: string, requestOptions?: RequestOptions) {
     return executeRequest(
       url,
       'POST',
-      options ?? EMPTY,
+      requestOptions ?? EMPTY,
       getInstanceOptions(this)
     );
   },
-  put(this: Instance, url: string, options?: RequestOptions) {
+  put(this: Instance, url: string, requestOptions?: RequestOptions) {
     return executeRequest(
       url,
       'PUT',
-      options ?? EMPTY,
+      requestOptions ?? EMPTY,
       getInstanceOptions(this)
     );
   },
-  patch(this: Instance, url: string, options?: RequestOptions) {
+  patch(this: Instance, url: string, requestOptions?: RequestOptions) {
     return executeRequest(
       url,
       'PATCH',
-      options ?? EMPTY,
+      requestOptions ?? EMPTY,
       getInstanceOptions(this)
     );
   },
-  delete(this: Instance, url: string, options?: RequestOptions) {
+  delete(this: Instance, url: string, requestOptions?: RequestOptions) {
     return executeRequest(
       url,
       'DELETE',
-      options ?? EMPTY,
+      requestOptions ?? EMPTY,
       getInstanceOptions(this)
     );
   },
-  head(this: Instance, url: string, options?: RequestOptions) {
+  head(this: Instance, url: string, requestOptions?: RequestOptions) {
     const req = executeRequest(
       url,
       'HEAD',
-      { ...options, responseType: 'raw' },
+      // HEAD never exposes a body, so the response is taken raw and dropped.
+      { ...requestOptions, responseType: 'raw' },
       getInstanceOptions(this)
     );
     const p = req.then(() => undefined) as CancellablePromise<void>;
     p.cancel = req.cancel;
     return p;
   },
-  options(this: Instance, url: string, options?: RequestOptions) {
+  options(this: Instance, url: string, requestOptions?: RequestOptions) {
     return executeRequest(
       url,
       'OPTIONS',
-      options ?? EMPTY,
+      requestOptions ?? EMPTY,
       getInstanceOptions(this)
     );
   },
@@ -602,17 +660,17 @@ function createInstanceWithParent(
 }
 
 // Callable wrapper for ky-style syntax: api('/users') instead of api.get('/users')
-function callable(instance: ValifetchInstance) {
+function callable(instance: ValifetchInstance): CallableInstance {
   const inst = instance as Instance;
 
   const fn = function <TData = unknown>(
     url: string,
-    options?: RequestOptions
-  ): Promise<TData> {
+    requestOptions?: RequestOptions
+  ): CancellablePromise<TData> {
     return executeRequest<TData>(
       url,
-      options?.method ?? 'GET',
-      options ?? EMPTY,
+      requestOptions?.method ?? 'GET',
+      requestOptions ?? EMPTY,
       getInstanceOptions(inst)
     );
   };
@@ -635,7 +693,9 @@ function callable(instance: ValifetchInstance) {
       | ((parent: ValifetchInstanceOptions) => ValifetchInstanceOptions)
   ) => callable(inst.extend(options));
 
-  return fn;
+  // Checked assertion (no `unknown` hop): TS still verifies the shape overlaps
+  // `CallableInstance`, it just cannot relate the two generic parameter lists.
+  return fn as CallableInstance;
 }
 
 function mergeHooks(parent?: Hooks, child?: Hooks): Hooks | undefined {
@@ -661,14 +721,18 @@ function copyHeaders(
   source: HeadersInit,
   target: Record<string, string>
 ): void {
+  // Header names are case-insensitive: lowercase every key so a parent's
+  // `Content-Type` and a child's `content-type` collapse to a single entry.
   if (source instanceof Headers) {
     source.forEach((value, key) => {
-      target[key] = value;
+      target[key.toLowerCase()] = value;
     });
   } else if (Array.isArray(source)) {
-    for (const [key, value] of source) target[key] = value;
+    for (const [key, value] of source) target[key.toLowerCase()] = value;
   } else {
-    Object.assign(target, source);
+    for (const [key, value] of Object.entries(source)) {
+      target[key.toLowerCase()] = value;
+    }
   }
 }
 
@@ -689,34 +753,29 @@ function mergeOptions(
   parent: ValifetchInstanceOptions,
   child: ValifetchInstanceOptions
 ): ValifetchInstanceOptions {
-  const result: ValifetchInstanceOptions = { ...parent };
+  // Every defined child key wins generically, so a newly added option never has
+  // to be re-listed here. `hooks`, `headers` and `searchParams` are the
+  // exceptions: they combine with the parent instead of replacing it.
+  const result = { ...parent } as Record<string, unknown>;
 
-  if (child.prefixUrl !== undefined) result.prefixUrl = child.prefixUrl;
-  if (child.timeout !== undefined) result.timeout = child.timeout;
-  if (child.validateResponse !== undefined)
-    result.validateResponse = child.validateResponse;
-  if (child.validateRequest !== undefined)
-    result.validateRequest = child.validateRequest;
-  if (child.throwHttpErrors !== undefined)
-    result.throwHttpErrors = child.throwHttpErrors;
-  if (child.retry !== undefined) result.retry = child.retry;
-  if (child.credentials !== undefined) result.credentials = child.credentials;
-  if (child.cache !== undefined) result.cache = child.cache;
-  if (child.redirect !== undefined) result.redirect = child.redirect;
-  if (child.referrer !== undefined) result.referrer = child.referrer;
-  if (child.referrerPolicy !== undefined)
-    result.referrerPolicy = child.referrerPolicy;
-  if (child.integrity !== undefined) result.integrity = child.integrity;
-  if (child.keepalive !== undefined) result.keepalive = child.keepalive;
-  if (child.mode !== undefined) result.mode = child.mode;
-  if (child.debug !== undefined) result.debug = child.debug;
+  for (const key of Object.keys(child) as (keyof ValifetchInstanceOptions)[]) {
+    if (key === 'hooks' || key === 'headers' || key === 'searchParams')
+      continue;
+    const value = child[key];
+    if (value !== undefined) result[key] = value;
+  }
 
   const mergedHooks = mergeHooks(parent.hooks, child.hooks);
   const mergedHeaders = mergeHeaders(parent.headers, child.headers);
+  const mergedSearchParams = mergeSearchParams(
+    parent.searchParams,
+    child.searchParams
+  );
   if (mergedHooks) result.hooks = mergedHooks;
   if (mergedHeaders) result.headers = mergedHeaders;
+  if (mergedSearchParams) result.searchParams = mergedSearchParams;
 
-  return result;
+  return result as ValifetchInstanceOptions;
 }
 
 /**

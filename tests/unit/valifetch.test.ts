@@ -1,11 +1,19 @@
 import * as v from 'valibot';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  type MockInstance,
+  vi,
+} from 'vitest';
 import { valifetch } from '../../src/core/valifetch';
 import { ValifetchError } from '../../src/errors/ValifetchError';
 import type { AfterResponseHook } from '../../src/types';
 
 describe('core/valifetch', () => {
-  let fetchSpy: ReturnType<typeof vi.spyOn>;
+  let fetchSpy: MockInstance<typeof globalThis.fetch>;
 
   beforeEach(() => {
     fetchSpy = vi.spyOn(globalThis, 'fetch');

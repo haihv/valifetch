@@ -113,4 +113,63 @@ describe('request deduplication', () => {
 
     expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
+
+  it('should not deduplicate requests that differ only in search params', async () => {
+    mockFetch({ id: 1 });
+
+    await Promise.all([
+      valifetch.get('https://api.example.com/users', {
+        dedupe: true,
+        searchParams: { page: 1 },
+      }),
+      valifetch.get('https://api.example.com/users', {
+        dedupe: true,
+        searchParams: { page: 2 },
+      }),
+    ]);
+
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('should deduplicate on the resolved URL, not the raw path', async () => {
+    mockFetch({ id: 1 });
+    const api = valifetch.create({
+      prefixUrl: 'https://api.example.com',
+      dedupe: true,
+    });
+
+    await Promise.all([
+      api.get('/users/:id', { params: { id: 1 } }),
+      api.get('/users/1'),
+    ]);
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('should not share in-flight requests between instances', async () => {
+    mockFetch({ id: 1 });
+    const first = valifetch.create({
+      prefixUrl: 'https://api.example.com',
+      dedupe: true,
+    });
+    const second = valifetch.create({
+      prefixUrl: 'https://other.example.com',
+      dedupe: true,
+    });
+
+    await Promise.all([first.get('/users'), second.get('/users')]);
+
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('should skip deduplication when the URL cannot be resolved', async () => {
+    mockFetch({ id: 1 });
+
+    // Relative path with no prefixUrl: the key cannot be built, and the real
+    // failure still comes from buildRequest.
+    await expect(valifetch.get('/users', { dedupe: true })).rejects.toThrow(
+      'Invalid URL'
+    );
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
 });

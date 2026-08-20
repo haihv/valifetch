@@ -71,7 +71,7 @@
     "check": "biome check .",
     "check:fix": "biome check --write .",
     "bench": "vitest bench",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
     "version": "node scripts/sync-jsr-version.mjs && git add jsr.json",
     "prepublishOnly": "npm run build",
     "prepare": "husky"

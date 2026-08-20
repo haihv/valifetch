@@ -1,5 +1,9 @@
 import type { GenericSchema, InferOutput } from 'valibot';
-import type { ValifetchInstanceOptions, ValifetchOptions } from './options';
+import type {
+  HttpMethod,
+  ValifetchInstanceOptions,
+  ValifetchOptions,
+} from './options';
 
 /**
  * A `Promise<T>` with an attached `.cancel()` method that aborts the in-flight request.
@@ -54,7 +58,7 @@ export type GetOptions<
     TParamsSchema,
     TSearchSchema
   >,
-  'json' | 'bodySchema'
+  'json' | 'bodySchema' | 'form'
 > & {
   /** Response format - defaults to 'json' */
   responseType?: ResponseType;
@@ -90,11 +94,30 @@ type ResolveResponseType<TData, TResponseSchema> =
  * Callable instance type for ky-style syntax
  */
 export type CallableInstance = {
-  /** Perform a request using the default method */
-  <TData = unknown>(
-    url: string,
-    options?: ValifetchOptions
-  ): CancellablePromise<TData>;
+  /**
+   * Perform a request, defaulting to `GET`. Pass `method` to choose another verb
+   * and `responseType` to change how the body is parsed.
+   */
+  <
+    TData = unknown,
+    TPath extends string = string,
+    TResponseSchema extends GenericSchema | undefined = undefined,
+    TBodySchema extends GenericSchema | undefined = undefined,
+    TParamsSchema extends GenericSchema | undefined = undefined,
+    TSearchSchema extends GenericSchema | undefined = undefined,
+  >(
+    url: TPath,
+    options?: PostOptions<
+      TPath,
+      TResponseSchema,
+      TBodySchema,
+      TParamsSchema,
+      TSearchSchema
+    > & {
+      /** HTTP method for the request (default: `'GET'`) */
+      method?: HttpMethod;
+    }
+  ): CancellablePromise<ResolveResponseType<TData, TResponseSchema>>;
   /** GET request */
   get<
     TData = unknown,
@@ -171,14 +194,20 @@ export type CallableInstance = {
     url: TPath,
     options?: GetOptions<TPath, TResponseSchema, TParamsSchema, TSearchSchema>
   ): CancellablePromise<ResolveResponseType<TData, TResponseSchema>>;
-  /** HEAD request - returns void */
+  /**
+   * HEAD request — always resolves to `void`; the response body is never read,
+   * so `responseType` and `responseSchema` are not accepted.
+   */
   head<
     TPath extends string = string,
     TParamsSchema extends GenericSchema | undefined = undefined,
     TSearchSchema extends GenericSchema | undefined = undefined,
   >(
     url: TPath,
-    options?: GetOptions<TPath, undefined, TParamsSchema, TSearchSchema>
+    options?: Omit<
+      GetOptions<TPath, undefined, TParamsSchema, TSearchSchema>,
+      'responseSchema' | 'responseType'
+    >
   ): CancellablePromise<void>;
   /** OPTIONS request */
   options<
@@ -197,7 +226,8 @@ export type CallableInstance = {
    * as any input rejects.
    *
    * The returned promise is cancellable: `.cancel()` aborts every input that
-   * exposes a `.cancel()` method (e.g. other valifetch requests).
+   * exposes a `.cancel()` method (e.g. other valifetch requests); inputs without
+   * one are ignored. A rejection does not cancel the remaining requests.
    *
    * @example
    * ```ts
@@ -218,7 +248,8 @@ export type CallableInstance = {
    * `{ status: 'rejected', reason }` (the `reason` is typically a `ValifetchError`).
    *
    * The returned promise is cancellable: `.cancel()` aborts every input that
-   * exposes a `.cancel()` method.
+   * exposes a `.cancel()` method; inputs without one are ignored. A rejection
+   * does not cancel the remaining requests.
    *
    * @example
    * ```ts
@@ -345,7 +376,10 @@ export type ValifetchInstance = {
     options?: GetOptions<TPath, TResponseSchema, TParamsSchema, TSearchSchema>
   ): CancellablePromise<ResolveResponseType<TData, TResponseSchema>>;
 
-  /** HEAD request - returns void */
+  /**
+   * HEAD request — always resolves to `void`; the response body is never read,
+   * so `responseType` and `responseSchema` are not accepted.
+   */
   head<
     TPath extends string = string,
     TParamsSchema extends GenericSchema | undefined = undefined,
@@ -379,7 +413,8 @@ export type ValifetchInstance = {
    * as any input rejects.
    *
    * The returned promise is cancellable: `.cancel()` aborts every input that
-   * exposes a `.cancel()` method (e.g. other valifetch requests).
+   * exposes a `.cancel()` method (e.g. other valifetch requests); inputs without
+   * one are ignored. A rejection does not cancel the remaining requests.
    *
    * @example
    * ```ts
@@ -400,7 +435,8 @@ export type ValifetchInstance = {
    * `{ status: 'rejected', reason }` (the `reason` is typically a `ValifetchError`).
    *
    * The returned promise is cancellable: `.cancel()` aborts every input that
-   * exposes a `.cancel()` method.
+   * exposes a `.cancel()` method; inputs without one are ignored. A rejection
+   * does not cancel the remaining requests.
    *
    * @example
    * ```ts

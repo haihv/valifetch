@@ -5,6 +5,8 @@ import type { NormalizedOptions } from '../../src/types';
 const mockOptions = (): NormalizedOptions => ({
   method: 'GET',
   headers: new Headers(),
+  signal: new AbortController().signal,
+  hooks: {},
   validateResponse: true,
   validateRequest: true,
   throwHttpErrors: true,
