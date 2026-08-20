@@ -838,7 +838,7 @@ A few naming and ergonomics choices are intentional and locked for stability. Th
 
 ## Requirements
 
-- Node.js >= 20.0.0 (uses native fetch)
+- Node.js >= 22.0.0 (uses native fetch)
 - valibot >= 1.0.0
 
 ## Contributing
