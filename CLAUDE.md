@@ -39,7 +39,7 @@ valifetch.get(url, opts)
 | File                           | Responsibility                                                                            |
 | ------------------------------ | ----------------------------------------------------------------------------------------- |
 | `src/core/valifetch.ts`        | Instance creation (`create`, `extend`, `callable`), HTTP method dispatch, options merging, dedupe (keyed on the fully-resolved URL + method, scoped per instance) |
-| `src/core/request.ts`          | Builds `Request` object; validates request body/params/search against schemas; handles `json` and `form` bodies |
+| `src/core/request.ts`          | Builds `Request` object; validates request body/params/search against schemas; handles `json`, `form` and raw `body` bodies |
 | `src/core/response.ts`         | Status checking (async, attaches `responseBody`), JSON parsing, schema validation, SSE frame parsing |
 | `src/core/retry.ts`            | Exponential backoff with jitter; default 2 retries on `[408, 413, 429, 500–504]`; `resolveRetryDecision` consults the optional `retry.shouldRetry` predicate before falling back to the built-in status/method check |
 | `src/core/hooks.ts`            | `beforeRequest`, `afterResponse`, `afterParseResponse`, `beforeRetry`, `beforeError` hook runners; re-exports `stop` |
@@ -83,7 +83,7 @@ Integration tests are not run in the pre-commit hook (too slow); they run in CI 
 These choices are intentional — do not "fix" the asymmetries without a deliberate breaking-change decision. User-facing rationale lives in `README.md` ("API Design Decisions").
 
 - **`searchParams` (+ `searchSchema`) vs `params` (+ `paramsSchema`).** `searchParams` mirrors `URL.searchParams` and ky; the stem mismatch with `searchSchema` is accepted in favour of platform alignment.
-- **`json` / `form`, no generic `body`.** Native `body` is stripped via `Omit<RequestInit, 'body'>`; all bodies go through the typed/validated `json` or `form` path.
+- **`json` / `form` / `body`.** Structured bodies go through `json` (validated against `bodySchema`) or `form`; `body` is the raw escape hatch (string, `Blob`, `ArrayBuffer`, typed array, `ReadableStream`) sent as-is with no validation or `Content-Type` inference. Exactly one may be set per request — two or more throws a `TypeError`; none is accepted at instance level.
 - **`responseType` is per-call only.** It changes the call's return type, which cannot be typed at instance-creation time, so it is deliberately absent from `ValifetchBaseOptions` / `ValifetchInstanceOptions`.
 - **`ValifetchError.cause` is `unknown`.** Matches the standard `Error.cause`; accepts any thrown value without wrapping.
 - **Hook signatures stay ky-aligned and positional.** `beforeRequest(request, options)`, `afterResponse(request, options, response)`, `afterParseResponse(data, response, request)`, `beforeRetry(state)`, `beforeError(error)` — not unified into a single state-object signature. A throwing hook propagates that error as-is (no `HOOK_ERROR` wrapping); `beforeError` only ever sees `ValifetchError`s.

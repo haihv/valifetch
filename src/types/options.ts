@@ -16,6 +16,17 @@ export type HttpMethod =
   | 'OPTIONS';
 
 /**
+ * Raw request body accepted by the `body` option. Sent as-is: no validation and
+ * no `Content-Type` inference.
+ */
+export type RawBody =
+  | string
+  | Blob
+  | ArrayBuffer
+  | ArrayBufferView
+  | ReadableStream<Uint8Array>;
+
+/**
  * Search params can be various formats
  */
 export type SearchParamsInit =
@@ -260,6 +271,8 @@ export type NormalizedOptions = Omit<ValifetchBaseOptions, 'signal'> & {
   json?: unknown;
   /** The form body of the request, when provided */
   form?: FormData | URLSearchParams | Record<string, string>;
+  /** The raw body of the request, when provided */
+  body?: RawBody;
   /** Path parameter values interpolated into the URL */
   params?: Record<string, string | number>;
 };
@@ -280,6 +293,15 @@ export type ValifetchOptions<
    * with `json`, and accepted per request only (never at instance level).
    */
   form?: FormData | URLSearchParams | Record<string, string>;
+  /**
+   * Raw body sent exactly as given (string, `Blob`, `ArrayBuffer`, typed array,
+   * or `ReadableStream`). Set `Content-Type` yourself — valifetch never infers
+   * one (the `Request` constructor's own default still applies to `string` and
+   * `Blob` bodies). Mutually exclusive with `json` and `form`, and accepted per
+   * request only (never at instance level). `ReadableStream` bodies get
+   * `duplex: 'half'` automatically.
+   */
+  body?: RawBody;
   /** Schema to validate response body */
   responseSchema?: TResponseSchema;
   /** Schema to validate request body */

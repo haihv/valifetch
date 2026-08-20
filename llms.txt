@@ -82,6 +82,27 @@ valifetch.head(url, options)    // CancellablePromise<void> — no body; respons
 valifetch.options(url, options) // CancellablePromise<T>
 ```
 
+## Request bodies
+
+```typescript
+// JSON — stringified, Content-Type: application/json, validated against bodySchema
+await api.post('/users', { json: { name: 'Ada' }, bodySchema: CreateUserSchema });
+
+// Form — FormData → multipart/form-data; object/URLSearchParams → x-www-form-urlencoded
+await api.post('/login', { form: { username: 'ada', password: 'secret' } });
+
+// Raw — sent as-is; set Content-Type yourself, no validation
+await api.put('/blobs/1', {
+  body: new Blob([bytes]),
+  headers: { 'content-type': 'application/octet-stream' },
+});
+
+// ReadableStream body — duplex: 'half' is added automatically
+await api.put('/blobs/1', { body: fileStream, headers: { 'content-type': 'application/octet-stream' } });
+```
+
+Exactly one of `json` / `form` / `body` per request — setting two or more throws a `TypeError`.
+
 ## Parallel requests
 
 ```typescript
@@ -109,6 +130,7 @@ batch.cancel();
 | `searchSchema` | Valibot schema | Validate query string params |
 | `json` | object | JSON body (auto-stringified); request-only, not on `get()`/`head()` |
 | `form` | FormData \| URLSearchParams \| Record\<string, string\> | Form body (plain object values must be strings); request-only — removed from instance options, not on `get()`/`head()` |
+| `body` | `RawBody` = string \| Blob \| ArrayBuffer \| ArrayBufferView \| ReadableStream\<Uint8Array\> | Raw body sent as-is — no validation, no `Content-Type` inference; request-only, not on `get()`/`head()`. Streams get `duplex: 'half'` automatically |
 | `params` | object | Path param values for `:name` replacement |
 | `searchParams` | object \| URLSearchParams | Query string; instance value is a default, per-request value merges on top (request wins per key). Explicit `undefined`/`null` on a request key removes the instance default for that key. Instance defaults are appended to any query string already in the request path, not merged into it. |
 | `prefixUrl` | string | Base URL |
@@ -128,7 +150,7 @@ batch.cancel();
 ## Design notes (intentional, locked)
 
 - `searchParams` (+ `searchSchema`) is the query option; `params` (+ `paramsSchema`) is the path option. `searchParams` mirrors `URL.searchParams` / ky — the stem mismatch with `searchSchema` is deliberate.
-- No generic `body` option — use `json` (validated against `bodySchema`) or `form`. Native `body` is removed via `Omit<RequestInit, 'body'>`.
+- Three body options, exactly one per request: `json` (validated against `bodySchema`), `form`, or the raw `body` escape hatch (string / Blob / ArrayBuffer / typed array / ReadableStream) sent as-is with no validation and no `Content-Type` inference. Setting more than one throws a `TypeError` (not a `ValifetchError`). None is accepted at instance level.
 - `responseType` is per-call only (not on `create()`/`extend()`) because it changes the return type.
 - `ValifetchError.cause` is `unknown` (matches the standard `Error.cause`); any thrown value can be passed through.
 - Hook signatures are positional and ky-aligned: `beforeRequest(request, options)`, `afterResponse(request, options, response)`, `afterParseResponse(data, response, request)`, `beforeRetry(state)`, `beforeError(error)` — not unified into one state object. A throwing hook propagates that error as-is (no `HOOK_ERROR` wrapping) and aborts the request. `beforeError` only ever sees `ValifetchError`s.

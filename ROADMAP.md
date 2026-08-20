@@ -34,15 +34,15 @@ Shipped milestones are marked ✅; planned milestones may still shift.
 
 ## 🚧 Planned
 
-### v0.8.0 — Interception, Retry Depth & API Stabilization _(next release)_
+### v0.8.0 — Interception, Retry Depth & API Stabilization _(next release — all planned items landed)_
 
 **Theme:** Close the remaining interception gaps and lock the public surface in the same release — the API stabilization work pulled forward from the old v0.9.0 plan, while breaking changes can still land pre-1.0.
 
 **Interception & retry depth**
 
 - ✅ **`beforeRetry` / `beforeError` hooks** — observe or short-circuit a pending retry; transform an error before it is thrown. Shipped on `main`.
-- **`shouldRetry` predicate** (planned) — a `RetryOptions.shouldRetry?(ctx)` callback to retry on custom logic (response body, headers) beyond status code and method.
-- **Raw request bodies** (planned) — send a `Blob`, `ArrayBuffer`, `ReadableStream`, or `string` with an explicit `Content-Type`, alongside the existing typed `json` / `form` paths.
+- ✅ **`shouldRetry` predicate** — a `RetryOptions.shouldRetry?(ctx)` callback to retry on custom logic (response body, headers) beyond status code and method. Shipped on `main`.
+- ✅ **Raw request bodies** — a request-only `body` option sending a `string`, `Blob`, `ArrayBuffer`, typed array, or `ReadableStream` as-is with an explicit `Content-Type`, alongside the existing typed `json` / `form` paths. Shipped on `main`.
 
 **API stabilization (pulled forward from v0.9.0)**
 

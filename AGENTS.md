@@ -67,6 +67,24 @@ form.append('file', fileBlob, 'avatar.png');
 await api.post('/upload', { form });
 ```
 
+### Raw body (bytes, streams, pre-serialised payloads)
+
+```typescript
+// Sent exactly as given — no validation, and you set the Content-Type
+await api.put('/blobs/1', {
+  body: new Blob([bytes]),
+  headers: { 'content-type': 'application/octet-stream' },
+});
+
+// ReadableStream — `duplex: 'half'` is added automatically
+await api.put('/blobs/1', {
+  body: fileStream,
+  headers: { 'content-type': 'application/octet-stream' },
+});
+```
+
+Exactly one of `json` / `form` / `body` per request — setting two or more throws a `TypeError`.
+
 ### Auth (bearer token)
 
 ```typescript
@@ -254,6 +272,7 @@ try {
 | `searchSchema` | Validate query params |
 | `json` | JSON request body; request-only, not on `get()`/`head()` |
 | `form` | FormData / URLSearchParams / Record\<string, string\> (plain object values must be strings); request-only — not accepted on `create()`/`extend()`, and not on `get()`/`head()` |
+| `body` | Raw body (`RawBody` = string / Blob / ArrayBuffer / ArrayBufferView / ReadableStream\<Uint8Array\>) sent as-is — no validation, no `Content-Type` inference, `duplex: 'half'` added for streams; request-only — not accepted on `create()`/`extend()`, and not on `get()`/`head()` |
 | `params` | Path param values |
 | `searchParams` | Query string; instance value is a default, per-request value merges on top (request wins per key). Explicit `undefined`/`null` on a request key removes the instance default for that key. Instance defaults are appended to any query string already in the request path, not merged into it. |
 | `prefixUrl` | Base URL for the instance |
@@ -273,13 +292,13 @@ try {
 
 - Don't call `.json()` on the result — valifetch parses JSON automatically
 - Don't use `responseType: 'stream'` or `'sse'` then also set `responseSchema` — they're incompatible
-- Don't set both `json` and `form` on the same request
-- Don't look for a generic `body` option — use `json` (validated against `bodySchema`) or `form`; the native `body` is intentionally removed
+- Don't set more than one of `json` / `form` / `body` on the same request — it throws a `TypeError` (a plain `TypeError`, not a `ValifetchError`)
+- Don't expect a `Content-Type` to be inferred for `body` — valifetch never sets one for raw bodies; set it yourself
 - Don't pass `responseType` to `create()` / `extend()` — it's per-call only, because it changes each call's return type
 - Don't use `responseSchema` with `head()` — it always returns `void` regardless
 - Don't import from `valifetch/types` at runtime — it contains zero runtime code; use `import type` only
 - Don't forget to `return` the error from a `beforeError` hook — the returned value is what gets thrown
-- Don't put `form` or `signal` on `create()` / `extend()` instance options — they are request-only and the types reject them
+- Don't put `json`, `form`, `body`, or `signal` on `create()` / `extend()` instance options — they are request-only and the types reject them
 - Don't rely on `options.signal` inside a hook being the caller's raw `AbortSignal` — it's the composed signal (caller signal + the `.cancel()` controller)
 
 ## Testing utilities

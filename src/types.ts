@@ -45,6 +45,7 @@ export type {
   NormalizedOptions,
   PathParamsRecord,
   PostOptions,
+  RawBody,
   ResponseType,
   RetryContext,
   RetryOptions,

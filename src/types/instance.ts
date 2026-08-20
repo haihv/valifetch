@@ -58,7 +58,7 @@ export type GetOptions<
     TParamsSchema,
     TSearchSchema
   >,
-  'json' | 'bodySchema' | 'form'
+  'json' | 'bodySchema' | 'form' | 'body'
 > & {
   /** Response format - defaults to 'json' */
   responseType?: ResponseType;

@@ -3,6 +3,7 @@ import type {
   Hooks,
   HttpMethod,
   NormalizedOptions,
+  RawBody,
   ResponseType,
   SearchParamsInit,
   ValifetchBaseOptions,
@@ -10,6 +11,17 @@ import type {
 } from '../types';
 import { buildUrl, mergeSearchParams } from '../url/builder';
 import { validate } from '../validation/validate';
+
+/**
+ * `RequestInit` plus `duplex`, which the DOM lib typings still omit but the
+ * runtime requires for `ReadableStream` bodies. `body` is widened to `RawBody`
+ * because the lib's `BodyInit` rejects views over a `SharedArrayBuffer` that
+ * the runtime accepts.
+ */
+type FetchInit = Omit<RequestInit, 'body'> & {
+  body?: BodyInit | RawBody;
+  duplex?: 'half';
+};
 
 /**
  * Per-request options as seen by the internals: the public per-call surface
@@ -30,6 +42,8 @@ export type RequestOptions = ValifetchBaseOptions & {
   json?: unknown;
   /** Form request body */
   form?: FormData | URLSearchParams | Record<string, string>;
+  /** Raw request body, sent as-is */
+  body?: RawBody;
   /** Path parameter values */
   params?: Record<string, string | number>;
   /** Requested response format */
@@ -215,8 +229,18 @@ export async function buildRequest(
 
   const headers = merged.headers;
 
-  // Handle request body (json or form — mutually exclusive)
-  let body: BodyInit | undefined;
+  // Handle request body (json, form or raw — mutually exclusive)
+  const bodyKindCount =
+    (options.json !== undefined ? 1 : 0) +
+    (options.form !== undefined ? 1 : 0) +
+    (options.body !== undefined ? 1 : 0);
+  if (bodyKindCount > 1) {
+    throw new TypeError(
+      'Only one of `json`, `form`, or `body` may be set on a request'
+    );
+  }
+
+  let body: BodyInit | RawBody | undefined;
   if (options.json !== undefined) {
     let jsonData: unknown = options.json;
 
@@ -251,6 +275,9 @@ export async function buildRequest(
         headers.set('Content-Type', 'application/x-www-form-urlencoded');
       }
     }
+  } else if (options.body !== undefined) {
+    // Raw escape hatch: sent verbatim, no validation and no Content-Type inference.
+    body = options.body;
   }
 
   // `executeRequest` always supplies a composed signal; the fallback only
@@ -258,7 +285,7 @@ export async function buildRequest(
   const signal = options.signal ?? new AbortController().signal;
 
   // Build fetch options (use merged to include instance-level options)
-  const fetchOptions: RequestInit = {
+  const fetchOptions: FetchInit = {
     method,
     headers,
     body,
@@ -274,7 +301,14 @@ export async function buildRequest(
     mode: merged.mode,
   };
 
-  const request = new Request(finalUrl.toString(), fetchOptions);
+  // Streaming bodies require `duplex: 'half'`; `new Request` throws without it.
+  if (options.body instanceof ReadableStream) {
+    fetchOptions.duplex = 'half';
+  }
+
+  // `FetchInit` widens `body` (views over a `SharedArrayBuffer`) and adds
+  // `duplex`; both are accepted by the real `Request` constructor.
+  const request = new Request(finalUrl.toString(), fetchOptions as RequestInit);
 
   const normalizedOptions: NormalizedOptions = {
     ...merged,

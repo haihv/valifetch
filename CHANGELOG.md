@@ -9,11 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Raw request bodies** — new request-only `body` option accepting a `string`, `Blob`, `ArrayBuffer`, typed array, or `ReadableStream<Uint8Array>`, sent exactly as given with no validation and no `Content-Type` inference (set it yourself). `ReadableStream` bodies automatically get `duplex: 'half'`. Not accepted at instance level nor on the bodyless methods (`get`/`head`/`delete`/`options` type surface). New exported `RawBody` type.
 - **`RetryOptions.shouldRetry` predicate** — `shouldRetry(ctx)` receives `{ request, retryCount, reason, response | error }` and returns `true` (retry even if status/method would not), `false` (never), or `undefined` (defer to the built-in check); may be async; always bounded by `limit`; runs before `beforeRetry`. New `RetryContext` type (also the base of `BeforeRetryState`).
 - **`beforeRetry` / `beforeError` hooks** — `beforeRetry` runs before each retry is scheduled and can return the exported `stop` sentinel to abort retrying or a new `Request` to replace the request for remaining attempts; `beforeError` runs just before any `ValifetchError` is thrown and can mutate or replace it. New types `BeforeRetryHook`, `BeforeRetryState`, `BeforeErrorHook`.
 
 ### Changed
 
+- **Breaking: setting more than one body option now throws.** `json`, `form`, and `body` are mutually exclusive; a request with two or more of them throws a `TypeError` (a plain `TypeError`, not a `ValifetchError`). Previously `json` silently won over `form`.
 - **Minimum supported Node.js is now 22** (`engines.node: ">=22.0.0"`); Node 20 reached end-of-life and is dropped from the CI matrix, which now runs on Node 22, 24 and 26.
 - **Breaking: `extend()` now inherits/applies every instance option.** Previously the object form of `extend()` silently dropped child `dedupe`, `onDownloadProgress`, `searchParams`, and `priority`.
 - **Instance-level `searchParams` is now applied.** Instance values are defaults; per-request `searchParams` merge on top, with the request winning per key. `extend()` merges parent and child `searchParams` the same way.

@@ -24,6 +24,7 @@ export type {
   HttpMethod,
   InferResponseType,
   NormalizedOptions,
+  RawBody,
   RetryContext,
   RetryOptions,
   SearchParamsInit,
