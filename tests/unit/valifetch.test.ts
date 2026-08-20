@@ -314,6 +314,22 @@ describe('core/valifetch', () => {
       expect(request.url).toContain('page=1');
       expect(request.url).toContain('limit=10');
     });
+
+    it('should remove an instance default when the request sets the key to undefined', async () => {
+      // Arrange
+      mockFetch({ ok: true });
+      const api = valifetch.create({
+        prefixUrl: 'https://api.example.com',
+        searchParams: { key: 'S' },
+      });
+
+      // Act
+      await api.get('/a', { searchParams: { key: undefined } });
+
+      // Assert
+      const [request] = fetchSpy.mock.calls[0] as [Request, RequestInit];
+      expect(request.url).not.toContain('key=');
+    });
   });
 
   describe('response types', () => {

@@ -172,4 +172,33 @@ describe('request deduplication', () => {
     );
     expect(fetchSpy).not.toHaveBeenCalled();
   });
+
+  it('should not share a dedupe cache between two no-arg create() instances', async () => {
+    mockFetch({ id: 1 });
+
+    const a = valifetch.create();
+    const b = valifetch.create();
+
+    await Promise.all([
+      a.get('https://api.example.com/users/1', { dedupe: true }),
+      b.get('https://api.example.com/users/1', { dedupe: true }),
+    ]);
+
+    // Each instance must have its own dedupe cache identity, so this counts
+    // as two distinct in-flight requests rather than one shared promise.
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('should still dedupe concurrent identical requests within one no-arg create() instance', async () => {
+    mockFetch({ id: 1 });
+
+    const api = valifetch.create();
+
+    await Promise.all([
+      api.get('https://api.example.com/users/1', { dedupe: true }),
+      api.get('https://api.example.com/users/1', { dedupe: true }),
+    ]);
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
 });

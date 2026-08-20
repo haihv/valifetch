@@ -626,7 +626,9 @@ const proto = {
     return promise;
   },
   create(newOptions?: ValifetchInstanceOptions) {
-    return createInstance(newOptions ?? EMPTY);
+    // A fresh object per call (not the frozen EMPTY singleton) so each
+    // no-arg create() gets its own dedupe-cache identity in the WeakMap.
+    return createInstance(newOptions ?? {});
   },
   extend(
     this: Instance,

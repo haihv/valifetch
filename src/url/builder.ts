@@ -76,9 +76,32 @@ function appendSearchParams(
 }
 
 /**
+ * Collect keys explicitly set to `null`/`undefined` in a record or tuple-array
+ * `SearchParamsInit`. Strings and `URLSearchParams` can't represent a nullish
+ * value, so they never contribute keys here.
+ */
+function collectNullishKeys(params: SearchParamsInit): Set<string> {
+  const keys = new Set<string>();
+  if (Array.isArray(params)) {
+    for (const [k, v] of params) {
+      if (v === undefined || v === null) keys.add(k);
+    }
+  } else if (
+    !(typeof params === 'string' || params instanceof URLSearchParams)
+  ) {
+    for (const [k, v] of Object.entries(params)) {
+      if (v === undefined || v === null) keys.add(k);
+    }
+  }
+  return keys;
+}
+
+/**
  * Merge instance-level search params with request-level ones.
  * Instance params act as defaults; every key present in the request params
- * replaces all instance entries for that key.
+ * replaces all instance entries for that key. A request key explicitly set to
+ * `undefined`/`null` removes the instance default for that key entirely
+ * rather than leaving it in place.
  * @param instanceParams - Search params configured on the instance
  * @param requestParams - Search params passed with the request
  * @returns The merged params, or `undefined` when neither side has any
@@ -96,7 +119,11 @@ export function mergeSearchParams(
   const overrides = new URLSearchParams();
   appendSearchParams(overrides, requestParams);
 
-  for (const key of new Set(overrides.keys())) merged.delete(key);
+  const deletedKeys = new Set([
+    ...overrides.keys(),
+    ...collectNullishKeys(requestParams),
+  ]);
+  for (const key of deletedKeys) merged.delete(key);
   for (const [key, value] of overrides) merged.append(key, value);
 
   return merged;

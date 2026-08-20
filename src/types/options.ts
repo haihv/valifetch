@@ -138,7 +138,9 @@ export type ValifetchBaseOptions = Omit<
    *
    * Instance-level values act as defaults: per-request params are merged on top,
    * and a key present in both is taken from the request (all instance-level
-   * entries for that key are dropped).
+   * entries for that key are dropped). A request key explicitly set to
+   * `undefined`/`null` removes the instance default for that key entirely,
+   * rather than leaving it in place.
    */
   searchParams?: SearchParamsInit;
   /** Enable/disable response schema validation (default: true) */
@@ -152,9 +154,16 @@ export type ValifetchBaseOptions = Omit<
   /** Hooks for request lifecycle */
   hooks?: Hooks;
   /**
-   * Deduplicate concurrent identical requests — same method plus fully-resolved
-   * URL (after `prefixUrl`, path params and merged search params), scoped per
-   * instance. Calling `.cancel()` on a deduplicated promise aborts the shared
+   * Deduplicate concurrent identical requests. The dedupe key is `method` plus
+   * the fully-resolved URL — `prefixUrl` + path params + merged search params,
+   * computed from the raw pre-validation values — scoped per instance
+   * (including instances created via `create()` with no arguments, each of
+   * which gets its own cache). The key deliberately excludes headers, the
+   * request body, and schemas, so two calls that differ only by header or body
+   * are treated as identical and collapsed into one in-flight request — avoid
+   * enabling `dedupe` for such calls, and avoid it on non-idempotent methods
+   * (POST, PATCH, DELETE) where collapsing distinct requests would be
+   * incorrect. Calling `.cancel()` on a deduplicated promise aborts the shared
    * request for every caller awaiting it.
    *
    * @default false
