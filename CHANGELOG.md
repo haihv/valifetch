@@ -11,18 +11,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **`beforeRetry` / `beforeError` hooks** — `beforeRetry` runs before each retry is scheduled and can return the exported `stop` sentinel to abort retrying or a new `Request` to replace the request for remaining attempts; `beforeError` runs just before any `ValifetchError` is thrown and can mutate or replace it. New types `BeforeRetryHook`, `BeforeRetryState`, `BeforeErrorHook`.
 
+### Changed
+
+- **Minimum supported Node.js is now 22** (`engines.node: ">=22.0.0"`); Node 20 reached end-of-life and is dropped from the CI matrix, which now runs on Node 22, 24 and 26.
+- **Breaking: `extend()` now inherits/applies every instance option.** Previously the object form of `extend()` silently dropped child `dedupe`, `onDownloadProgress`, `searchParams`, and `priority`.
+- **Instance-level `searchParams` is now applied.** Instance values are defaults; per-request `searchParams` merge on top, with the request winning per key. `extend()` merges parent and child `searchParams` the same way.
+- **Instance-level `onDownloadProgress` now works** (previously ignored when set via `create()`/`extend()`).
+- **Breaking: `form` is now request-only.** Removed from instance (`create()`/`extend()`) options, and no longer accepted on `get()`/`head()`. `json`/`form` remain available on `post`/`put`/`patch`/`delete`/`options`.
+- **Breaking: `signal` (and `window`) removed from instance options** — request-only now. `priority` (`'high' | 'low' | 'auto'`) is now forwarded to `fetch` from both instance and per-request options.
+- **Breaking: deduplication key changed.** `dedupe: true` now keys on the fully-resolved URL (`prefixUrl` + path params + merged `searchParams`) plus method, scoped per instance (also for `create()` with no arguments — each such instance gets its own dedupe cache) — different search params or different instances no longer collide. `.cancel()` on a deduped promise aborts the shared request for every caller.
+- **Breaking: `NormalizedOptions` (what hooks receive) now reflects what's actually present** — `method`, `headers: Headers`, `signal` (the composed signal: caller signal + `.cancel()` controller, not the caller's raw signal), and required `hooks`/`validateRequest`/`validateResponse`/`throwHttpErrors`, plus optional `responseType`, `responseSchema`, `bodySchema`, `paramsSchema`, `searchSchema`, `json`, `params`.
+- Callable instance: `api(url, { method, responseType, ... })` now typechecks (previously rejected by the type). `callable().head()` no longer accepts `responseType`/`responseSchema`, matching `ValifetchInstance.head()`.
+- `afterResponse` hooks now also run on a `Response` returned by a `beforeRequest` hook, so `valifetch/mock` responses flow through `afterResponse` like any other response.
+- **Breaking: `PARSE_ERROR` now covers `text`/`blob`/`arrayBuffer`/`formData` reads too**, not only JSON. `PARSE_ERROR` carries the raw `cause`, and for JSON reads, `responseBody` = the unparseable text. `ValifetchError.responseBody` is populated on `HTTP_ERROR` (parsed JSON, or text) and `PARSE_ERROR` (raw text).
+- **New `ValifetchError.target` getter** (`= validation?.target`, i.e. `'response' | 'body' | 'params' | 'search'`). Request-side `VALIDATION_ERROR` (target `body`/`params`/`search`) now has `error.request === undefined`, since the `Request` doesn't exist yet at that point in the pipeline.
+- **Breaking: `MockCall.method` is now `HttpMethod`** (was a plain string).
+- `JwtRefreshOptions.onRefreshed` is now optional and may return a `Promise`, which is awaited.
+
 ### Fixed
 
 - Requests with a body (e.g. `PUT` + `json`) are now retried correctly — previously the second attempt failed with a spurious `NETWORK_ERROR` because the already-sent request could not be cloned.
 - `dedupe: true` no longer produces an unhandled promise rejection when the shared request fails.
-
-### Changed
-
-- **Minimum supported Node.js is now 22** (`engines.node: ">=22.0.0"`); Node 20 reached end-of-life and is dropped from the CI matrix, which now runs on Node 22, 24 and 26.
+- Timeout detection is now by identity — a user-supplied `abort(new Error('Request timed out'))` now correctly surfaces as `ABORT_ERROR`, not `TIMEOUT_ERROR`.
+- Header merge in `extend()` is now case-insensitive, with the child instance's value winning on a case-insensitive key collision.
+- `create()` called with no arguments no longer shares a deduplication cache between instances — each no-arg `create()` now gets its own dedupe cache, matching the per-instance scoping documented for `dedupe`.
+- Explicit `undefined`/`null` in a per-request `searchParams` key now removes the corresponding instance default instead of leaving it in the merged query string.
 
 ### Maintenance
 
 - Bump dev dependencies (Biome 2.5, Vitest 4.1.11, `@types/node` 26, lint-staged 17, axios 1.19) and clear the `nanoid` advisory GHSA-2v37-7h3g-55p8; `npm audit` reports 0 vulnerabilities. Biome config migrated to the 2.5 schema.
+- `npm run typecheck` now also typechecks `tests/`.
+- Removed the unused internal `ParamsOption` type — it was never reachable from any entry point.
 
 ## [0.7.0] - 2026-06-21
 

@@ -89,18 +89,21 @@ batch.cancel();
 | `bodySchema` | Valibot schema | Validate `json` body before sending |
 | `paramsSchema` | Valibot schema | Validate `:param` path replacements |
 | `searchSchema` | Valibot schema | Validate query string params |
-| `json` | object | JSON body (auto-stringified) |
-| `form` | FormData \| URLSearchParams \| Record\<string, string\> | Form body (plain object values must be strings) |
+| `json` | object | JSON body (auto-stringified); request-only, not on `get()`/`head()` |
+| `form` | FormData \| URLSearchParams \| Record\<string, string\> | Form body (plain object values must be strings); request-only — removed from instance options, not on `get()`/`head()` |
 | `params` | object | Path param values for `:name` replacement |
-| `searchParams` | object \| URLSearchParams | Query string |
+| `searchParams` | object \| URLSearchParams | Query string; instance value is a default, per-request value merges on top (request wins per key). Explicit `undefined`/`null` on a request key removes the instance default for that key. Instance defaults are appended to any query string already in the request path, not merged into it. |
 | `prefixUrl` | string | Base URL |
-| `timeout` | number | Ms before TIMEOUT_ERROR |
-| `retry` | RetryOptions \| number \| false | Retry config |
-| `responseType` | `'json'` \| `'text'` \| `'blob'` \| `'arrayBuffer'` \| `'formData'` \| `'stream'` \| `'raw'` \| `'sse'` | Response format |
+| `timeout` | number | Ms before TIMEOUT_ERROR (default: none — never times out; `0` also disables) |
+| `retry` | RetryOptions \| number \| false | Retry config (defaults: `limit: 2`, `methods: ['GET','PUT','HEAD','DELETE','OPTIONS']`, `statusCodes: [408,413,429,500,502,503,504]`, `delay(attempt) = 0.3 * 2**attempt`s + 20% jitter, capped 30s) |
+| `responseType` | `'json'` \| `'text'` \| `'blob'` \| `'arrayBuffer'` \| `'formData'` \| `'stream'` \| `'raw'` \| `'sse'` | Response format; per-call only, not on `create()`/`extend()` |
 | `validateResponse` | boolean | Validate response against `responseSchema` (default: true) |
 | `validateRequest` | boolean | Validate body/params/search schemas (default: true) |
-| `dedupe` | boolean | Deduplicate concurrent identical requests |
-| `onDownloadProgress` | function | Progress callback `{ loaded, total, percent }` |
+| `throwHttpErrors` | boolean | Throw `HTTP_ERROR` on non-2xx status (default: true) |
+| `dedupe` | boolean | Deduplicate concurrent identical requests; key is method + fully-resolved URL (`prefixUrl` + path params + merged `searchParams`, from raw pre-validation values), scoped per instance (each no-arg `create()` gets its own cache). Excludes headers/body/schemas — don't enable for calls that differ only by header/body, and avoid on non-idempotent methods (default: false) |
+| `onDownloadProgress` | function | Progress callback `{ loaded, total, percent }`; not called for `responseType: 'stream' \| 'raw' \| 'sse'`; works at instance level too |
+| `priority` | `'high'` \| `'low'` \| `'auto'` | Forwarded to `fetch` unchanged |
+| `signal` | AbortSignal | Request-only — not on `create()`/`extend()` |
 | `debug` | `true` \| `(event: DebugEvent) => void` | Structured lifecycle logging (request, response, retry, cancel) |
 | `hooks` | object | `beforeRequest`, `afterResponse`, `afterParseResponse`, `beforeRetry`, `beforeError` arrays |
 
@@ -110,6 +113,10 @@ batch.cancel();
 - No generic `body` option — use `json` (validated against `bodySchema`) or `form`. Native `body` is removed via `Omit<RequestInit, 'body'>`.
 - `responseType` is per-call only (not on `create()`/`extend()`) because it changes the return type.
 - `ValifetchError.cause` is `unknown` (matches the standard `Error.cause`); any thrown value can be passed through.
+- Hook signatures are positional and ky-aligned: `beforeRequest(request, options)`, `afterResponse(request, options, response)`, `afterParseResponse(data, response, request)`, `beforeRetry(state)`, `beforeError(error)` — not unified into one state object. A throwing hook propagates that error as-is (no `HOOK_ERROR` wrapping) and aborts the request. `beforeError` only ever sees `ValifetchError`s.
+- Entry-point rule: `valifetch` (`.`) exports the core runtime + core types; `valifetch/types` exports every public type (including `JwtRefreshOptions`, `MockCall`, `MockHandler`, `ValifetchMock`); `./error`, `./auth`, `./mock` are runtime subpaths. JSR publishes only the `.` entry — `auth`/`mock` are npm-only for now.
+- `options(url, requestOptions)` — the HTTP-verb method is named `options` deliberately; its parameter is internally named `requestOptions`.
+- Counter semantics: `RetryOptions.delay(attempt)` is 0-based (`delay(0)` = first retry); `BeforeRetryState.retryCount` and a `DebugEvent` retry `attempt` are both 1-based ("the retry about to be performed").
 
 ## Auth helpers (valifetch/auth)
 
@@ -136,8 +143,10 @@ try {
       console.log(e.responseBody);         // parsed server error body — only populated on HTTP_ERROR (JSON object or plain text)
     } else if (e.code === 'VALIDATION_ERROR') {
       console.log(e.issues);              // convenience getter for e.validation?.issues ?? []
-      console.log(e.validation?.target);  // 'response' | 'body' | 'params' | 'search'
+      console.log(e.target);              // convenience getter for e.validation?.target: 'response' | 'body' | 'params' | 'search'
       console.log(e.validation?.input);   // the invalid data that was validated
+      // Request-side validation (target 'body' | 'params' | 'search') has e.request === undefined —
+      // the Request doesn't exist yet at that point in the pipeline.
     } else if (e.code === 'TIMEOUT_ERROR') {
       // request exceeded timeout
     } else if (e.code === 'NETWORK_ERROR') {
@@ -145,13 +154,25 @@ try {
     } else if (e.code === 'ABORT_ERROR') {
       // cancelled via .cancel() or AbortController
     } else if (e.code === 'PARSE_ERROR') {
-      // JSON parse failed
+      // Reading/parsing the response body failed — json, text, blob, arrayBuffer, or formData.
+      // e.responseBody is the raw unparseable text (JSON reads only); e.cause is the raw thrown value.
     }
     // Boolean convenience: e.isHttpError, e.isValidationError, e.isTimeoutError,
     //                      e.isNetworkError, e.isAbortError, e.isParseError
   }
 }
 ```
+
+| `ErrorCode` | Thrown when | Fields populated |
+|---|---|---|
+| `HTTP_ERROR` | non-2xx status, `throwHttpErrors: true` | `request`, `response`, `responseBody` |
+| `PARSE_ERROR` | body read/parse failed (json/text/blob/arrayBuffer/formData) | `request`, `response`, `cause`; `responseBody` (JSON reads only) |
+| `VALIDATION_ERROR` | Valibot schema failed | `validation: { target, issues, input }`; `request`/`response` only set when `target === 'response'` |
+| `TIMEOUT_ERROR` | `timeout` elapsed | `request`, `cause` |
+| `ABORT_ERROR` | `.cancel()` or signal abort | `request`, `cause` |
+| `NETWORK_ERROR` | `fetch` threw | `request`, `cause` |
+
+A `beforeRequest` hook may return a `Response` to bypass `fetch` entirely (e.g. `valifetch/mock`); that `Response` still flows through `afterResponse` hooks like a normal fetched response.
 
 ## Hooks: retry and error interception
 
