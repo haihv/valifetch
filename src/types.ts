@@ -10,11 +10,15 @@
  * @module
  */
 
+// Auth option types (also available from `valifetch/auth`)
+export type { JwtRefreshOptions } from './auth';
 // Error detail types (also available from the root and `valifetch/error` entries)
 export type {
   ValidationErrorInfo,
   ValifetchErrorOptions,
 } from './errors/ValifetchError';
+// Mock types (also available from `valifetch/mock`)
+export type { MockCall, MockHandler, ValifetchMock } from './mock/types';
 export type {
   // Hooks
   AfterParseResponseHook,

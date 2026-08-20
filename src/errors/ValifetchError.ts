@@ -34,8 +34,10 @@ export type ValifetchErrorOptions = {
    */
   cause?: unknown;
   /**
-   * Parsed response body on `HTTP_ERROR`.
-   * JSON-parsed object/array, plain text string, or `undefined` when unreadable.
+   * Parsed response body on `HTTP_ERROR` (JSON-parsed object/array, or plain
+   * text when the body is not valid JSON) and raw text on `PARSE_ERROR`
+   * (the response body that failed to parse as JSON). `undefined` when the
+   * body could not be read at all.
    */
   responseBody?: unknown;
 };
@@ -54,11 +56,17 @@ export class ValifetchError extends Error {
   /** Validation error details (if validation failed) */
   readonly validation?: ValidationErrorInfo;
   /**
-   * Parsed response body on `HTTP_ERROR`.
-   * JSON-parsed object/array, plain text string, or `undefined` when unreadable.
+   * Parsed response body on `HTTP_ERROR` (JSON-parsed object/array, or plain
+   * text when the body is not valid JSON) and raw text on `PARSE_ERROR`
+   * (the response body that failed to parse as JSON). `undefined` when the
+   * body could not be read at all.
    */
   readonly responseBody?: unknown;
 
+  /**
+   * Constructs a `ValifetchError`.
+   * @param options - Error details: message, code, and optional request/response/validation/cause/responseBody context.
+   */
   constructor(options: ValifetchErrorOptions) {
     super(options.message, { cause: options.cause });
     this.name = 'ValifetchError';
@@ -108,6 +116,11 @@ export class ValifetchError extends Error {
   /** Get flattened validation issues (convenience) */
   get issues(): BaseIssue<unknown>[] {
     return this.validation?.issues ?? [];
+  }
+
+  /** Which part of the request/response failed validation (convenience) */
+  get target(): ValidationTarget | undefined {
+    return this.validation?.target;
   }
 
   /** HTTP status code (if available) */
