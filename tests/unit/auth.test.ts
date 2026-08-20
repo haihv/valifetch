@@ -5,6 +5,8 @@ import type { NormalizedOptions } from '../../src/types';
 const mockOptions = (): NormalizedOptions => ({
   method: 'GET',
   headers: new Headers(),
+  signal: new AbortController().signal,
+  hooks: {},
   validateResponse: true,
   validateRequest: true,
   throwHttpErrors: true,
@@ -91,6 +93,21 @@ describe('auth', () => {
       expect(header).toMatch(/^Basic /);
       const decoded = atob(header!.slice(6));
       expect(decoded).toBe('user:p@$$w0rd!');
+    });
+
+    it('handles non-Latin1 unicode characters in credentials', async () => {
+      const hook = basicAuth('üser', 'pässwörd中');
+      const request = makeRequest();
+
+      await hook(request, mockOptions());
+
+      const header = request.headers.get('Authorization');
+      expect(header).toMatch(/^Basic /);
+      const decodedBytes = Uint8Array.from(atob(header!.slice(6)), (c) =>
+        c.charCodeAt(0)
+      );
+      const decoded = new TextDecoder().decode(decodedBytes);
+      expect(decoded).toBe('üser:pässwörd中');
     });
   });
 
@@ -212,6 +229,39 @@ describe('auth', () => {
       const r2 = makeRequest();
       await hook(r2, mockOptions());
       expect(refresh).toHaveBeenCalledTimes(1);
+    });
+
+    it('works when onRefreshed is omitted', async () => {
+      const hook = jwtRefresh({
+        getToken: () => 'expired-token',
+        isExpired: () => true,
+        refresh: vi.fn().mockResolvedValue('new-token'),
+      });
+      const request = makeRequest();
+
+      await hook(request, mockOptions());
+
+      expect(request.headers.get('Authorization')).toBe('Bearer new-token');
+    });
+
+    it('awaits an async onRefreshed before attaching the token', async () => {
+      const order: string[] = [];
+      const hook = jwtRefresh({
+        getToken: () => 'expired-token',
+        isExpired: () => true,
+        refresh: vi.fn().mockResolvedValue('new-token'),
+        onRefreshed: async (token) => {
+          await Promise.resolve();
+          order.push(`persisted:${token}`);
+        },
+      });
+      const request = makeRequest();
+
+      await hook(request, mockOptions());
+      order.push('attached');
+
+      expect(order).toEqual(['persisted:new-token', 'attached']);
+      expect(request.headers.get('Authorization')).toBe('Bearer new-token');
     });
   });
 });

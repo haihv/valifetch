@@ -30,3 +30,5 @@ test-results
 # Local files
 *.local
 *.local.*
+# Claude Code agent worktrees
+.claude/worktrees/

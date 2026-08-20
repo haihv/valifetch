@@ -1,11 +1,19 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  type MockInstance,
+  vi,
+} from 'vitest';
 import { stop } from '../../src/core/hooks';
 import { valifetch } from '../../src/core/valifetch';
 import { ValifetchError } from '../../src/errors/ValifetchError';
 import type { BeforeRetryHook, BeforeRetryState } from '../../src/types';
 
 describe('hooks/beforeRetry', () => {
-  let fetchSpy: ReturnType<typeof vi.spyOn>;
+  let fetchSpy: MockInstance<typeof globalThis.fetch>;
 
   beforeEach(() => {
     fetchSpy = vi.spyOn(globalThis, 'fetch');

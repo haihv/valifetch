@@ -17,8 +17,10 @@ export type ValidateOptions<T extends GenericSchema> = {
 };
 
 /**
- * Validate data against a valibot schema
- * Throws ValifetchError on validation failure
+ * Validate data against a valibot schema.
+ * Throws `ValifetchError` (code `VALIDATION_ERROR`) on validation failure.
+ * @param options - Schema, data, target, and optional request/response context.
+ * @returns The validated, schema-inferred output.
  */
 export function validate<T extends GenericSchema>(
   options: ValidateOptions<T>
@@ -45,7 +47,10 @@ export function validate<T extends GenericSchema>(
 }
 
 /**
- * Validate data without throwing, returns result object
+ * Validate data against a valibot schema without throwing.
+ * @param schema - Valibot schema to validate against.
+ * @param data - Data to validate.
+ * @returns A discriminated result: `{ success: true, data }` or `{ success: false, issues }`.
  */
 export function safeValidate<T extends GenericSchema>(
   schema: T,

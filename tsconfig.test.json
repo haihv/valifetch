@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false,
+    "rootDir": ".",
+    "types": ["node"],
+    // Hardening flags aimed at shipped code; in specs they only add noise around
+    // fixture indexing and deliberately-unused mock parameters.
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noUncheckedIndexedAccess": false,
+    "noImplicitReturns": false
+  },
+  "include": ["src/**/*", "tests/**/*", "bench/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

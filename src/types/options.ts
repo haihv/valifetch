@@ -1,5 +1,6 @@
 import type { GenericSchema, InferInput, InferOutput } from 'valibot';
 import type { Hooks } from './hooks';
+import type { ResponseType } from './instance';
 import type { ExtractPathParams, PathParamsRecord } from './params';
 
 /**
@@ -21,7 +22,7 @@ export type SearchParamsInit =
   | string
   | URLSearchParams
   | Record<string, string | number | boolean | undefined | null>
-  | Array<[string, string | number | boolean]>;
+  | Array<[string, string | number | boolean | undefined | null]>;
 
 /**
  * Retry configuration
@@ -33,7 +34,12 @@ export type RetryOptions = {
   methods?: HttpMethod[];
   /** Status codes to retry (default: 408, 413, 429, 500, 502, 503, 504) */
   statusCodes?: number[];
-  /** Custom delay function (attempt starts at 0) */
+  /**
+   * Custom delay function returning the milliseconds to wait before the next
+   * attempt. `attemptCount` is 0-based, so `delay(0)` precedes the first retry.
+   *
+   * @default (attemptCount) => 0.3 * 2 ** attemptCount seconds, plus up to 20% jitter, capped at 30 s
+   */
   delay?: (attemptCount: number) => number;
 };
 
@@ -79,7 +85,7 @@ export type DebugEvent =
       type: 'retry';
       /** The originating request */
       request: Request;
-      /** Which attempt just failed (1-based); `1` means the first attempt failed and a second is pending */
+      /** 1-based number of the retry about to be performed (`1` = first retry, i.e. second attempt) */
       attempt: number;
       /** Delay in milliseconds before the next attempt */
       delay: number;
@@ -115,12 +121,27 @@ export type DownloadProgressEvent = {
 /**
  * Base options without schemas (for internal use)
  */
-export type ValifetchBaseOptions = Omit<RequestInit, 'body' | 'method'> & {
+export type ValifetchBaseOptions = Omit<
+  RequestInit,
+  'body' | 'method' | 'window'
+> & {
   /** Base URL prefix for all requests */
   prefixUrl?: string;
-  /** Request timeout in milliseconds */
+  /**
+   * Request timeout in milliseconds.
+   *
+   * @default undefined — requests never time out; `0` also disables the timeout
+   */
   timeout?: number;
-  /** Search/query parameters */
+  /**
+   * Search/query parameters.
+   *
+   * Instance-level values act as defaults: per-request params are merged on top,
+   * and a key present in both is taken from the request (all instance-level
+   * entries for that key are dropped). A request key explicitly set to
+   * `undefined`/`null` removes the instance default for that key entirely,
+   * rather than leaving it in place.
+   */
   searchParams?: SearchParamsInit;
   /** Enable/disable response schema validation (default: true) */
   validateResponse?: boolean;
@@ -132,13 +153,26 @@ export type ValifetchBaseOptions = Omit<RequestInit, 'body' | 'method'> & {
   retry?: RetryOptions | number | false;
   /** Hooks for request lifecycle */
   hooks?: Hooks;
-  /** Deduplicate concurrent identical requests (same method + URL). Default: false */
+  /**
+   * Deduplicate concurrent identical requests. The dedupe key is `method` plus
+   * the fully-resolved URL — `prefixUrl` + path params + merged search params,
+   * computed from the raw pre-validation values — scoped per instance
+   * (including instances created via `create()` with no arguments, each of
+   * which gets its own cache). The key deliberately excludes headers, the
+   * request body, and schemas, so two calls that differ only by header or body
+   * are treated as identical and collapsed into one in-flight request — avoid
+   * enabling `dedupe` for such calls, and avoid it on non-idempotent methods
+   * (POST, PATCH, DELETE) where collapsing distinct requests would be
+   * incorrect. Calling `.cancel()` on a deduplicated promise aborts the shared
+   * request for every caller awaiting it.
+   *
+   * @default false
+   */
   dedupe?: boolean;
-  /** Form body — FormData sends multipart/form-data; URLSearchParams or plain object sends application/x-www-form-urlencoded */
-  form?: FormData | URLSearchParams | Record<string, string>;
   /**
    * Callback fired as response body bytes are received.
-   * Not called when `responseType` is `'stream'` or `'raw'` (caller owns the stream).
+   * Not called when `responseType` is `'stream'`, `'raw'` or `'sse'` — the caller
+   * owns the stream in those modes.
    */
   onDownloadProgress?: (event: DownloadProgressEvent) => void;
   /**
@@ -149,37 +183,47 @@ export type ValifetchBaseOptions = Omit<RequestInit, 'body' | 'method'> & {
 };
 
 /**
- * Normalized options after merging defaults (internal use)
+ * Fully resolved request options as seen by hooks, after instance and per-request
+ * options have been merged and defaults applied.
+ *
+ * `retry` is carried through unnormalized (still `RetryOptions | number | false |
+ * undefined`); the retry loop normalizes it internally.
  */
-export type NormalizedOptions = ValifetchBaseOptions & {
+export type NormalizedOptions = Omit<ValifetchBaseOptions, 'signal'> & {
   /** HTTP method for the request */
   method: HttpMethod;
-  /** Resolved headers object */
+  /** Resolved headers object, instance headers overridden by request headers */
   headers: Headers;
+  /**
+   * The composed abort signal actually passed to `fetch` — the caller's signal
+   * combined with the controller behind `.cancel()`, not the caller's raw signal.
+   */
+  signal: AbortSignal;
+  /** Concatenated instance and request hooks (instance hooks run first) */
+  hooks: Hooks;
+  /** Resolved request validation flag */
+  validateRequest: boolean;
+  /** Resolved response validation flag */
+  validateResponse: boolean;
+  /** Resolved flag controlling whether non-2xx statuses throw */
+  throwHttpErrors: boolean;
+  /** Requested response format (per-call only; `undefined` means `'json'`) */
+  responseType?: ResponseType;
+  /** Schema used to validate the response body, when provided */
+  responseSchema?: GenericSchema;
+  /** Schema used to validate the request body, when provided */
+  bodySchema?: GenericSchema;
+  /** Schema used to validate path params, when provided */
+  paramsSchema?: GenericSchema;
+  /** Schema used to validate search params, when provided */
+  searchSchema?: GenericSchema;
+  /** The JSON body of the request, when provided */
+  json?: unknown;
+  /** The form body of the request, when provided */
+  form?: FormData | URLSearchParams | Record<string, string>;
+  /** Path parameter values interpolated into the URL */
+  params?: Record<string, string | number>;
 };
-
-/**
- * Conditionally requires `params` and `paramsSchema` based on whether the path contains dynamic segments.
- * Paths with `:param` segments require params; paths without disallow them.
- */
-export type ParamsOption<
-  TPath extends string,
-  TParamsSchema extends GenericSchema | undefined,
-> =
-  ExtractPathParams<TPath> extends never
-    ? {
-        params?: undefined;
-        paramsSchema?: undefined;
-      }
-    : TParamsSchema extends GenericSchema
-      ? {
-          params: InferInput<TParamsSchema>;
-          paramsSchema: TParamsSchema;
-        }
-      : {
-          params: PathParamsRecord<TPath>;
-          paramsSchema?: undefined;
-        };
 
 /**
  * Schema-aware options with full type inference
@@ -191,6 +235,12 @@ export type ValifetchOptions<
   TParamsSchema extends GenericSchema | undefined = undefined,
   TSearchSchema extends GenericSchema | undefined = undefined,
 > = ValifetchBaseOptions & {
+  /**
+   * Form body — `FormData` sends `multipart/form-data`; `URLSearchParams` or a
+   * plain object sends `application/x-www-form-urlencoded`. Mutually exclusive
+   * with `json`, and accepted per request only (never at instance level).
+   */
+  form?: FormData | URLSearchParams | Record<string, string>;
   /** Schema to validate response body */
   responseSchema?: TResponseSchema;
   /** Schema to validate request body */
@@ -212,7 +262,7 @@ export type ValifetchOptions<
 /**
  * Instance options for create/extend
  */
-export type ValifetchInstanceOptions = ValifetchBaseOptions & {
+export type ValifetchInstanceOptions = Omit<ValifetchBaseOptions, 'signal'> & {
   /** Default headers for all requests */
   headers?: HeadersInit;
 };

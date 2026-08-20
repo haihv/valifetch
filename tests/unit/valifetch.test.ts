@@ -1,11 +1,19 @@
 import * as v from 'valibot';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  type MockInstance,
+  vi,
+} from 'vitest';
 import { valifetch } from '../../src/core/valifetch';
 import { ValifetchError } from '../../src/errors/ValifetchError';
 import type { AfterResponseHook } from '../../src/types';
 
 describe('core/valifetch', () => {
-  let fetchSpy: ReturnType<typeof vi.spyOn>;
+  let fetchSpy: MockInstance<typeof globalThis.fetch>;
 
   beforeEach(() => {
     fetchSpy = vi.spyOn(globalThis, 'fetch');
@@ -305,6 +313,22 @@ describe('core/valifetch', () => {
       const [request] = fetchSpy.mock.calls[0] as [Request, RequestInit];
       expect(request.url).toContain('page=1');
       expect(request.url).toContain('limit=10');
+    });
+
+    it('should remove an instance default when the request sets the key to undefined', async () => {
+      // Arrange
+      mockFetch({ ok: true });
+      const api = valifetch.create({
+        prefixUrl: 'https://api.example.com',
+        searchParams: { key: 'S' },
+      });
+
+      // Act
+      await api.get('/a', { searchParams: { key: undefined } });
+
+      // Assert
+      const [request] = fetchSpy.mock.calls[0] as [Request, RequestInit];
+      expect(request.url).not.toContain('key=');
     });
   });
 

@@ -22,6 +22,8 @@ describe('core/hooks', () => {
   const createMockOptions = (): NormalizedOptions => ({
     method: 'GET',
     headers: new Headers(),
+    signal: new AbortController().signal,
+    hooks: {},
     validateResponse: true,
     validateRequest: true,
     throwHttpErrors: true,

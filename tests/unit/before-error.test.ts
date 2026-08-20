@@ -88,6 +88,9 @@ describe('hooks/beforeError', () => {
       // Act
       const error = await client
         .post('https://api.example.com/users', {
+          // Deliberately invalid at runtime: the schema demands a string, and
+          // the rejection is what this test asserts on.
+          // @ts-expect-error - json must match bodySchema
           json: { name: 123 },
           bodySchema: v.object({ name: v.string() }),
         })

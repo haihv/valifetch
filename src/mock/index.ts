@@ -104,6 +104,8 @@ function buildFixtureResponse(
  *
  * mock.reset(); // clear between tests
  * ```
+ *
+ * @returns A `ValifetchMock` with route registration, call inspection, and hooks.
  */
 export function createMock(): ValifetchMock {
   const routes: MockRoute[] = [];
@@ -146,7 +148,7 @@ export function createMock(): ValifetchMock {
 
     const body = await parseRequestBody(request);
     recorded.push({
-      method,
+      method: method as HttpMethod,
       url,
       headers: headersToRecord(request.headers),
       body,
@@ -178,5 +180,3 @@ export function createMock(): ValifetchMock {
     hooks: { beforeRequest: [interceptHook] },
   };
 }
-
-export type { MockCall, MockHandler, ValifetchMock } from './types';

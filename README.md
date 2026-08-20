@@ -136,6 +136,8 @@ valifetch.head(url, options);
 valifetch.options(url, options);
 ```
 
+> **Note:** `head()` always resolves `void` and does not accept `responseSchema` or `responseType` — the type system rejects them. `get()` and `head()` are bodyless and do not accept `json` or `form`; those stay on `post`/`put`/`patch`/`delete`/`options`.
+
 ### Instance Functions
 
 ```typescript
@@ -164,12 +166,13 @@ type Options = {
   paramsSchema?: Schema; // Validate path parameters
   searchSchema?: Schema; // Validate search/query parameters
 
-  // Request data
-  json?: object; // JSON body (auto-stringified, sets Content-Type: application/json)
-  form?: FormData | URLSearchParams | Record<string, string>; // Form body — FormData → multipart/form-data; URLSearchParams/object → application/x-www-form-urlencoded
+  // Request data (request-only — not accepted on create()/extend())
+  json?: object; // JSON body (auto-stringified, sets Content-Type: application/json); not accepted on get()/head()
+  form?: FormData | URLSearchParams | Record<string, string>; // Form body — FormData → multipart/form-data; URLSearchParams/object → application/x-www-form-urlencoded; not accepted on get()/head()
   params?: object; // Path parameters for :param replacement
-  searchParams?: string | URLSearchParams | Record<string, string | number | boolean | null | undefined> | Array<[string, string | number | boolean]>; // Query string parameters
+  searchParams?: string | URLSearchParams | Record<string, string | number | boolean | null | undefined> | Array<[string, string | number | boolean]>; // Query string parameters — instance value is a default, merged with (and overridden per-key by) the per-request value
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS'; // HTTP method (for callable syntax)
+  priority?: 'high' | 'low' | 'auto'; // Forwarded to fetch
 
   // Response format
   responseType?: 'json' | 'text' | 'blob' | 'arrayBuffer' | 'formData' | 'stream' | 'raw' | 'sse';
@@ -196,11 +199,13 @@ type Options = {
 
   // Standard fetch options
   headers?: HeadersInit;
-  signal?: AbortSignal;
+  signal?: AbortSignal; // Request-only — not accepted on create()/extend()
   credentials?: RequestCredentials;
   // ... other RequestInit options
 };
 ```
+
+> **Note:** `form`, `signal`, and `window` are request-only and are omitted from `create()` / `extend()` instance options. `priority` is available on both instance and per-request options and is forwarded to `fetch` unchanged.
 
 ## Examples
 
@@ -286,6 +291,8 @@ const users = await valifetch.get('https://api.example.com/users', {
   responseSchema: v.array(UserSchema),
 });
 ```
+
+Instance-level `searchParams` are appended to any query string already present in the request path — `api.get('/a?x=1')` against an instance created with `{ searchParams: { x: 'i' } }` produces `?x=1&x=i`, not a replacement. A per-request `searchParams` key explicitly set to `undefined` or `null` removes an instance default for that key entirely, rather than leaving it in place.
 
 ### Response Types
 
@@ -395,9 +402,11 @@ const adminApi = api.extend({
 await adminApi('/admin/stats');
 ```
 
+Calling the instance directly with `{ method, responseType, ... }` typechecks like the corresponding verb method would — `api(url, { method: 'GET', responseType: 'blob' })` is typed as `Promise<Blob>`. `callable().head()` does not accept `responseType` or `responseSchema`, matching `ValifetchInstance.head()`.
+
 ### Parallel Requests
 
-`all()` runs multiple requests in parallel and resolves to a tuple of their results, with each element's type preserved (sugar over `Promise.all`). It rejects as soon as any request rejects:
+`all()` runs multiple requests in parallel and resolves to a tuple of their results, with each element's type preserved (sugar over `Promise.all`). It rejects as soon as any request rejects — a rejection does **not** cancel the remaining in-flight requests:
 
 ```typescript
 const [user, posts] = await api.all([
@@ -435,7 +444,8 @@ const api = valifetch.create({
     beforeRequest: [
       (request, options) => {
         console.log('Request:', request.method, request.url);
-        // Optionally return modified Request or Response to bypass fetch
+        // Optionally return modified Request or Response to bypass fetch.
+        // A Response returned here still flows through afterResponse (e.g. valifetch/mock).
       },
     ],
     afterResponse: [
@@ -485,6 +495,10 @@ const api = valifetch.create({
 });
 ```
 
+`afterParseResponse` does not run for `responseType: 'stream' | 'raw' | 'sse'` (there is no parsed value to transform), and therefore never runs for `head()` either.
+
+Hook signatures are positional and deliberately ky-aligned (`beforeRequest(request, options)`, `afterResponse(request, options, response)`, `afterParseResponse(data, response, request)`, `beforeRetry(state)`, `beforeError(error)`) rather than a single unified state object — see [API Design Decisions](#api-design-decisions). A hook that throws propagates that error as-is and aborts the request; it is never wrapped.
+
 **`beforeRetry`** runs before each retry is scheduled. Return `stop` (exported sentinel) to abort retrying and treat the original failure as final; return a new `Request` to replace the request for all remaining attempts; return nothing (or void) to proceed with the normal backoff. Hooks run in order; returning `stop` short-circuits the remaining hooks. `beforeRetry` only runs for failures that are retryable under your `retry` config (status codes / methods / limit); a hook that throws aborts the request with that error.
 
 **`beforeError`** runs just before any `ValifetchError` is thrown, including `HTTP_ERROR`, `VALIDATION_ERROR`, `PARSE_ERROR`, `TIMEOUT_ERROR`, `ABORT_ERROR`, and `NETWORK_ERROR`. Each hook receives the error and must return it — mutate and return the same instance, or return a replacement. Hooks chain: output of one becomes input to the next.
@@ -508,11 +522,15 @@ const api2 = valifetch.create({ retry: 5 });
 const api3 = valifetch.create({ retry: false });
 ```
 
+**Defaults:** `limit: 2`, `methods: ['GET', 'PUT', 'HEAD', 'DELETE', 'OPTIONS']`, `statusCodes: [408, 413, 429, 500, 502, 503, 504]`, `delay(attempt) = 0.3 * 2 ** attempt` seconds plus up to 20% random jitter, capped at 30 s (≈0.3 s, 0.6 s, 1.2 s, …). `RetryOptions.delay(attempt)` is 0-based — `delay(0)` computes the first retry's delay.
+
 Retry applies to both HTTP error responses (matching `statusCodes`) and network-level errors (e.g. `TypeError: Failed to fetch`). In both cases the same `methods` guard applies — non-idempotent methods like `POST` and `PATCH` are not retried by default to prevent duplicate submissions.
 
 When a retryable response includes a `Retry-After` header (e.g. on a 429), valifetch uses the server-prescribed delay instead of the exponential backoff formula. Both integer-seconds (`Retry-After: 120`) and HTTP-date formats are supported.
 
 ### Timeout & Cancellation
+
+By default requests never time out — `timeout` is unset. Pass `timeout: 0` to explicitly disable it (equivalent to unset).
 
 ```typescript
 // Instance-level timeout (applies to every request)
@@ -543,7 +561,9 @@ controller.abort(); // same effect as req2.cancel()
 
 ### Deduplication
 
-When `dedupe: true`, concurrent requests with the same method and URL share a single in-flight promise. Subsequent calls made before the first resolves reuse the same request rather than firing a new one.
+When `dedupe: true`, concurrent requests with the same method and fully-resolved URL share a single in-flight promise. Subsequent calls made before the first resolves reuse the same request rather than firing a new one. The dedupe key is `method` + the fully-resolved URL (`prefixUrl` + path params + merged `searchParams`, computed from the raw pre-validation values), and the cache is scoped per instance — including instances created via `create()` with no arguments, each of which gets its own cache. Two requests that differ only in search params, or that go through different instances, never collide.
+
+The key deliberately excludes headers, the request body, and schemas — two calls that differ only by header or body are treated as identical and collapsed into one in-flight request. Do not enable `dedupe` for calls that differ only by header or body, and avoid it on non-idempotent methods (POST, PATCH, DELETE) where collapsing distinct requests would be incorrect.
 
 ```typescript
 const api = valifetch.create({
@@ -556,7 +576,15 @@ const [a, b] = await Promise.all([
   api.get('/users/1'),
   api.get('/users/1'),
 ]);
+
+// Different resolved URLs — two separate requests, not deduped
+await Promise.all([
+  api.get('/users', { searchParams: { page: 1 } }),
+  api.get('/users', { searchParams: { page: 2 } }),
+]);
 ```
+
+> **Caveat:** calling `.cancel()` on a deduped call aborts the single shared request for **every** caller waiting on it, not just the caller that called `.cancel()`.
 
 ### Download Progress
 
@@ -582,7 +610,7 @@ const data = await valifetch.get('https://api.example.com/large-file.json', {
 });
 ```
 
-> **Note:** `onDownloadProgress` is not called when `responseType` is `'stream'` or `'raw'`, because in those modes the caller takes direct ownership of the response body.
+> **Note:** `onDownloadProgress` is not called when `responseType` is `'stream'`, `'raw'`, or `'sse'`, because in those modes the caller takes direct ownership of the response body. Instance-level `onDownloadProgress` (set on `create()` / inherited via `extend()`) works the same as the per-request option.
 
 ### Debug Mode
 
@@ -659,6 +687,17 @@ try {
   }
 }
 ```
+
+| `ErrorCode` | Thrown when | Fields populated |
+|---|---|---|
+| `HTTP_ERROR` | Response status is non-2xx and `throwHttpErrors` is `true` | `request`, `response`, `responseBody` (parsed JSON, or text if not JSON) |
+| `PARSE_ERROR` | Reading/parsing the response body fails (`json`, `text`, `blob`, `arrayBuffer`, or `formData`) | `request`, `response`, `cause` (raw thrown value); `responseBody` = the unparseable raw text, JSON reads only |
+| `VALIDATION_ERROR` | A Valibot schema fails (`bodySchema`, `paramsSchema`, `searchSchema`, or `responseSchema`) | `validation: { target, issues, input }`; `request`/`response` are only set when `target === 'response'` — for `body`/`params`/`search` the `Request` doesn't exist yet, so `error.request` is `undefined` |
+| `TIMEOUT_ERROR` | The configured `timeout` elapses before a response | `request`, `cause` |
+| `ABORT_ERROR` | `.cancel()` or a caller `AbortSignal` aborts the request | `request`, `cause` |
+| `NETWORK_ERROR` | `fetch` itself throws (offline, DNS failure, etc.) | `request`, `cause` |
+
+Convenience getters: `error.status` / `error.statusText` (from `error.response`), `error.issues` (`error.validation?.issues ?? []`), `error.target` (`error.validation?.target`, i.e. `'response' | 'body' | 'params' | 'search'`), and the booleans `error.isHttpError`, `error.isValidationError`, `error.isTimeoutError`, `error.isNetworkError`, `error.isAbortError`, `error.isParseError`.
 
 ### Disable Validation
 
@@ -827,6 +866,8 @@ import type {
 
 The package uses code splitting internally, so shared code between entry points is only loaded once.
 
+**Entry-point rule:** `valifetch` (`.`) exports the core runtime plus the core types you need day-to-day; `valifetch/types` is the superset — every public type, including the less-common ones like `JwtRefreshOptions`, `MockCall`, `MockHandler`, and `ValifetchMock`. `./error`, `./auth`, and `./mock` are runtime subpaths. On JSR, only the main entry (`.`) is published — `valifetch/auth` and `valifetch/mock` are npm-only for now, to keep the single-entry-point 100% documentation score (see [API Design Decisions](#api-design-decisions)).
+
 ## API Design Decisions
 
 A few naming and ergonomics choices are intentional and locked for stability. They are documented here so the asymmetries don't read as accidental:
@@ -835,11 +876,16 @@ A few naming and ergonomics choices are intentional and locked for stability. Th
 - **`json` / `form` instead of a generic `body`.** Request bodies are set via `json` (auto-stringified, validated against `bodySchema`) or `form` (`FormData` / `URLSearchParams` / `Record<string, string>`). There is no generic `body` option — the native `body` is intentionally removed via `Omit<RequestInit, 'body'>` so that body handling always goes through the typed, validated path.
 - **`responseType` is per-call only.** `responseType` lives on the per-request options, not on `create()` / `extend()` instance options. It changes the **return type** of a call (`'blob'` → `Blob`, `'sse'` → `AsyncIterable<MessageEvent>`, etc.), which cannot be expressed at instance-creation time without losing type safety. Set it on each call instead.
 - **`ValifetchError.cause` is `unknown`.** Matching the standard `Error.cause`, the `cause` option accepts any thrown value, not just an `Error`, so non-`Error` throws pass through without wrapping.
+- **Hook signatures stay ky-aligned and positional.** `beforeRequest(request, options)`, `afterResponse(request, options, response)`, `afterParseResponse(data, response, request)`, `beforeRetry(state)`, `beforeError(error)` are not being unified into a single state-object signature — matching ky's conventions is deliberate, and a hook that throws propagates that error as-is (never wrapped) to abort the request. `beforeError` only ever sees `ValifetchError`s.
+- **Entry-point rule.** `valifetch` (`.`) is the core runtime + core types; `valifetch/types` is the superset of every public type; `./error`, `./auth`, `./mock` are runtime subpaths. JSR publishes a single entry point (`.`) — `auth`/`mock` are npm-only for now.
+- **`options(url, requestOptions)`.** The HTTP-verb method is deliberately named `options` (matching the OPTIONS HTTP verb); its parameter is internally named `requestOptions` to avoid colliding with the method name.
+- **Retry counters use different bases on purpose.** `RetryOptions.delay(attempt)` is 0-based (`delay(0)` computes the first retry's delay). `BeforeRetryState.retryCount` and the `attempt` field on a `DebugEvent` of type `'retry'` are both 1-based — they describe "the retry about to be performed," which reads more naturally in hook/log code than a 0-based count would.
 
 ## Requirements
 
 - Node.js >= 22.0.0 (uses native fetch)
 - valibot >= 1.0.0
+- TypeScript `moduleResolution: "node16"` (or `"bundler"`/`"nodenext"`) — required to resolve subpath imports like `valifetch/types`, `valifetch/error`, `valifetch/auth`, and `valifetch/mock`
 
 ## Contributing
 

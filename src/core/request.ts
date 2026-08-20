@@ -3,20 +3,39 @@ import type {
   Hooks,
   HttpMethod,
   NormalizedOptions,
+  ResponseType,
   SearchParamsInit,
   ValifetchBaseOptions,
   ValifetchInstanceOptions,
 } from '../types';
-import { buildUrl } from '../url/builder';
+import { buildUrl, mergeSearchParams } from '../url/builder';
 import { validate } from '../validation/validate';
 
-type RequestOptions = ValifetchBaseOptions & {
+/**
+ * Per-request options as seen by the internals: the public per-call surface
+ * (base options + schemas + bodies + path params) plus the two fields the
+ * dispatcher injects (`method`, `responseType`).
+ * Internal — not re-exported from the package entry point.
+ */
+export type RequestOptions = ValifetchBaseOptions & {
+  /** Schema used to validate the response body */
   responseSchema?: GenericSchema;
+  /** Schema used to validate the request body */
   bodySchema?: GenericSchema;
+  /** Schema used to validate path params */
   paramsSchema?: GenericSchema;
+  /** Schema used to validate search params */
   searchSchema?: GenericSchema;
+  /** JSON request body */
   json?: unknown;
+  /** Form request body */
+  form?: FormData | URLSearchParams | Record<string, string>;
+  /** Path parameter values */
   params?: Record<string, string | number>;
+  /** Requested response format */
+  responseType?: ResponseType;
+  /** HTTP method, when the caller picks one explicitly */
+  method?: HttpMethod;
 };
 
 /**
@@ -111,7 +130,10 @@ function mergeHooks(
 export function mergeOptions(
   instanceOptions: ValifetchInstanceOptions,
   requestOptions: RequestOptions
-): RequestOptions & { headers: Headers } {
+): Omit<RequestOptions, 'headers' | 'hooks'> & {
+  headers: Headers;
+  hooks: Hooks;
+} {
   const mergedHooks = mergeHooks(instanceOptions.hooks, requestOptions.hooks);
 
   return {
@@ -167,7 +189,8 @@ export async function buildRequest(
     }) as Record<string, string | number>;
   }
 
-  // Validate search params if schema provided
+  // Validate search params if schema provided. Only the request-level params are
+  // validated: instance-level ones are defaults the caller did not pass here.
   let validatedSearch = options.searchParams;
   if (options.searchSchema && options.searchParams && shouldValidateRequest) {
     validatedSearch = validate({
@@ -177,12 +200,17 @@ export async function buildRequest(
     }) as SearchParamsInit;
   }
 
+  const searchParams = mergeSearchParams(
+    instanceOptions.searchParams,
+    validatedSearch
+  );
+
   // Build the final URL
   const finalUrl = buildUrl({
     prefixUrl: merged.prefixUrl,
     path: url,
     params: validatedParams,
-    searchParams: validatedSearch,
+    searchParams,
   });
 
   const headers = merged.headers;
@@ -225,12 +253,17 @@ export async function buildRequest(
     }
   }
 
+  // `executeRequest` always supplies a composed signal; the fallback only
+  // matters when `buildRequest` is driven directly.
+  const signal = options.signal ?? new AbortController().signal;
+
   // Build fetch options (use merged to include instance-level options)
   const fetchOptions: RequestInit = {
     method,
     headers,
     body,
-    signal: options.signal,
+    signal,
+    priority: merged.priority,
     credentials: merged.credentials,
     cache: merged.cache,
     redirect: merged.redirect,
@@ -247,6 +280,13 @@ export async function buildRequest(
     ...merged,
     method,
     headers,
+    signal,
+    hooks: merged.hooks,
+    searchParams,
+    params: validatedParams,
+    validateRequest: shouldValidateRequest,
+    validateResponse: merged.validateResponse !== false,
+    throwHttpErrors: merged.throwHttpErrors !== false,
   };
 
   return {

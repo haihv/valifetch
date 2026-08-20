@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildUrl } from '../../src/url/builder';
+import { buildUrl, mergeSearchParams } from '../../src/url/builder';
 
 describe('url/builder', () => {
   describe('buildUrl', () => {
@@ -381,6 +381,89 @@ describe('url/builder', () => {
         // Assert
         expect(result.searchParams.get('count')).toBe('42');
       });
+    });
+  });
+
+  describe('mergeSearchParams', () => {
+    it('should return requestParams when instanceParams is undefined', () => {
+      const result = mergeSearchParams(undefined, { a: 1 });
+      expect(result).toEqual({ a: 1 });
+    });
+
+    it('should return instanceParams when requestParams is undefined', () => {
+      const result = mergeSearchParams({ a: 1 }, undefined);
+      expect(result).toEqual({ a: 1 });
+    });
+
+    it('should return undefined when neither side has params', () => {
+      const result = mergeSearchParams(undefined, undefined);
+      expect(result).toBeUndefined();
+    });
+
+    it('should let request keys override instance defaults', () => {
+      const merged = mergeSearchParams(
+        { a: 1, b: 2 },
+        { a: 'override' }
+      ) as URLSearchParams;
+      expect(merged.get('a')).toBe('override');
+      expect(merged.get('b')).toBe('2');
+    });
+
+    it('should delete an instance default when the request key is explicitly undefined', () => {
+      const merged = mergeSearchParams(
+        { a: 1, b: 2 },
+        { a: undefined }
+      ) as URLSearchParams;
+      expect(merged.has('a')).toBe(false);
+      expect(merged.get('b')).toBe('2');
+    });
+
+    it('should delete an instance default when the request key is explicitly null', () => {
+      const merged = mergeSearchParams(
+        { a: 1, b: 2 },
+        { a: null }
+      ) as URLSearchParams;
+      expect(merged.has('a')).toBe(false);
+      expect(merged.get('b')).toBe('2');
+    });
+
+    it('should delete an instance default via a tuple array with an undefined value', () => {
+      const merged = mergeSearchParams({ a: 1, b: 2, c: 3 }, [
+        ['a', undefined],
+        ['c', 'override'],
+      ] as [string, string | number | undefined][]) as URLSearchParams;
+      expect(merged.has('a')).toBe(false);
+      expect(merged.get('b')).toBe('2');
+      expect(merged.get('c')).toBe('override');
+    });
+
+    it('should delete an instance default via a tuple array with a null value', () => {
+      const merged = mergeSearchParams({ a: 1, b: 2 }, [['a', null]] as [
+        string,
+        string | number | null,
+      ][]) as URLSearchParams;
+      expect(merged.has('a')).toBe(false);
+      expect(merged.get('b')).toBe('2');
+    });
+
+    it('should override with a string requestParams without treating it as nullish', () => {
+      const merged = mergeSearchParams(
+        { a: 1, b: 2 },
+        'a=override'
+      ) as URLSearchParams;
+      expect(merged.get('a')).toBe('override');
+      expect(merged.get('b')).toBe('2');
+    });
+
+    it('should override with a URLSearchParams requestParams without treating it as nullish', () => {
+      const requestParams = new URLSearchParams();
+      requestParams.append('a', 'override');
+      const merged = mergeSearchParams(
+        { a: 1, b: 2 },
+        requestParams
+      ) as URLSearchParams;
+      expect(merged.get('a')).toBe('override');
+      expect(merged.get('b')).toBe('2');
     });
   });
 });
