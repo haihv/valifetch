@@ -16,6 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Requests with a body (e.g. `PUT` + `json`) are now retried correctly — previously the second attempt failed with a spurious `NETWORK_ERROR` because the already-sent request could not be cloned.
 - `dedupe: true` no longer produces an unhandled promise rejection when the shared request fails.
 
+### Changed
+
+- **Minimum supported Node.js is now 22** (`engines.node: ">=22.0.0"`); Node 20 reached end-of-life and is dropped from the CI matrix, which now runs on Node 22, 24 and 26.
+
+### Maintenance
+
+- Bump dev dependencies (Biome 2.5, Vitest 4.1.11, `@types/node` 26, lint-staged 17, axios 1.19) and clear the `nanoid` advisory GHSA-2v37-7h3g-55p8; `npm audit` reports 0 vulnerabilities. Biome config migrated to the 2.5 schema.
+
 ## [0.7.0] - 2026-06-21
 
 ### Added
