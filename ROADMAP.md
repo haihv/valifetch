@@ -32,23 +32,25 @@ Shipped milestones are marked ✅; planned milestones may still shift.
 
 ---
 
-## 🚧 Planned
-
-### v0.8.0 — Interception, Retry Depth & API Stabilization _(next release — all planned items landed)_
+### v0.8.0 — Interception, Retry Depth & API Stabilization
 
 **Theme:** Close the remaining interception gaps and lock the public surface in the same release — the API stabilization work pulled forward from the old v0.9.0 plan, while breaking changes can still land pre-1.0.
 
 **Interception & retry depth**
 
-- ✅ **`beforeRetry` / `beforeError` hooks** — observe or short-circuit a pending retry; transform an error before it is thrown. Shipped on `main`.
-- ✅ **`shouldRetry` predicate** — a `RetryOptions.shouldRetry?(ctx)` callback to retry on custom logic (response body, headers) beyond status code and method. Shipped on `main`.
-- ✅ **Raw request bodies** — a request-only `body` option sending a `string`, `Blob`, `ArrayBuffer`, typed array, or `ReadableStream` as-is with an explicit `Content-Type`, alongside the existing typed `json` / `form` paths. Shipped on `main`.
+- ✅ **`beforeRetry` / `beforeError` hooks** — observe or short-circuit a pending retry; transform an error before it is thrown.
+- ✅ **`shouldRetry` predicate** — a `RetryOptions.shouldRetry?(ctx)` callback to retry on custom logic (response body, headers) beyond status code and method.
+- ✅ **Raw request bodies** — a request-only `body` option sending a `string`, `Blob`, `ArrayBuffer`, typed array, or `ReadableStream` as-is with an explicit `Content-Type`, alongside the existing typed `json` / `form` paths.
 
 **API stabilization (pulled forward from v0.9.0)**
 
 - ✅ **API audit** — reviewed option names, hook signatures, error codes, default values, and subpath exports for consistency and ergonomics. Landed as: `extend()` now inherits/applies every instance option; instance-level `searchParams` and `onDownloadProgress` now work; `form`/`signal` are request-only (removed from instance options); dedupe now keys on the fully-resolved URL + method, per instance; `NormalizedOptions` reflects what hooks actually receive; callable-instance typing now matches the verb methods (`api(url, { method, responseType })`, `callable().head()`); `valifetch/types` is the superset entry point for every public type; `PARSE_ERROR` now covers `text`/`blob`/`arrayBuffer`/`formData` reads, not just JSON.
 - ✅ **Deprecation pass** — reviewed every public symbol; nothing needed an `@deprecated` tag. Options that were broken-but-typed (silently dropped or ignored) were removed outright rather than deprecated, since they never worked correctly.
-- ✅ **Breaking changes** — see the `[Unreleased]` section of `CHANGELOG.md` for the full list (dedupe keying, request-only `form`/`signal`, `NormalizedOptions` shape, `PARSE_ERROR` scope, `MockCall.method` type, etc.).
+- ✅ **Breaking changes** — see the `[0.8.0]` section of `CHANGELOG.md` for the full list (dedupe keying, request-only `form`/`signal`, `NormalizedOptions` shape, `PARSE_ERROR` scope, `MockCall.method` type, etc.).
+
+---
+
+## 🚧 Planned
 
 ### v1.0.0 — Stable Release
 
