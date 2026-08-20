@@ -41,7 +41,7 @@ valifetch.get(url, opts)
 | `src/core/valifetch.ts`        | Instance creation (`create`, `extend`, `callable`), HTTP method dispatch, options merging, dedupe (keyed on the fully-resolved URL + method, scoped per instance) |
 | `src/core/request.ts`          | Builds `Request` object; validates request body/params/search against schemas; handles `json` and `form` bodies |
 | `src/core/response.ts`         | Status checking (async, attaches `responseBody`), JSON parsing, schema validation, SSE frame parsing |
-| `src/core/retry.ts`            | Exponential backoff with jitter; default 2 retries on `[408, 413, 429, 500–504]`          |
+| `src/core/retry.ts`            | Exponential backoff with jitter; default 2 retries on `[408, 413, 429, 500–504]`; `resolveRetryDecision` consults the optional `retry.shouldRetry` predicate before falling back to the built-in status/method check |
 | `src/core/hooks.ts`            | `beforeRequest`, `afterResponse`, `afterParseResponse`, `beforeRetry`, `beforeError` hook runners; re-exports `stop` |
 | `src/core/stop.ts`             | The `stop` sentinel (`Symbol.for('valifetch.stop')`) — a leaf module with no imports, so `src/types/hooks.ts` can reference it without a module cycle |
 | `src/errors/ValifetchError.ts` | Custom error class with typed error codes; `responseBody` field on `HTTP_ERROR`           |

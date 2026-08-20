@@ -52,6 +52,24 @@ const api = valifetch.create({
 const user = await api.get('/users/1', { responseSchema: UserSchema });
 ```
 
+```typescript
+// Custom retry predicate — true = retry, false = never, undefined = defer to
+// statusCodes + methods. Consulted for every failed response and network error,
+// before `beforeRetry`, always bounded by `limit`. May be async.
+const api = valifetch.create({
+  retry: {
+    limit: 3,
+    shouldRetry: async ({ reason, response }) => {
+      if (reason === 'network') return true; // retry POSTs on network errors
+      if (response.status === 409) {
+        return (await response.clone().json()).code === 'STALE_VERSION';
+      }
+      return undefined;
+    },
+  },
+});
+```
+
 ## All HTTP methods
 
 ```typescript
@@ -95,7 +113,7 @@ batch.cancel();
 | `searchParams` | object \| URLSearchParams | Query string; instance value is a default, per-request value merges on top (request wins per key). Explicit `undefined`/`null` on a request key removes the instance default for that key. Instance defaults are appended to any query string already in the request path, not merged into it. |
 | `prefixUrl` | string | Base URL |
 | `timeout` | number | Ms before TIMEOUT_ERROR (default: none — never times out; `0` also disables) |
-| `retry` | RetryOptions \| number \| false | Retry config (defaults: `limit: 2`, `methods: ['GET','PUT','HEAD','DELETE','OPTIONS']`, `statusCodes: [408,413,429,500,502,503,504]`, `delay(attempt) = 0.3 * 2**attempt`s + 20% jitter, capped 30s) |
+| `retry` | RetryOptions \| number \| false | Retry config — `{ limit, methods, statusCodes, delay, shouldRetry(ctx) }` (defaults: `limit: 2`, `methods: ['GET','PUT','HEAD','DELETE','OPTIONS']`, `statusCodes: [408,413,429,500,502,503,504]`, `delay(attempt) = 0.3 * 2**attempt`s + 20% jitter, capped 30s) |
 | `responseType` | `'json'` \| `'text'` \| `'blob'` \| `'arrayBuffer'` \| `'formData'` \| `'stream'` \| `'raw'` \| `'sse'` | Response format; per-call only, not on `create()`/`extend()` |
 | `validateResponse` | boolean | Validate response against `responseSchema` (default: true) |
 | `validateRequest` | boolean | Validate body/params/search schemas (default: true) |
@@ -116,6 +134,7 @@ batch.cancel();
 - Hook signatures are positional and ky-aligned: `beforeRequest(request, options)`, `afterResponse(request, options, response)`, `afterParseResponse(data, response, request)`, `beforeRetry(state)`, `beforeError(error)` — not unified into one state object. A throwing hook propagates that error as-is (no `HOOK_ERROR` wrapping) and aborts the request. `beforeError` only ever sees `ValifetchError`s.
 - Entry-point rule: `valifetch` (`.`) exports the core runtime + core types; `valifetch/types` exports every public type (including `JwtRefreshOptions`, `MockCall`, `MockHandler`, `ValifetchMock`); `./error`, `./auth`, `./mock` are runtime subpaths. JSR publishes only the `.` entry — `auth`/`mock` are npm-only for now.
 - `options(url, requestOptions)` — the HTTP-verb method is named `options` deliberately; its parameter is internally named `requestOptions`.
+- `retry.shouldRetry(ctx)` receives `{ request, retryCount, reason, response | error }` (`reason: 'status'` → `response`, `'network'` → `error`, `retryCount` 1-based). Return `true` to retry even when `statusCodes`/`methods` would not, `false` to never retry this failure, `undefined` to defer to the built-in check. May be async; always bounded by `limit`; never consulted for an ok response; runs before `beforeRetry` (returning `false` skips those hooks); throwing aborts the request with that error. The context type is `RetryContext`, also the base of `BeforeRetryState`.
 - Counter semantics: `RetryOptions.delay(attempt)` is 0-based (`delay(0)` = first retry); `BeforeRetryState.retryCount` and a `DebugEvent` retry `attempt` are both 1-based ("the retry about to be performed").
 
 ## Auth helpers (valifetch/auth)

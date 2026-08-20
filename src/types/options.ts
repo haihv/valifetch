@@ -25,6 +25,34 @@ export type SearchParamsInit =
   | Array<[string, string | number | boolean | undefined | null]>;
 
 /**
+ * Context passed to `RetryOptions.shouldRetry` — the failure that may be retried.
+ * Exactly one of `response` / `error` is set, discriminated by `reason`.
+ */
+export type RetryContext = {
+  /** The request that failed (the template that will be re-sent) */
+  request: Request;
+  /** 1-based number of the retry being considered (`1` = first retry) */
+  retryCount: number;
+} & (
+  | {
+      /** Retryable-by-status candidate */
+      reason: 'status';
+      /** The response received */
+      response: Response;
+      /** Never set when `reason` is `'status'` */
+      error?: undefined;
+    }
+  | {
+      /** Network-level failure */
+      reason: 'network';
+      /** The error thrown by fetch */
+      error: Error;
+      /** Never set when `reason` is `'network'` */
+      response?: undefined;
+    }
+);
+
+/**
  * Retry configuration
  */
 export type RetryOptions = {
@@ -41,6 +69,17 @@ export type RetryOptions = {
    * @default (attemptCount) => 0.3 * 2 ** attemptCount seconds, plus up to 20% jitter, capped at 30 s
    */
   delay?: (attemptCount: number) => number;
+  /**
+   * Custom retry predicate. Return `true` to retry even when `statusCodes`/`methods`
+   * would not, `false` to never retry this failure, or `undefined` to defer to the
+   * built-in status-code + method check. Always bounded by `limit`. Runs before
+   * `beforeRetry` hooks and only for failed responses (`response.ok === false`)
+   * or network errors. May be async (e.g. inspect `response.clone().json()`).
+   * A throwing predicate aborts the request with that error.
+   */
+  shouldRetry?: (
+    context: RetryContext
+  ) => boolean | undefined | Promise<boolean | undefined>;
 };
 
 /**

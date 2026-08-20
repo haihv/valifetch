@@ -54,6 +54,7 @@ export type {
   PostOptions,
   // Instance
   ResponseType,
+  RetryContext,
   RetryOptions,
   SearchParamsInit,
   ValidationTarget,

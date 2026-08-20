@@ -1,6 +1,6 @@
 import type { stop } from '../core/stop';
 import type { ValifetchError } from '../errors/ValifetchError';
-import type { NormalizedOptions } from './options';
+import type { NormalizedOptions, RetryContext } from './options';
 
 /**
  * Hook called before each request
@@ -33,36 +33,15 @@ export type AfterParseResponseHook<T = unknown> = (
 
 /**
  * State passed to `beforeRetry` hooks.
- * Exactly one of `response` / `error` is set, discriminated by `reason`.
+ *
+ * Extends {@link RetryContext} with the normalized request options. Exactly one
+ * of `response` / `error` is set, discriminated by `reason`. Return a new
+ * `Request` from the hook to replace `request` for the remaining attempts.
  */
-export type BeforeRetryState = {
-  /**
-   * The request that is about to be retried.
-   * Return a new `Request` from the hook to replace it for the remaining attempts.
-   */
-  request: Request;
+export type BeforeRetryState = RetryContext & {
   /** Normalized request options */
   options: NormalizedOptions;
-  /** 1-based number of the retry about to be performed (`1` = first retry, i.e. second attempt) */
-  retryCount: number;
-} & (
-  | {
-      /** Retry triggered by a retryable HTTP status */
-      reason: 'status';
-      /** The response that triggered the retry */
-      response: Response;
-      /** Never set when `reason` is `'status'` */
-      error?: undefined;
-    }
-  | {
-      /** Retry triggered by a network-level error */
-      reason: 'network';
-      /** The error thrown by `fetch` */
-      error: Error;
-      /** Never set when `reason` is `'network'` */
-      response?: undefined;
-    }
-);
+};
 
 /**
  * Hook called before each retry is scheduled.

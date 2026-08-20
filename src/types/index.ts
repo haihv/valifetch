@@ -24,6 +24,7 @@ export type {
   HttpMethod,
   InferResponseType,
   NormalizedOptions,
+  RetryContext,
   RetryOptions,
   SearchParamsInit,
   ValidationTarget,
