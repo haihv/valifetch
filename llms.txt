@@ -102,7 +102,7 @@ batch.cancel();
 | `dedupe` | boolean | Deduplicate concurrent identical requests |
 | `onDownloadProgress` | function | Progress callback `{ loaded, total, percent }` |
 | `debug` | `true` \| `(event: DebugEvent) => void` | Structured lifecycle logging (request, response, retry, cancel) |
-| `hooks` | object | `beforeRequest`, `afterResponse`, `afterParseResponse` arrays |
+| `hooks` | object | `beforeRequest`, `afterResponse`, `afterParseResponse`, `beforeRetry`, `beforeError` arrays |
 
 ## Design notes (intentional, locked)
 
@@ -152,6 +152,39 @@ try {
   }
 }
 ```
+
+## Hooks: retry and error interception
+
+```typescript
+import valifetch, { stop } from 'valifetch';
+
+const api = valifetch.create({
+  hooks: {
+    beforeRetry: [
+      // Return stop to abort retrying; return a new Request to replace for remaining attempts
+      ({ request, response, retryCount }) => {
+        // Give up early on a second 429 instead of waiting out the backoff
+        if (retryCount > 1 && response?.status === 429) return stop;
+        // Tag retried attempts so the server can detect duplicates
+        return new Request(request, {
+          headers: { ...Object.fromEntries(request.headers), 'x-retry-attempt': String(retryCount) },
+        });
+      },
+    ],
+    beforeError: [
+      // Chain error transformations: each hook receives the error and must return it (mutated or replaced)
+      (error) => {
+        error.message = `[api] ${error.message}`;
+        return error;
+      },
+    ],
+  },
+});
+```
+
+`beforeRetry`: returns `stop` (exported sentinel) to abort retrying and treat the original failure as final; a `Request` to replace the request for remaining attempts; or nothing to proceed with backoff. Hooks run in order; `stop` short-circuits remaining hooks. It only runs for failures that are retryable under your `retry` config (status codes / methods / limit) — a 401 never triggers it. A hook that throws aborts the request with that error.
+
+`beforeError`: receives `ValifetchError` and must return it — mutate and return the same instance, or return a replacement. Hooks chain (output becomes input for the next).
 
 ## Extend an instance
 

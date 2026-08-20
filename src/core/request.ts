@@ -58,6 +58,25 @@ function mergeHeaders(
 }
 
 /**
+ * Hook keys concatenated when merging instance and request hooks.
+ * Internal — not re-exported from the package entry point.
+ */
+export const HOOK_KEYS = [
+  'beforeRequest',
+  'afterResponse',
+  'afterParseResponse',
+  'beforeRetry',
+  'beforeError',
+] as const satisfies readonly (keyof Hooks)[];
+
+/** Hook keys declared on {@link Hooks} but missing from {@link HOOK_KEYS} */
+type MissingHookKeys = Exclude<keyof Hooks, (typeof HOOK_KEYS)[number]>;
+
+// Fails to compile when `Hooks` gains a key that is not listed in HOOK_KEYS.
+const hookKeysExhaustive: MissingHookKeys extends never ? true : never = true;
+void hookKeysExhaustive;
+
+/**
  * Merge hooks from instance and request options
  * Hooks are concatenated (instance hooks run first, then request hooks)
  */
@@ -69,30 +88,20 @@ function mergeHooks(
   if (!instanceHooks) return requestHooks;
   if (!requestHooks) return instanceHooks;
 
-  // Both have hooks - merge them
-  return {
-    beforeRequest:
-      instanceHooks.beforeRequest || requestHooks.beforeRequest
-        ? [
-            ...(instanceHooks.beforeRequest ?? []),
-            ...(requestHooks.beforeRequest ?? []),
-          ]
-        : undefined,
-    afterResponse:
-      instanceHooks.afterResponse || requestHooks.afterResponse
-        ? [
-            ...(instanceHooks.afterResponse ?? []),
-            ...(requestHooks.afterResponse ?? []),
-          ]
-        : undefined,
-    afterParseResponse:
-      instanceHooks.afterParseResponse || requestHooks.afterParseResponse
-        ? [
-            ...(instanceHooks.afterParseResponse ?? []),
-            ...(requestHooks.afterParseResponse ?? []),
-          ]
-        : undefined,
-  };
+  // Both have hooks - merge them. The accumulator is typed loosely because TS
+  // cannot relate `Hooks[K]` element types across a generic key iteration.
+  const merged: Record<string, unknown[] | undefined> = {};
+
+  for (const key of HOOK_KEYS) {
+    const instanceValue = instanceHooks[key] as unknown[] | undefined;
+    const requestValue = requestHooks[key] as unknown[] | undefined;
+    merged[key] =
+      instanceValue || requestValue
+        ? [...(instanceValue ?? []), ...(requestValue ?? [])]
+        : undefined;
+  }
+
+  return merged as Hooks;
 }
 
 /**

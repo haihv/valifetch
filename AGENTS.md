@@ -106,6 +106,35 @@ const api = valifetch.create({
 
 When a retryable response includes a `Retry-After` header (e.g. on a 429), valifetch automatically uses the server-prescribed delay instead of the exponential backoff formula. Both integer-seconds (`Retry-After: 120`) and HTTP-date formats are supported.
 
+### Interrupt retry or transform errors
+
+```typescript
+import valifetch, { stop } from 'valifetch';
+
+const api = valifetch.create({
+  hooks: {
+    beforeRetry: [
+      ({ request, response, retryCount }) => {
+        // Give up early on a second 429 instead of waiting out the backoff
+        if (retryCount > 1 && response?.status === 429) return stop;
+        // Tag retried attempts so the server can detect duplicates
+        return new Request(request, {
+          headers: { ...Object.fromEntries(request.headers), 'x-retry-attempt': String(retryCount) },
+        });
+      },
+    ],
+    beforeError: [
+      (error) => {
+        error.message = `[api] ${error.message}`;
+        return error;
+      },
+    ],
+  },
+});
+```
+
+`beforeRetry` only runs for failures that are retryable under your `retry` config (status codes / methods / limit) — a 401 never triggers it. A hook that throws aborts the request with that error.
+
 ### Cancellation
 
 ```typescript
@@ -203,7 +232,7 @@ try {
 | `dedupe` | Collapse concurrent identical requests into one |
 | `throwHttpErrors` | Default `true`; set `false` to handle non-2xx manually |
 | `debug` | `true` (console.debug) or `(event: DebugEvent) => void` — lifecycle logging |
-| `hooks` | `{ beforeRequest, afterResponse, afterParseResponse }` |
+| `hooks` | `{ beforeRequest, afterResponse, afterParseResponse, beforeRetry, beforeError }` |
 
 ## What NOT to do
 
@@ -214,6 +243,7 @@ try {
 - Don't pass `responseType` to `create()` / `extend()` — it's per-call only, because it changes each call's return type
 - Don't use `responseSchema` with `head()` — it always returns `void` regardless
 - Don't import from `valifetch/types` at runtime — it contains zero runtime code; use `import type` only
+- Don't forget to `return` the error from a `beforeError` hook — the returned value is what gets thrown
 
 ## Testing utilities
 

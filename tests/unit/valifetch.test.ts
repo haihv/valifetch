@@ -2020,4 +2020,34 @@ describe('core/valifetch', () => {
       });
     });
   });
+
+  describe('hook failures', () => {
+    it('should propagate an afterResponse hook error without retrying or wrapping it', async () => {
+      // Arrange
+      mockFetch({ id: 1 });
+      const hookError = new Error('hook exploded');
+      const throwing: AfterResponseHook = () => {
+        throw hookError;
+      };
+      const api = valifetch.create({
+        retry: {
+          limit: 2,
+          methods: ['GET'],
+          statusCodes: [500],
+          delay: () => 0,
+        },
+        hooks: { afterResponse: [throwing] },
+      });
+
+      // Act
+      const error = await api
+        .get('https://api.example.com/users/1')
+        .catch((e: unknown) => e);
+
+      // Assert
+      expect(error).toBe(hookError);
+      expect(error).not.toBeInstanceOf(ValifetchError);
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+    });
+  });
 });

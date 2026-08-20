@@ -13,6 +13,7 @@
  *
  * @module
  */
+export { stop } from './core/stop';
 export { default, valifetch } from './core/valifetch';
 export type {
   ValidationErrorInfo,
@@ -25,8 +26,11 @@ export { ValifetchError } from './errors/ValifetchError';
 export type {
   AfterParseResponseHook,
   AfterResponseHook,
+  BeforeErrorHook,
   // Hooks
   BeforeRequestHook,
+  BeforeRetryHook,
+  BeforeRetryState,
   CancellablePromise,
   // Debug + progress
   DebugEvent,
