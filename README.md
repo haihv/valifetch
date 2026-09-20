@@ -1,3 +1,5 @@
+
+
 # Valifetch
 
 [![npm version](https://img.shields.io/npm/v/valifetch.svg)](https://www.npmjs.com/package/valifetch)
@@ -306,7 +308,7 @@ Rules:
 - **No validation.** `bodySchema` applies to `json` only; a raw `body` is never validated.
 - **No `Content-Type` inference.** Valifetch never sets one for a raw body — set it yourself. (The platform `Request` constructor still applies its own spec default for `string` and `Blob` bodies.)
 - **Mutually exclusive** with `json` and `form`; setting more than one throws a `TypeError`.
-- **Request-only**, and rejected on the bodyless methods (`get`, `head`, `delete`, `options`).
+- **Request-only**, and rejected on the bodyless methods (`get` and `head`).
 - **`duplex: 'half'`** is added automatically for `ReadableStream` bodies, which the runtime requires.
 - **Retries re-send the body.** The request is cloned before each attempt, so `Blob`, `ArrayBuffer`, and string bodies re-send identically. A `ReadableStream` body is teed on clone, which buffers the stream in memory — pass `retry: false` for large streamed uploads if that matters.
 
@@ -926,7 +928,7 @@ A few naming and ergonomics choices are intentional and locked for stability. Th
 - **`responseType` is per-call only.** `responseType` lives on the per-request options, not on `create()` / `extend()` instance options. It changes the **return type** of a call (`'blob'` → `Blob`, `'sse'` → `AsyncIterable<MessageEvent>`, etc.), which cannot be expressed at instance-creation time without losing type safety. Set it on each call instead.
 - **`ValifetchError.cause` is `unknown`.** Matching the standard `Error.cause`, the `cause` option accepts any thrown value, not just an `Error`, so non-`Error` throws pass through without wrapping.
 - **Hook signatures stay ky-aligned and positional.** `beforeRequest(request, options)`, `afterResponse(request, options, response)`, `afterParseResponse(data, response, request)`, `beforeRetry(state)`, `beforeError(error)` are not being unified into a single state-object signature — matching ky's conventions is deliberate, and a hook that throws propagates that error as-is (never wrapped) to abort the request. `beforeError` only ever sees `ValifetchError`s.
-- **Entry-point rule.** `valifetch` (`.`) is the core runtime + core types; `valifetch/types` is the superset of every public type; `./error`, `./auth`, `./mock` are runtime subpaths. JSR publishes a single entry point (`.`) — `auth`/`mock` are npm-only for now.
+- **Entry-point rule.** `valifetch` (`.`) is the core runtime + core types; `valifetch/types` is the superset of every public type; `./error`, `./auth`, and `./mock` are runtime subpaths. JSR publishes a single entry point (`.`) — `auth`/`mock` are npm-only for now.
 - **`options(url, requestOptions)`.** The HTTP-verb method is deliberately named `options` (matching the OPTIONS HTTP verb); its parameter is internally named `requestOptions` to avoid colliding with the method name.
 - **Retry counters use different bases on purpose.** `RetryOptions.delay(attempt)` is 0-based (`delay(0)` computes the first retry's delay). `BeforeRetryState.retryCount` and the `attempt` field on a `DebugEvent` of type `'retry'` are both 1-based — they describe "the retry about to be performed," which reads more naturally in hook/log code than a 0-based count would.
 
