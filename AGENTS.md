@@ -176,7 +176,7 @@ const api = valifetch.create({
 });
 ```
 
-`beforeRetry` only runs for failures that are retryable under your `retry` config (status codes / methods / limit) — a 401 never triggers it. A hook that throws aborts the request with that error, propagated as-is (never wrapped). `beforeError` only ever sees `ValifetchError`s. Hook signatures are positional and ky-aligned: `beforeRequest(request, options)`, `afterResponse(request, options, response)`, `afterParseResponse(data, response, request)`, `beforeRetry(state)`, `beforeError(error)`. A `beforeRequest` hook that returns a `Response` (e.g. to bypass `fetch`, as `valifetch/mock` does) still flows through `afterResponse` hooks.
+`beforeRetry` only runs for failures that are retryable under your `retry` config (status codes / methods / limit) — a 401 never triggers it. A hook that throws aborts the request with that error, propagated as-is (never wrapped). `beforeError` only ever sees `ValifetchError`s. Hook signatures are positional, following ky 1.x (ky 2 moved to state objects): `beforeRequest(request, options)`, `afterResponse(request, options, response)`, `afterParseResponse(data, response, request)`, `beforeRetry(state)`, `beforeError(error)`. A `beforeRequest` hook that returns a `Response` (e.g. to bypass `fetch`, as `valifetch/mock` does) still flows through `afterResponse` hooks.
 
 ### Cancellation
 

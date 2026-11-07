@@ -30,7 +30,7 @@ features:
     link: /guide/retry
     linkText: Retry guide
   - title: Hooks
-    details: beforeRequest, afterResponse, afterParseResponse, beforeRetry and beforeError, with ky-aligned positional signatures.
+    details: beforeRequest, afterResponse, afterParseResponse, beforeRetry and beforeError, with positional signatures that follow ky 1.x.
     link: /guide/hooks
     linkText: Hooks guide
   - title: Streams and SSE

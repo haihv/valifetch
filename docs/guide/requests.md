@@ -115,7 +115,7 @@ Rules for raw bodies:
 - **No validation.** `bodySchema` applies to `json` only.
 - **No `Content-Type` inference.** valifetch never sets one for a raw body. The platform `Request` constructor still applies its own spec default for `string` and `Blob` bodies.
 - **Mutually exclusive** with `json` and `form`.
-- **Request-only**, and rejected on the bodyless methods.
+- **Request-only**, and rejected on the bodyless methods (`get`, `head`, `delete`, `options`).
 - **`duplex: 'half'`** is added automatically for `ReadableStream` bodies, which the runtime requires.
 - **Retries re-send the body.** The request is cloned before each attempt, so `Blob`, `ArrayBuffer` and string bodies re-send identically. A `ReadableStream` body is teed on clone, which buffers the stream in memory. Pass `retry: false` for large streamed uploads if that matters.
 

@@ -147,7 +147,7 @@ valifetch.head(url, options);
 valifetch.options(url, options);
 ```
 
-> **Note:** `head()` always resolves `void` and does not accept `responseSchema` or `responseType` — the type system rejects them. `get()` and `head()` are bodyless and do not accept `json`, `form`, or `body`; those stay on `post`/`put`/`patch`/`delete`/`options`.
+> **Note:** `head()` always resolves `void` and does not accept `responseSchema` or `responseType` — the type system rejects them. `get()` and `head()` are bodyless and do not accept `json`, `form`, or `body`; those are only accepted on `post`/`put`/`patch`. `delete()` and `options()` use the same bodyless option type as `get()`, so they reject them too.
 
 ### Instance Functions
 
@@ -551,7 +551,7 @@ const api = valifetch.create({
 
 `afterParseResponse` does not run for `responseType: 'stream' | 'raw' | 'sse'` (there is no parsed value to transform), and therefore never runs for `head()` either.
 
-Hook signatures are positional and deliberately ky-aligned (`beforeRequest(request, options)`, `afterResponse(request, options, response)`, `afterParseResponse(data, response, request)`, `beforeRetry(state)`, `beforeError(error)`) rather than a single unified state object — see [API Design Decisions](#api-design-decisions). A hook that throws propagates that error as-is and aborts the request; it is never wrapped.
+Hook signatures are positional and deliberately aligned with ky 1.x's positional signatures (ky 2 moved to state objects; valifetch keeps the positional form) (`beforeRequest(request, options)`, `afterResponse(request, options, response)`, `afterParseResponse(data, response, request)`, `beforeRetry(state)`, `beforeError(error)`) rather than a single unified state object — see [API Design Decisions](#api-design-decisions). A hook that throws propagates that error as-is and aborts the request; it is never wrapped.
 
 **`beforeRetry`** runs before each retry is scheduled. Return `stop` (exported sentinel) to abort retrying and treat the original failure as final; return a new `Request` to replace the request for all remaining attempts; return nothing (or void) to proceed with the normal backoff. Hooks run in order; returning `stop` short-circuits the remaining hooks. `beforeRetry` only runs for failures that are retryable under your `retry` config (status codes / methods / limit, or a `shouldRetry` verdict); a hook that throws aborts the request with that error.
 
@@ -897,13 +897,15 @@ mock.when('*', '/ping').reply(200, { ok: true });     // any method
 
 ### Response queuing
 
-`reply` registers a permanent fixture. `replyOnce` registers one that is consumed on the first match — useful for simulating retries:
+`reply` registers a permanent fixture. `replyOnce` registers one that is consumed on the first match — useful for scripting a sequence of replies across consecutive calls:
 
 ```typescript
 mock.get('/flaky')
   .replyOnce(503, { error: 'Service Unavailable' }) // first call → 503
   .reply(200, { data: 'ok' });                       // subsequent calls → 200
 ```
+
+Mock replies are produced by a `beforeRequest` hook, which runs once per call outside the retry loop, so the `retry` option does **not** retry a mocked response (a mocked 503 is thrown as-is). Each call consumes one queued reply.
 
 Body values are always `JSON.stringify`-serialised. Pass `undefined` (omit the argument) for a bodyless response (e.g. status 204). Status codes that must not carry a body per the HTTP spec (101, 204, 205, 304) always produce a bodyless response regardless of the `body` argument.
 
@@ -952,7 +954,7 @@ A few naming and ergonomics choices are intentional and locked for stability. Th
 - **`json` / `form` / `body`.** Structured bodies go through `json` (validated against `bodySchema`) or `form`; `body` is the raw escape hatch (string, `Blob`, `ArrayBuffer`, typed array, `ReadableStream`) sent as-is with no validation or `Content-Type` inference. Exactly one may be set per request; none is accepted at instance level.
 - **`responseType` is per-call only.** `responseType` lives on the per-request options, not on `create()` / `extend()` instance options. It changes the **return type** of a call (`'blob'` → `Blob`, `'sse'` → `AsyncIterable<MessageEvent>`, etc.), which cannot be expressed at instance-creation time without losing type safety. Set it on each call instead.
 - **`ValifetchError.cause` is `unknown`.** Matching the standard `Error.cause`, the `cause` option accepts any thrown value, not just an `Error`, so non-`Error` throws pass through without wrapping.
-- **Hook signatures stay ky-aligned and positional.** `beforeRequest(request, options)`, `afterResponse(request, options, response)`, `afterParseResponse(data, response, request)`, `beforeRetry(state)`, `beforeError(error)` are not being unified into a single state-object signature — matching ky's conventions is deliberate, and a hook that throws propagates that error as-is (never wrapped) to abort the request. `beforeError` only ever sees `ValifetchError`s.
+- **Hook signatures stay positional, following ky 1.x.** (ky 2 moved to state-object arguments; valifetch deliberately does not.) `beforeRequest(request, options)`, `afterResponse(request, options, response)`, `afterParseResponse(data, response, request)`, `beforeRetry(state)`, `beforeError(error)` are not being unified into a single state-object signature — matching ky's conventions is deliberate, and a hook that throws propagates that error as-is (never wrapped) to abort the request. `beforeError` only ever sees `ValifetchError`s.
 - **Entry-point rule.** `valifetch` (`.`) is the core runtime + core types; `valifetch/types` is the superset of every public type; `./error`, `./auth`, `./mock` are runtime subpaths. JSR publishes `.`, `./auth` and `./mock` (disjoint symbol sets); `./error` and `./types` are npm-only because they re-export symbols already in `.`.
 - **`options(url, requestOptions)`.** The HTTP-verb method is deliberately named `options` (matching the OPTIONS HTTP verb); its parameter is internally named `requestOptions` to avoid colliding with the method name.
 - **Retry counters use different bases on purpose.** `RetryOptions.delay(attempt)` is 0-based (`delay(0)` computes the first retry's delay). `BeforeRetryState.retryCount` and the `attempt` field on a `DebugEvent` of type `'retry'` are both 1-based — they describe "the retry about to be performed," which reads more naturally in hook/log code than a 0-based count would.

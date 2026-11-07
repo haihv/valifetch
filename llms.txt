@@ -156,7 +156,7 @@ batch.cancel();
 - Three body options, exactly one per request: `json` (validated against `bodySchema`), `form`, or the raw `body` escape hatch (string / Blob / ArrayBuffer / typed array / ReadableStream) sent as-is with no validation and no `Content-Type` inference. Setting more than one throws a `TypeError` (not a `ValifetchError`). None is accepted at instance level.
 - `responseType` is per-call only (not on `create()`/`extend()`) because it changes the return type.
 - `ValifetchError.cause` is `unknown` (matches the standard `Error.cause`); any thrown value can be passed through.
-- Hook signatures are positional and ky-aligned: `beforeRequest(request, options)`, `afterResponse(request, options, response)`, `afterParseResponse(data, response, request)`, `beforeRetry(state)`, `beforeError(error)` — not unified into one state object. A throwing hook propagates that error as-is (no `HOOK_ERROR` wrapping) and aborts the request. `beforeError` only ever sees `ValifetchError`s.
+- Hook signatures are positional, following ky 1.x (ky 2 moved to state objects): `beforeRequest(request, options)`, `afterResponse(request, options, response)`, `afterParseResponse(data, response, request)`, `beforeRetry(state)`, `beforeError(error)` — not unified into one state object. A throwing hook propagates that error as-is (no `HOOK_ERROR` wrapping) and aborts the request. `beforeError` only ever sees `ValifetchError`s.
 - Entry-point rule: `valifetch` (`.`) exports the core runtime + core types; `valifetch/types` exports every public type (including `JwtRefreshOptions`, `MockCall`, `MockHandler`, `ValifetchMock`); `./error`, `./auth`, `./mock` are runtime subpaths. JSR publishes `.`, `./auth` and `./mock` (`jsr:@haihv/valifetch/auth`, `jsr:@haihv/valifetch/mock`); `./error` and `./types` are npm-only because they re-export symbols already in `.`.
 - `options(url, requestOptions)` — the HTTP-verb method is named `options` deliberately; its parameter is internally named `requestOptions`.
 - `retry.shouldRetry(ctx)` receives `{ request, retryCount, reason, response | error }` (`reason: 'status'` → `response`, `'network'` → `error`, `retryCount` 1-based). Return `true` to retry even when `statusCodes`/`methods` would not, `false` to never retry this failure, `undefined` to defer to the built-in check. May be async; always bounded by `limit`; never consulted for an ok response; runs before `beforeRetry` (returning `false` skips those hooks); throwing aborts the request with that error. The context type is `RetryContext`, also the base of `BeforeRetryState`.
@@ -317,6 +317,7 @@ mock.reset();  // clear between tests
 
 Body values are always `JSON.stringify`-serialised. Omit body for a bodyless response.
 Null-body status codes (101, 204, 205, 304) always produce a bodyless response.
+Mock replies come from a `beforeRequest` hook outside the retry loop, so `retry` never retries a mocked response; each call consumes one queued reply.
 Unmatched requests fall through to the real `fetch`.
 
 ## Subpath exports

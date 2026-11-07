@@ -10,7 +10,7 @@ Hooks are interceptors you register under the `hooks` option, as arrays of funct
 | `beforeRetry` | `(state)` |
 | `beforeError` | `(error)` |
 
-Signatures are positional and deliberately ky-aligned rather than a single unified state object. See [API design decisions](/guide/api-design-decisions). A hook that throws propagates that error as-is and aborts the request; it is never wrapped.
+Signatures are positional and deliberately aligned with ky 1.x's positional form (ky 2 moved to state objects) rather than a single unified state object. See [API design decisions](/guide/api-design-decisions). A hook that throws propagates that error as-is and aborts the request; it is never wrapped.
 
 On `extend()`, parent and child hooks are concatenated with the parent's first. See [Instances](/guide/instances#hooks-are-concatenated).
 

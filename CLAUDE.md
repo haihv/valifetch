@@ -34,10 +34,11 @@ Valifetch is a type-safe HTTP client built on native `fetch` with Valibot schema
 ```
 valifetch.get(url, opts)
   → buildRequest()        src/core/request.ts     — URL construction, path params, body/schema validation
-  → executeRequest()      src/core/valifetch.ts    — fetch + retry loop, timeout, beforeRequest hooks; beforeRetry hooks run inside retry loop
+  → executeRequest()      src/core/valifetch.ts    — beforeRequest hooks (once), then fetch + retry loop, timeout; beforeRetry hooks run inside retry loop
+  → afterResponse hooks   src/core/hooks.ts        — run on every response (even 4xx/5xx) before the status check; may replace the Response
   → checkResponseStatus() src/core/response.ts     — async; throws ValifetchError on 4xx/5xx with parsed responseBody
   → parseJsonResponse()   src/core/response.ts     — JSON parse + optional Valibot schema validation
-  → afterResponse/afterParseResponse hooks
+  → afterParseResponse hooks
   → beforeError hooks (catches & transforms ValifetchError before throwing to caller)
 ```
 
@@ -106,7 +107,7 @@ These choices are intentional — do not "fix" the asymmetries without a deliber
 - **`json` / `form` / `body`.** Structured bodies go through `json` (validated against `bodySchema`) or `form`; `body` is the raw escape hatch (string, `Blob`, `ArrayBuffer`, typed array, `ReadableStream`) sent as-is with no validation or `Content-Type` inference. Exactly one may be set per request — two or more throws a `TypeError`; none is accepted at instance level.
 - **`responseType` is per-call only.** It changes the call's return type, which cannot be typed at instance-creation time, so it is deliberately absent from `ValifetchBaseOptions` / `ValifetchInstanceOptions`.
 - **`ValifetchError.cause` is `unknown`.** Matches the standard `Error.cause`; accepts any thrown value without wrapping.
-- **Hook signatures stay ky-aligned and positional.** `beforeRequest(request, options)`, `afterResponse(request, options, response)`, `afterParseResponse(data, response, request)`, `beforeRetry(state)`, `beforeError(error)` — not unified into a single state-object signature. A throwing hook propagates that error as-is (no `HOOK_ERROR` wrapping); `beforeError` only ever sees `ValifetchError`s.
+- **Hook signatures stay positional, following ky 1.x** (ky 2 moved to state objects). `beforeRequest(request, options)`, `afterResponse(request, options, response)`, `afterParseResponse(data, response, request)`, `beforeRetry(state)`, `beforeError(error)` — not unified into a single state-object signature. A throwing hook propagates that error as-is (no `HOOK_ERROR` wrapping); `beforeError` only ever sees `ValifetchError`s.
 - **Entry-point rule.** `valifetch` (`.`) exports the core runtime + core types; `valifetch/types` exports every public type (including `JwtRefreshOptions`, `MockCall`, `MockHandler`, `ValifetchMock`); `./error`, `./auth`, `./mock` are runtime subpaths. JSR publishes `.`, `./auth` and `./mock`; `./error` and `./types` stay npm-only because they only re-export symbols already in `.`.
 - **Counter semantics.** `RetryOptions.delay(attempt)` is 0-based (`delay(0)` = first retry); `BeforeRetryState.retryCount` and a `DebugEvent` retry `attempt` are both 1-based ("the retry about to be performed").
 
