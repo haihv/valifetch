@@ -27,7 +27,7 @@ A type-safe HTTP client built on native `fetch` with [Valibot](https://valibot.d
 - **Hooks** - `beforeRequest`, `afterResponse`, `afterParseResponse`, `beforeRetry`, and `beforeError` interceptors
 - **Instances** - Create configured instances with `create()` and `extend()`
 - **Minimal** - Tree-shakeable, valibot as peer dependency, ~17KB bundle
-- **Lightweight Instances** - Shared prototype pattern: each instance has only 1-2 own properties
+- **Lightweight Instances** - Shared prototype pattern: each instance carries at most three small own properties
 - **Callable Syntax** - Optional ky-style `api('/users')` syntax via `callable()` wrapper
 
 ## Performance

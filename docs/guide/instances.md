@@ -112,7 +112,7 @@ Calling the instance directly with `{ method, responseType, ... }` typechecks li
 
 ## Lightweight by design
 
-Instances share a prototype that holds the HTTP methods. Each instance only carries one or two own properties, so creating many of them (for example one per tenant) is cheap.
+Instances share a prototype that holds the HTTP methods. Each instance carries at most three small own properties (its options, plus a parent link and a lazily cached merge for an `extend()` child), so creating many of them (for example one per tenant) is cheap.
 
 ## Parallel helpers
 

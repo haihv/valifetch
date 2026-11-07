@@ -27,7 +27,7 @@ npm run docs:preview                  # serve the built docs site
 
 ## Architecture
 
-Valifetch is a type-safe HTTP client built on native `fetch` with Valibot schema validation. It uses a **prototype-based instance model** — instances share a prototype with HTTP methods and only carry 1–2 own properties, keeping memory footprint minimal.
+Valifetch is a type-safe HTTP client built on native `fetch` with Valibot schema validation. It uses a **prototype-based instance model** — instances share a prototype with HTTP methods and only carry one to three small own properties (`opts`, plus `parent` and a lazily cached `merged` for an `extend()` child), keeping memory footprint minimal.
 
 ### Core pipeline
 
