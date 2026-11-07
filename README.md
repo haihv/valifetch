@@ -30,19 +30,19 @@ A type-safe HTTP client built on native `fetch` with [Valibot](https://valibot.d
 
 ## Performance
 
-Benchmarked with [Vitest bench](https://vitest.dev/guide/features.html#benchmarking) on Node.js 20, fetch mocked to eliminate network variance. Run `npm run bench` to reproduce on your machine.
+Benchmarked with Vitest's [benchmark API](https://vitest.dev/guide/benchmarking) on Node.js 24, fetch mocked to eliminate network variance. Run `npm run bench` to reproduce on your machine.
 
-> **Why is ofetch faster on the baseline?** ofetch is a minimal wrapper with no built-in retry, hook system, or schema validation. valifetch bundles all of that — the gap reflects features, not inefficiency. Schema validation itself adds less than 10% overhead over valifetch's own baseline.
+> **Why is ofetch faster on the baseline?** ofetch is a minimal wrapper with no built-in retry, hook system, or schema validation. valifetch bundles all of that — the gap reflects features, not inefficiency. Schema validation itself adds roughly 10–15% overhead over valifetch's own baseline.
 
 ### GET + JSON parse (no schema)
 
 | Library | ops/sec | vs valifetch |
 |---|---|---|
-| ofetch | 204,379 | 1.92× faster |
-| **valifetch** | **106,373** | baseline |
-| ky | 68,443 | 1.55× slower |
-| up-fetch | 44,282 | 2.40× slower |
-| axios (fetch adapter) | 36,613 | 2.91× slower |
+| ofetch | 192,529 | 1.86× faster |
+| **valifetch** | **103,649** | baseline |
+| up-fetch | 54,582 | 1.90× slower |
+| ky | 49,388 | 2.10× slower |
+| axios (fetch adapter) | 26,933 | 3.85× slower |
 
 ### GET + JSON parse + schema validation
 
@@ -50,30 +50,30 @@ Only valifetch and up-fetch support schema validation natively. ky, ofetch, and 
 
 | Library | ops/sec | vs valifetch |
 |---|---|---|
-| **valifetch + valibot** | **95,703** | baseline |
-| up-fetch + valibot | 47,033 | 2.03× slower |
+| **valifetch + valibot** | **90,743** | baseline |
+| up-fetch + valibot | 46,978 | 1.93× slower |
 
 ### POST with JSON body
 
 | Library | ops/sec | vs valifetch |
 |---|---|---|
-| ofetch | 148,444 | 1.80× faster |
-| **valifetch** | **82,530** | baseline |
-| ky | 47,700 | 1.73× slower |
-| up-fetch | 43,303 | 1.91× slower |
-| axios (fetch adapter) | 31,562 | 2.61× slower |
+| ofetch | 139,527 | 1.89× faster |
+| **valifetch** | **73,777** | baseline |
+| up-fetch | 41,702 | 1.77× slower |
+| ky | 22,881 | 3.22× slower |
+| axios (fetch adapter) | 22,318 | 3.31× slower |
 
 ### 4xx error path
 
 | Library | ops/sec | vs valifetch |
 |---|---|---|
-| **valifetch** | **67,548** | baseline |
-| ofetch | 58,619 | 1.15× slower |
-| up-fetch | 48,718 | 1.39× slower |
-| ky | 38,687 | 1.75× slower |
-| axios (fetch adapter) | 9,207 | 7.34× slower |
+| ofetch | 55,654 | 1.55× faster |
+| up-fetch | 49,698 | 1.39× faster |
+| **valifetch** | **35,792** | baseline |
+| ky | 27,038 | 1.32× slower |
+| axios (fetch adapter) | 11,666 | 3.07× slower |
 
-axios constructs a full `AxiosError` with a deep copy of the request config on every error, which explains the 7× gap.
+axios constructs a full `AxiosError` with a deep copy of the request config on every error, which explains the ~3× gap.
 
 ## Installation
 

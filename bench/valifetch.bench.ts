@@ -1,5 +1,5 @@
 import * as v from 'valibot';
-import { bench, describe } from 'vitest';
+import { test } from 'vitest';
 import { valifetch } from '../src/core/valifetch';
 import { mockFetch } from './_mock-fetch';
 
@@ -13,30 +13,32 @@ const flatSchema = v.object({ id: v.number(), name: v.string() });
 const noopHook = async (req: Request) => req;
 const prefixApi = valifetch.create({ prefixUrl: 'https://api.example.com' });
 
-describe('valifetch (full pipeline, fetch mocked)', () => {
-  bench('GET — no options, no schema (baseline)', async () => {
-    await valifetch.get(TEST_URL);
-  });
+test('valifetch (full pipeline, fetch mocked)', async ({ bench }) => {
+  await bench.compare(
+    bench('GET — no options, no schema (baseline)', async () => {
+      await valifetch.get(TEST_URL);
+    }),
 
-  bench('GET — flat responseSchema', async () => {
-    await valifetch.get(TEST_URL, { responseSchema: flatSchema });
-  });
+    bench('GET — flat responseSchema', async () => {
+      await valifetch.get(TEST_URL, { responseSchema: flatSchema });
+    }),
 
-  bench('GET — retry: false (skips normalizeRetryOptions)', async () => {
-    await valifetch.get(TEST_URL, { retry: false });
-  });
+    bench('GET — retry: false (skips normalizeRetryOptions)', async () => {
+      await valifetch.get(TEST_URL, { retry: false });
+    }),
 
-  bench('GET — beforeRequest hook (noop)', async () => {
-    await valifetch.get(TEST_URL, {
-      hooks: { beforeRequest: [noopHook] },
-    });
-  });
+    bench('GET — beforeRequest hook (noop)', async () => {
+      await valifetch.get(TEST_URL, {
+        hooks: { beforeRequest: [noopHook] },
+      });
+    }),
 
-  bench('GET — instance with prefixUrl, path only', async () => {
-    await prefixApi.get('/users/1');
-  });
+    bench('GET — instance with prefixUrl, path only', async () => {
+      await prefixApi.get('/users/1');
+    }),
 
-  bench('POST — json body', async () => {
-    await valifetch.post(TEST_URL, { json: { name: 'Alice' } });
-  });
+    bench('POST — json body', async () => {
+      await valifetch.post(TEST_URL, { json: { name: 'Alice' } });
+    })
+  );
 });

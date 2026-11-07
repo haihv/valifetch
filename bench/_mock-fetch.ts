@@ -1,6 +1,6 @@
 /**
  * Override globalThis.fetch at module scope so bench iterations see the mock.
- * (beforeAll/afterAll run in a different context than tinybench iterations in Vitest 4.)
+ * (beforeAll/afterAll run in a different context than tinybench iterations in Vitest.)
  */
 export function mockFetch(body: unknown, status = 200): void {
   globalThis.fetch = () =>

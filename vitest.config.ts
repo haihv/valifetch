@@ -1,14 +1,15 @@
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
 
 export default defineConfig({
-  benchmark: {
-    include: ['bench/**/*.bench.ts'],
-    reporters: ['default'],
-  },
   test: {
     globals: true,
     environment: 'node',
     include: ['tests/**/*.test.ts'],
+    // Agent worktrees under .claude/ hold full repo copies that must not be scanned
+    benchmark: {
+      include: ['bench/**/*.bench.ts'],
+      exclude: [...configDefaults.exclude, '**/.claude/**'],
+    },
     reporters: ['default', ['junit', { outputFile: 'test-results/junit.xml' }]],
     coverage: {
       provider: 'v8',
