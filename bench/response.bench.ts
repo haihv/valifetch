@@ -1,5 +1,5 @@
 import * as v from 'valibot';
-import { bench, describe } from 'vitest';
+import { test } from 'vitest';
 import { checkResponseStatus, parseJsonResponse } from '../src/core/response';
 
 const DUMMY_REQUEST = new Request('https://api.example.com/users');
@@ -32,45 +32,50 @@ function makeResponse(body: unknown, status = 200): Response {
   });
 }
 
-describe('response', () => {
-  bench('checkResponseStatus — 200 (no-op)', async () => {
-    await checkResponseStatus(makeResponse(null, 200), DUMMY_REQUEST, true);
-  });
+test('response', async ({ bench }) => {
+  await bench.compare(
+    bench('checkResponseStatus — 200 (no-op)', async () => {
+      await checkResponseStatus(makeResponse(null, 200), DUMMY_REQUEST, true);
+    }),
 
-  bench('checkResponseStatus — 404 (throws)', async () => {
-    try {
-      await checkResponseStatus(makeResponse(null, 404), DUMMY_REQUEST, true);
-    } catch {
-      // expected
-    }
-  });
+    bench('checkResponseStatus — 404 (throws)', async () => {
+      try {
+        await checkResponseStatus(makeResponse(null, 404), DUMMY_REQUEST, true);
+      } catch {
+        // expected
+      }
+    }),
 
-  bench('parseJsonResponse — no schema', async () => {
-    await parseJsonResponse({
-      response: makeResponse(flatPayload),
-      request: DUMMY_REQUEST,
-      validateResponse: false,
-      throwHttpErrors: true,
-    });
-  });
+    bench('parseJsonResponse — no schema', async () => {
+      await parseJsonResponse({
+        response: makeResponse(flatPayload),
+        request: DUMMY_REQUEST,
+        validateResponse: false,
+        throwHttpErrors: true,
+      });
+    }),
 
-  bench('parseJsonResponse — flat schema validation', async () => {
-    await parseJsonResponse({
-      response: makeResponse(flatPayload),
-      request: DUMMY_REQUEST,
-      responseSchema: flatSchema,
-      validateResponse: true,
-      throwHttpErrors: true,
-    });
-  });
+    bench('parseJsonResponse — flat schema validation', async () => {
+      await parseJsonResponse({
+        response: makeResponse(flatPayload),
+        request: DUMMY_REQUEST,
+        responseSchema: flatSchema,
+        validateResponse: true,
+        throwHttpErrors: true,
+      });
+    }),
 
-  bench('parseJsonResponse — complex schema (array of 5 objects)', async () => {
-    await parseJsonResponse({
-      response: makeResponse(complexPayload),
-      request: DUMMY_REQUEST,
-      responseSchema: complexSchema,
-      validateResponse: true,
-      throwHttpErrors: true,
-    });
-  });
+    bench(
+      'parseJsonResponse — complex schema (array of 5 objects)',
+      async () => {
+        await parseJsonResponse({
+          response: makeResponse(complexPayload),
+          request: DUMMY_REQUEST,
+          responseSchema: complexSchema,
+          validateResponse: true,
+          throwHttpErrors: true,
+        });
+      }
+    )
+  );
 });

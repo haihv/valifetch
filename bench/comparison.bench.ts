@@ -18,7 +18,7 @@ import ky from 'ky';
 import { ofetch } from 'ofetch';
 import { up } from 'up-fetch';
 import * as v from 'valibot';
-import { bench, describe } from 'vitest';
+import { test } from 'vitest';
 import { valifetch } from '../src/core/valifetch';
 
 const TEST_URL = 'https://api.example.com/users/1';
@@ -52,116 +52,124 @@ const upfetchClient = up(fetch);
 
 const flatSchema = v.object({ id: v.number(), name: v.string() });
 
-describe('GET + JSON parse — no schema', () => {
-  bench('valifetch', async () => {
-    globalThis.fetch = okFetch;
-    await valifetch.get(TEST_URL);
-  });
-
-  bench('ky', async () => {
-    globalThis.fetch = okFetch;
-    await ky.get(TEST_URL).json();
-  });
-
-  bench('ofetch', async () => {
-    globalThis.fetch = okFetch;
-    await ofetch(TEST_URL);
-  });
-
-  bench('up-fetch', async () => {
-    globalThis.fetch = okFetch;
-    await upfetchClient(TEST_URL);
-  });
-
-  bench('axios (fetch adapter)', async () => {
-    globalThis.fetch = okFetch;
-    await axiosClient.get(TEST_URL);
-  });
-});
-
-describe('GET + JSON parse + schema validation', () => {
-  bench('valifetch + valibot', async () => {
-    globalThis.fetch = okFetch;
-    await valifetch.get(TEST_URL, { responseSchema: flatSchema });
-  });
-
-  bench('up-fetch + valibot', async () => {
-    globalThis.fetch = okFetch;
-    await upfetchClient(TEST_URL, { schema: flatSchema });
-  });
-});
-
-describe('POST with JSON body', () => {
-  bench('valifetch', async () => {
-    globalThis.fetch = okFetch;
-    await valifetch.post(TEST_URL, { json: POST_BODY });
-  });
-
-  bench('ky', async () => {
-    globalThis.fetch = okFetch;
-    await ky.post(TEST_URL, { json: POST_BODY }).json();
-  });
-
-  bench('ofetch', async () => {
-    globalThis.fetch = okFetch;
-    // ofetch auto-serializes plain objects as JSON
-    await ofetch(TEST_URL, { method: 'POST', body: POST_BODY });
-  });
-
-  bench('up-fetch', async () => {
-    globalThis.fetch = okFetch;
-    await upfetchClient(TEST_URL, { method: 'POST', body: POST_BODY });
-  });
-
-  bench('axios (fetch adapter)', async () => {
-    globalThis.fetch = okFetch;
-    await axiosClient.post(TEST_URL, POST_BODY);
-  });
-});
-
-describe('4xx error path', () => {
-  bench('valifetch', async () => {
-    globalThis.fetch = errorFetch;
-    try {
+test('GET + JSON parse — no schema', async ({ bench }) => {
+  await bench.compare(
+    bench('valifetch', async () => {
+      globalThis.fetch = okFetch;
       await valifetch.get(TEST_URL);
-    } catch (_e) {
-      /* expected */
-    }
-  });
+    }),
 
-  bench('ky', async () => {
-    globalThis.fetch = errorFetch;
-    try {
+    bench('ky', async () => {
+      globalThis.fetch = okFetch;
       await ky.get(TEST_URL).json();
-    } catch (_e) {
-      /* expected */
-    }
-  });
+    }),
 
-  bench('ofetch', async () => {
-    globalThis.fetch = errorFetch;
-    try {
+    bench('ofetch', async () => {
+      globalThis.fetch = okFetch;
       await ofetch(TEST_URL);
-    } catch (_e) {
-      /* expected */
-    }
-  });
+    }),
 
-  bench('up-fetch', async () => {
-    globalThis.fetch = errorFetch;
-    try {
+    bench('up-fetch', async () => {
+      globalThis.fetch = okFetch;
       await upfetchClient(TEST_URL);
-    } catch (_e) {
-      /* expected */
-    }
-  });
+    }),
 
-  bench('axios (fetch adapter)', async () => {
-    globalThis.fetch = errorFetch;
-    try {
+    bench('axios (fetch adapter)', async () => {
+      globalThis.fetch = okFetch;
       await axiosClient.get(TEST_URL);
-    } catch (_e) {
-      /* expected */
-    }
-  });
+    })
+  );
+});
+
+test('GET + JSON parse + schema validation', async ({ bench }) => {
+  await bench.compare(
+    bench('valifetch + valibot', async () => {
+      globalThis.fetch = okFetch;
+      await valifetch.get(TEST_URL, { responseSchema: flatSchema });
+    }),
+
+    bench('up-fetch + valibot', async () => {
+      globalThis.fetch = okFetch;
+      await upfetchClient(TEST_URL, { schema: flatSchema });
+    })
+  );
+});
+
+test('POST with JSON body', async ({ bench }) => {
+  await bench.compare(
+    bench('valifetch', async () => {
+      globalThis.fetch = okFetch;
+      await valifetch.post(TEST_URL, { json: POST_BODY });
+    }),
+
+    bench('ky', async () => {
+      globalThis.fetch = okFetch;
+      await ky.post(TEST_URL, { json: POST_BODY }).json();
+    }),
+
+    bench('ofetch', async () => {
+      globalThis.fetch = okFetch;
+      // ofetch auto-serializes plain objects as JSON
+      await ofetch(TEST_URL, { method: 'POST', body: POST_BODY });
+    }),
+
+    bench('up-fetch', async () => {
+      globalThis.fetch = okFetch;
+      await upfetchClient(TEST_URL, { method: 'POST', body: POST_BODY });
+    }),
+
+    bench('axios (fetch adapter)', async () => {
+      globalThis.fetch = okFetch;
+      await axiosClient.post(TEST_URL, POST_BODY);
+    })
+  );
+});
+
+test('4xx error path', async ({ bench }) => {
+  await bench.compare(
+    bench('valifetch', async () => {
+      globalThis.fetch = errorFetch;
+      try {
+        await valifetch.get(TEST_URL);
+      } catch (_e) {
+        /* expected */
+      }
+    }),
+
+    bench('ky', async () => {
+      globalThis.fetch = errorFetch;
+      try {
+        await ky.get(TEST_URL).json();
+      } catch (_e) {
+        /* expected */
+      }
+    }),
+
+    bench('ofetch', async () => {
+      globalThis.fetch = errorFetch;
+      try {
+        await ofetch(TEST_URL);
+      } catch (_e) {
+        /* expected */
+      }
+    }),
+
+    bench('up-fetch', async () => {
+      globalThis.fetch = errorFetch;
+      try {
+        await upfetchClient(TEST_URL);
+      } catch (_e) {
+        /* expected */
+      }
+    }),
+
+    bench('axios (fetch adapter)', async () => {
+      globalThis.fetch = errorFetch;
+      try {
+        await axiosClient.get(TEST_URL);
+      } catch (_e) {
+        /* expected */
+      }
+    })
+  );
 });
