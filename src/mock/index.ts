@@ -50,9 +50,19 @@ async function parseRequestBody(request: Request): Promise<unknown> {
 }
 
 function headersToRecord(headers: Headers): Record<string, string> {
-  // `Object.fromEntries` defines own properties, so a `__proto__` header is kept
-  // as data instead of invoking the prototype setter.
-  return Object.fromEntries(headers);
+  // Define own properties so a `__proto__` header is kept as data instead of
+  // invoking the prototype setter. `forEach` rather than iterating `headers`:
+  // Deno's bundled lib types `Headers` without an iterator.
+  const result: Record<string, string> = {};
+  headers.forEach((value, key) => {
+    Object.defineProperty(result, key, {
+      value,
+      writable: true,
+      enumerable: true,
+      configurable: true,
+    });
+  });
+  return result;
 }
 
 // Per the Fetch spec, these status codes must not carry a response body.
