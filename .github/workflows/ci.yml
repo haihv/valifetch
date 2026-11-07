@@ -81,11 +81,8 @@ jobs:
         with:
           deno-version: v2.x
 
-      - name: Type-check entry points with Deno
-        run: deno check src/index.ts src/auth.ts src/mock.ts
-
-      - name: Run Deno runtime smoke test
-        run: deno run --allow-net tests/deno/smoke.ts
+      - name: Type-check and run the Deno smoke test
+        run: npm run test:deno
 
       - name: JSR publish dry run
         run: npx jsr publish --dry-run --allow-dirty
@@ -114,6 +111,9 @@ jobs:
 
       - name: Check (lint + format + imports)
         run: npm run check
+
+      - name: Typecheck (src, tests, bench)
+        run: npm run typecheck
 
       - name: Run tests with coverage
         run: npm run test:coverage

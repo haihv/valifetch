@@ -10,7 +10,10 @@ class StringifyingRequest {
   readonly headers = new Headers({ 'Content-Type': 'text/plain' });
 }
 
-/** Mimics Deno: never reads `duplex`, sets no Content-Type, still streams. */
+/**
+ * Mimics Deno and older Safari: never reads `duplex` and sets no
+ * Content-Type. Only Deno actually streams the body afterwards.
+ */
 class DuplexIgnoringRequest {
   readonly headers = new Headers();
 }
@@ -34,8 +37,14 @@ describe('request stream support probe', () => {
     expect(supportsRequestStreams()).toBe(false);
   });
 
-  it('reports support when the engine never reads duplex but infers no Content-Type', () => {
+  it('reports no support when the engine never reads duplex (older Safari)', () => {
     vi.stubGlobal('Request', DuplexIgnoringRequest);
+    expect(supportsRequestStreams()).toBe(false);
+  });
+
+  it('reports support on Deno, which streams without reading duplex', () => {
+    vi.stubGlobal('Request', DuplexIgnoringRequest);
+    vi.stubGlobal('Deno', {});
     expect(supportsRequestStreams()).toBe(true);
   });
 
