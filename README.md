@@ -101,6 +101,15 @@ deno add jsr:@haihv/valifetch
 bunx jsr add @haihv/valifetch
 ```
 
+The JSR package also publishes the `auth` and `mock` subpaths:
+
+```ts
+import { bearerAuth } from 'jsr:@haihv/valifetch/auth';
+import { createMock } from 'jsr:@haihv/valifetch/mock';
+```
+
+`valifetch/error` and `valifetch/types` are npm-only because they are re-exports of symbols already available from the main entry (`import { ValifetchError } from 'jsr:@haihv/valifetch'`).
+
 ## Quick Start
 
 ```typescript
@@ -931,7 +940,7 @@ import type {
 
 The package uses code splitting internally, so shared code between entry points is only loaded once.
 
-**Entry-point rule:** `valifetch` (`.`) exports the core runtime plus the core types you need day-to-day; `valifetch/types` is the superset — every public type, including the less-common ones like `JwtRefreshOptions`, `MockCall`, `MockHandler`, and `ValifetchMock`. `./error`, `./auth`, and `./mock` are runtime subpaths. On JSR, only the main entry (`.`) is published — `valifetch/auth` and `valifetch/mock` are npm-only for now, to keep the single-entry-point 100% documentation score (see [API Design Decisions](#api-design-decisions)).
+**Entry-point rule:** `valifetch` (`.`) exports the core runtime plus the core types you need day-to-day; `valifetch/types` is the superset — every public type, including the less-common ones like `JwtRefreshOptions`, `MockCall`, `MockHandler`, and `ValifetchMock`. `./error`, `./auth`, and `./mock` are runtime subpaths. On JSR, `.`, `./auth` and `./mock` are published; `./error` and `./types` are npm-only because they only re-export symbols already exported from `.`, and re-exporting the same symbol from several JSR entry points duplicates it and lowers the documentation score (see [API Design Decisions](#api-design-decisions)).
 
 ## API Design Decisions
 
@@ -942,7 +951,7 @@ A few naming and ergonomics choices are intentional and locked for stability. Th
 - **`responseType` is per-call only.** `responseType` lives on the per-request options, not on `create()` / `extend()` instance options. It changes the **return type** of a call (`'blob'` → `Blob`, `'sse'` → `AsyncIterable<MessageEvent>`, etc.), which cannot be expressed at instance-creation time without losing type safety. Set it on each call instead.
 - **`ValifetchError.cause` is `unknown`.** Matching the standard `Error.cause`, the `cause` option accepts any thrown value, not just an `Error`, so non-`Error` throws pass through without wrapping.
 - **Hook signatures stay ky-aligned and positional.** `beforeRequest(request, options)`, `afterResponse(request, options, response)`, `afterParseResponse(data, response, request)`, `beforeRetry(state)`, `beforeError(error)` are not being unified into a single state-object signature — matching ky's conventions is deliberate, and a hook that throws propagates that error as-is (never wrapped) to abort the request. `beforeError` only ever sees `ValifetchError`s.
-- **Entry-point rule.** `valifetch` (`.`) is the core runtime + core types; `valifetch/types` is the superset of every public type; `./error`, `./auth`, `./mock` are runtime subpaths. JSR publishes a single entry point (`.`) — `auth`/`mock` are npm-only for now.
+- **Entry-point rule.** `valifetch` (`.`) is the core runtime + core types; `valifetch/types` is the superset of every public type; `./error`, `./auth`, `./mock` are runtime subpaths. JSR publishes `.`, `./auth` and `./mock` (disjoint symbol sets); `./error` and `./types` are npm-only because they re-export symbols already in `.`.
 - **`options(url, requestOptions)`.** The HTTP-verb method is deliberately named `options` (matching the OPTIONS HTTP verb); its parameter is internally named `requestOptions` to avoid colliding with the method name.
 - **Retry counters use different bases on purpose.** `RetryOptions.delay(attempt)` is 0-based (`delay(0)` computes the first retry's delay). `BeforeRetryState.retryCount` and the `attempt` field on a `DebugEvent` of type `'retry'` are both 1-based — they describe "the retry about to be performed," which reads more naturally in hook/log code than a 0-based count would.
 

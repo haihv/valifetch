@@ -149,12 +149,14 @@ export function mergeSearchParams(
   const overrides = new URLSearchParams();
   appendSearchParams(overrides, requestParams);
 
-  const deletedKeys = new Set([
-    ...overrides.keys(),
-    ...collectNullishKeys(requestParams),
-  ]);
+  const deletedKeys = new Set(collectNullishKeys(requestParams));
+  overrides.forEach((_value, key) => {
+    deletedKeys.add(key);
+  });
   for (const key of deletedKeys) merged.delete(key);
-  for (const [key, value] of overrides) merged.append(key, value);
+  overrides.forEach((value, key) => {
+    merged.append(key, value);
+  });
 
   return merged;
 }

@@ -350,6 +350,8 @@ import { createMock } from 'valifetch/mock';             // testing mock (test f
 import type { ValifetchOptions } from 'valifetch/types'; // types only
 ```
 
+On JSR use `jsr:@haihv/valifetch`, `jsr:@haihv/valifetch/auth` and `jsr:@haihv/valifetch/mock`. `./error` and `./types` are npm-only (they re-export symbols already in the main entry).
+
 ## Versioning
 
 - Major: removing/renaming any export of `.`, `./error`, `./types`, `./auth`, `./mock` (or a subpath); changing hook signatures/ordering; option renames or type changes that reject previously valid input; changing documented defaults (retry limit 2, retry statuses 408/413/429/500-504, `throwHttpErrors: true`, no default timeout); removing/renaming a `ValifetchError` code or changing which code a failure yields; changing HTTP method return types; raising the minimum Node.js (>=22) even if EOL; narrowing the valibot peer range (>=1.0.0).
