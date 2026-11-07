@@ -5,6 +5,8 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['tests/**/*.test.ts'],
+    // Browser smoke tests run under vitest.browser.config.ts (npm run test:browser)
+    exclude: [...configDefaults.exclude, 'tests/browser/**'],
     // Agent worktrees under .claude/ hold full repo copies that must not be scanned
     benchmark: {
       include: ['bench/**/*.bench.ts'],

@@ -24,6 +24,11 @@ coverage
 # Test results (JUnit XML for Codecov Test Analytics)
 test-results
 
+# Vitest browser mode artifacts
+__screenshots__
+.vitest-attachments
+.vitest
+
 # Environment
 .env
 

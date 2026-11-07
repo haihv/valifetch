@@ -11,6 +11,7 @@ import type {
 } from '../types';
 import { buildUrl, mergeSearchParams } from '../url/builder';
 import { validate } from '../validation/validate';
+import { supportsRequestStreams } from './stream-support';
 
 /**
  * `RequestInit` plus `duplex`, which the DOM lib typings still omit but the
@@ -305,6 +306,12 @@ export async function buildRequest(
 
   // Streaming bodies require `duplex: 'half'`; `new Request` throws without it.
   if (options.body instanceof ReadableStream) {
+    // Unsupporting engines would silently send "[object ReadableStream]".
+    if (!supportsRequestStreams()) {
+      throw new TypeError(
+        'This runtime does not support streaming request bodies (ReadableStream); pass a Blob, ArrayBuffer or string instead'
+      );
+    }
     fetchOptions.duplex = 'half';
   }
 

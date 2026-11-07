@@ -14,6 +14,12 @@
     "noUncheckedIndexedAccess": false,
     "noImplicitReturns": false
   },
-  "include": ["src/**/*", "tests/**/*", "bench/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": [
+    "src/**/*",
+    "tests/**/*",
+    "bench/**/*",
+    "vitest.browser.config.ts"
+  ],
+  // tests/deno runs under Deno (Deno globals, `.ts` import specifiers)
+  "exclude": ["node_modules", "dist", "tests/deno"]
 }

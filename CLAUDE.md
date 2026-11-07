@@ -10,6 +10,9 @@ npm run test:watch                    # run all tests in watch mode (development
 npm run test -- <file>                # run a single test file
 npm run test:unit                     # run unit tests only (tests/unit/)
 npm run test:integration              # run integration tests only (tests/integration/)
+npm run test:browser                  # browser smoke tests in Chromium, Firefox and WebKit (tests/browser/)
+npm run test:browser:install          # one-time: download Playwright browsers (+ OS deps on Linux)
+npm run test:deno                     # Deno: type-check entry points + runtime smoke (tests/deno/smoke.ts); needs deno + npm ci
 npm run test:coverage                 # run all tests with coverage (100% threshold enforced)
 npm run build                         # build to dist/ via tsup
 npm run check                         # Biome check (lint + format + imports)
@@ -78,6 +81,10 @@ Integration tests live in `tests/integration/` and spin up a real `http.createSe
 - SSE CR-only latency and early `break` — a `\r\r`-terminated event is yielded before the next chunk; `break` closes the server connection (`security.integration.test.ts`)
 
 Security regression tests live in `tests/unit/security.test.ts`; the threat model they back is documented in `SECURITY.md`. Option-merging code must assign user-supplied keys as own data properties (`setOwn` in `src/core/valifetch.ts`), never via `target[key] = value`, so a JSON-derived `__proto__` key cannot swap a prototype.
+
+Browser smoke tests live in `tests/browser/*.browser.test.ts` and run under Vitest browser mode with the Playwright provider (`@vitest/browser-playwright`), configured in `vitest.browser.config.ts` with one headless instance per engine. They are excluded from the default `vitest.config.ts` (so `npm run test` and the 100% coverage gate never see them) and run in the separate `browser` CI job. `tests/browser/global-setup.ts` starts a CORS-enabled `node:http` server (reusing `tests/integration/helpers.ts`) and passes its origin to the specs via `provide`/`inject('serverOrigin')`; the page and server are different origins, so every request is a real cross-origin fetch with preflight. Specs branch on `server.browser` (from `vitest/browser`) where engines genuinely differ — never skip silently, document the engine limitation in the test. Run `npm run test:browser:install` once locally to fetch the browsers. Playwright 1.65's Firefox does not launch on macOS 27 hosts ("Could not find profile folder"): locally run `npm run test:browser -- --project chromium --project webkit`, or use the `mcr.microsoft.com/playwright` Docker image for Firefox; CI runs all three.
+
+The Deno runtime smoke test lives in `tests/deno/smoke.ts`: a plain Deno script (not Vitest) that starts a `Deno.serve` server and runs a validated JSON GET plus a `ReadableStream` POST through valifetch, failing on any mismatch. It uses Deno globals and `.ts` import specifiers, so it is excluded from `tsconfig.test.json` and is not matched by the Vitest `include`. Run it with `npm run test:deno` (which also runs `deno check` on the three JSR entry points); Deno resolves `valibot` from the local `node_modules`, so run `npm ci` first. The `deno` CI job runs the same checks plus `npx jsr publish --dry-run --allow-dirty`.
 
 Integration tests are not run in the pre-commit hook (too slow); they run in CI alongside unit tests.
 
