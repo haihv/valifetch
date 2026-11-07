@@ -42,7 +42,7 @@ First stable release. The public API is now covered by semantic versioning; see 
 - **Breaking:** `Retry-After` parsing is strict; malformed values that `parseInt` used to accept are ignored and the normal backoff applies.
 - **Breaking:** a pending (unterminated) SSE event larger than 16 MiB now throws `PARSE_ERROR`; set `sseMaxEventSize: Infinity` to restore unbounded buffering.
 - **Breaking:** `debug: true` output changed from the raw `DebugEvent` (live `Request`/`Response`) to a plain, redacted summary object. Custom `debug` functions are unchanged.
-- **Breaking:** a `ReadableStream` request `body` throws a `TypeError` before calling `fetch` on runtimes that cannot stream request bodies (Firefox), instead of sending a corrupted body. Node 22+, Deno and Chromium-based browsers (over HTTP/2 or newer) still stream them.
+- **Breaking:** a `ReadableStream` request `body` throws a `TypeError` before calling `fetch` on runtimes that cannot stream request bodies (Firefox, older Safari), instead of sending a corrupted body or failing inside `fetch`. Node 22+, Deno and Chromium-based browsers (over HTTP/2 or newer) still stream them.
 - A per-request or child-instance `retry` object replaces the instance `retry` object entirely; this was already the behaviour and is now documented (restate `maxRetryAfter` when you override `retry`).
 
 ### Fixed
@@ -63,6 +63,7 @@ First stable release. The public API is now covered by semantic versioning; see 
 - TypeScript stays on 6.0.3: tsup 9 builds declarations through the TypeScript compiler API, which TypeScript 7 no longer ships.
 - The `zod` 4 override also applies to the Codecov bundler plugin, which is written against zod 3: its custom option-validation messages (`invalid_type_error`) fall back to zod's default wording. Harmless here because the plugin options are static.
 - New `deno` CI job: `deno check` on the three JSR entry points, a Deno runtime smoke test (`tests/deno/smoke.ts`, also `npm run test:deno`) and `npx jsr publish --dry-run`.
+- CI now runs `npm run typecheck` (previously only the pre-commit hook did).
 - CI hardening: job `timeout-minutes`, `persist-credentials: false` on every checkout, and a build-only docs workflow run on pull requests.
 
 ## [0.8.0] - 2026-08-21
@@ -257,6 +258,15 @@ The `valifetch/error` and `valifetch/types` subpath imports remain available on 
 - Instance creation with `create()` and inheritance with `extend()`
 - Dual CJS/ESM output with subpath exports (`valifetch/error`, `valifetch/types`)
 
+[1.0.0]: https://github.com/haihv/valifetch/compare/v0.8.0...v1.0.0
+[0.8.0]: https://github.com/haihv/valifetch/compare/v0.7.0...v0.8.0
+[0.7.0]: https://github.com/haihv/valifetch/compare/v0.6.0...v0.7.0
+[0.6.0]: https://github.com/haihv/valifetch/compare/v0.5.1...v0.6.0
+[0.5.1]: https://github.com/haihv/valifetch/compare/v0.5.0...v0.5.1
+[0.5.0]: https://github.com/haihv/valifetch/compare/v0.4.3...v0.5.0
+[0.4.3]: https://github.com/haihv/valifetch/compare/v0.4.2...v0.4.3
+[0.4.2]: https://github.com/haihv/valifetch/compare/v0.4.1...v0.4.2
+[0.4.1]: https://github.com/haihv/valifetch/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/haihv/valifetch/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/haihv/valifetch/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/haihv/valifetch/compare/v0.1.1...v0.2.0
