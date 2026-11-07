@@ -20,5 +20,6 @@
     "bench/**/*",
     "vitest.browser.config.ts"
   ],
-  "exclude": ["node_modules", "dist"]
+  // tests/deno runs under Deno (Deno globals, `.ts` import specifiers)
+  "exclude": ["node_modules", "dist", "tests/deno"]
 }

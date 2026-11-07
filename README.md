@@ -176,9 +176,9 @@ type Options = {
   searchSchema?: Schema; // Validate search/query parameters
 
   // Request data (request-only — not accepted on create()/extend())
-  json?: object; // JSON body (auto-stringified, sets Content-Type: application/json); not accepted on get()/head()
-  form?: FormData | URLSearchParams | Record<string, string>; // Form body — FormData → multipart/form-data; URLSearchParams/object → application/x-www-form-urlencoded; not accepted on get()/head()
-  body?: RawBody; // Raw body (string | Blob | ArrayBuffer | ArrayBufferView | ReadableStream<Uint8Array>) sent as-is, no validation, no Content-Type inference; not accepted on get()/head()
+  json?: object; // JSON body (auto-stringified, sets Content-Type: application/json); not accepted on the bodyless methods (get/head/delete/options)
+  form?: FormData | URLSearchParams | Record<string, string>; // Form body — FormData → multipart/form-data; URLSearchParams/object → application/x-www-form-urlencoded; not accepted on the bodyless methods (get/head/delete/options)
+  body?: RawBody; // Raw body (string | Blob | ArrayBuffer | ArrayBufferView | ReadableStream<Uint8Array>) sent as-is, no validation, no Content-Type inference; not accepted on the bodyless methods (get/head/delete/options)
   params?: object; // Path parameters for :param replacement
   searchParams?: string | URLSearchParams | Record<string, string | number | boolean | null | undefined> | Array<[string, string | number | boolean]>; // Query string parameters — instance value is a default, merged with (and overridden per-key by) the per-request value
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS'; // HTTP method (for callable syntax)
@@ -319,7 +319,7 @@ Rules:
 - **No `Content-Type` inference.** Valifetch never sets one for a raw body — set it yourself. (The platform `Request` constructor still applies its own spec default for `string` and `Blob` bodies.)
 - **Mutually exclusive** with `json` and `form`; setting more than one throws a `TypeError`.
 - **Request-only**, and rejected on the bodyless methods (`get`, `head`, `delete`, `options`).
-- **`duplex: 'half'`** is added automatically for `ReadableStream` bodies, which the runtime requires. Streaming request bodies need runtime support: Node 22+, Chromium-based browsers (over HTTP/2 or newer) and Safari; Firefox does not support them. Where the runtime cannot stream, valifetch throws a `TypeError` before calling `fetch` (instead of the browser silently sending `[object ReadableStream]`) — pass a `Blob`, `ArrayBuffer` or string there.
+- **`duplex: 'half'`** is added automatically for `ReadableStream` bodies, which the runtime requires. Streaming request bodies need runtime support: Node 22+, Deno, and Chromium-based browsers (over HTTP/2 or newer) stream them; Firefox does not, and other engines vary. Where the runtime cannot stream (detected by the engine stringifying the stream into a `text/plain` body), valifetch throws a `TypeError` before calling `fetch` (instead of the browser silently sending `[object ReadableStream]`) — pass a `Blob`, `ArrayBuffer` or string there.
 - **Retries re-send the body.** The request is cloned before each attempt, so `Blob`, `ArrayBuffer`, and string bodies re-send identically. A `ReadableStream` body is teed on clone, which buffers the stream in memory — pass `retry: false` for large streamed uploads if that matters.
 
 ### Search Parameters
@@ -1005,7 +1005,7 @@ See [SECURITY.md](https://github.com/haihv/valifetch/blob/main/SECURITY.md) for 
 
 Issues and PRs welcome!
 
-Tests run with `npm test` (unit + integration). A separate browser smoke suite exercises valifetch against the native `fetch` of Chromium, Firefox and WebKit via Playwright: run `npm run test:browser:install` once to download the browsers, then `npm run test:browser`.
+Tests run with `npm test` (unit + integration). A separate browser smoke suite exercises valifetch against the native `fetch` of Chromium, Firefox and WebKit via Playwright: run `npm run test:browser:install` once to download the browsers, then `npm run test:browser`. With Deno installed, `npm run test:deno` type-checks the JSR entry points and runs a Deno runtime smoke test (`tests/deno/smoke.ts`).
 
 ## License
 

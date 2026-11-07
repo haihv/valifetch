@@ -99,7 +99,7 @@ await api.put('/blobs/1', {
   headers: { 'content-type': 'application/octet-stream' },
 });
 
-// ReadableStream body — duplex: 'half' is added automatically; throws TypeError where the runtime cannot stream request bodies (Firefox)
+// ReadableStream body — duplex: 'half' is added automatically; streams on Node 22+, Deno and Chromium over HTTP/2+; throws TypeError where the runtime cannot stream request bodies (Firefox; other engines vary)
 await api.put('/blobs/1', { body: fileStream, headers: { 'content-type': 'application/octet-stream' } });
 ```
 
@@ -130,9 +130,9 @@ batch.cancel();
 | `bodySchema` | Valibot schema | Validate `json` body before sending |
 | `paramsSchema` | Valibot schema | Validate `:param` path replacements |
 | `searchSchema` | Valibot schema | Validate query string params |
-| `json` | object | JSON body (auto-stringified); request-only, not on `get()`/`head()` |
-| `form` | FormData \| URLSearchParams \| Record\<string, string\> | Form body (plain object values must be strings); request-only — removed from instance options, not on `get()`/`head()` |
-| `body` | `RawBody` = string \| Blob \| ArrayBuffer \| ArrayBufferView \| ReadableStream\<Uint8Array\> | Raw body sent as-is — no validation, no `Content-Type` inference; request-only, not on `get()`/`head()`. Streams get `duplex: 'half'` automatically; a `TypeError` is thrown where the runtime cannot stream request bodies (Firefox) |
+| `json` | object | JSON body (auto-stringified); request-only, not on the bodyless methods (`get`/`head`/`delete`/`options`) |
+| `form` | FormData \| URLSearchParams \| Record\<string, string\> | Form body (plain object values must be strings); request-only — removed from instance options, not on the bodyless methods (`get`/`head`/`delete`/`options`) |
+| `body` | `RawBody` = string \| Blob \| ArrayBuffer \| ArrayBufferView \| ReadableStream\<Uint8Array\> | Raw body sent as-is — no validation, no `Content-Type` inference; request-only, not on the bodyless methods (`get`/`head`/`delete`/`options`). Streams get `duplex: 'half'` automatically; streaming works on Node 22+, Deno and Chromium-based browsers over HTTP/2+; a `TypeError` is thrown where the runtime cannot stream request bodies (Firefox; other engines vary) |
 | `params` | object | Path param values for `:name` replacement; values are `encodeURIComponent`-encoded, own keys only, and `.` / `..` throw a `TypeError` |
 | `searchParams` | object \| URLSearchParams | Query string; instance value is a default, per-request value merges on top (request wins per key). Explicit `undefined`/`null` on a request key removes the instance default for that key. Instance defaults are appended to any query string already in the request path, not merged into it. |
 | `prefixUrl` | string | Base URL. The final URL always keeps the prefix origin and stays under the prefix path; `https://evil.com` / `//evil.com` inputs become path segments, and a `..` (or `%2e%2e`) path that climbs above the prefix throws a `TypeError`; a prefix containing `?` or `#` also throws a `TypeError` (use `searchParams`) |

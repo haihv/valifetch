@@ -70,6 +70,7 @@
     "test:browser": "vitest run --config vitest.browser.config.ts",
     "test:browser:install": "playwright install --with-deps chromium firefox webkit",
     "test:coverage": "vitest run --coverage",
+    "test:deno": "deno check src/index.ts src/auth.ts src/mock.ts && deno run --allow-net tests/deno/smoke.ts",
     "check": "biome check .",
     "check:fix": "biome check --write .",
     "bench": "vitest bench",

@@ -3,27 +3,24 @@ let cached: boolean | undefined;
 /**
  * Whether the runtime can send a `ReadableStream` as a request body.
  *
- * Engines without support (Firefox) ignore `duplex` and stringify the stream
- * into a `text/plain` body, so the standard probe checks that `duplex` is read
- * and that no `Content-Type` was inferred. Evaluated lazily and cached.
- * Internal — not re-exported from the package entry point.
+ * Engines without support (Firefox) stringify the stream into a body and
+ * infer `Content-Type: text/plain;charset=UTF-8`, so the absence of an
+ * inferred `Content-Type` is the signal. The common probe also requires the
+ * engine to read `duplex`, but Deno never reads it while still streaming
+ * request bodies, so that check would wrongly reject Deno. Evaluated lazily
+ * and cached. Internal — not re-exported from the package entry point.
  */
 export function supportsRequestStreams(): boolean {
   if (cached === undefined) {
-    let duplexAccessed = false;
     const init = {
       method: 'POST',
       body: new ReadableStream(),
-      get duplex() {
-        duplexAccessed = true;
-        return 'half';
-      },
+      duplex: 'half',
     };
-    const hasContentType = new Request(
+    cached = !new Request(
       'https://valifetch.invalid',
       init as RequestInit
     ).headers.has('Content-Type');
-    cached = duplexAccessed && !hasContentType;
   }
   return cached;
 }

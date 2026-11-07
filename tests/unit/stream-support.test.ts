@@ -10,7 +10,7 @@ class StringifyingRequest {
   readonly headers = new Headers({ 'Content-Type': 'text/plain' });
 }
 
-/** Mimics an engine that never reads `duplex` and sets no Content-Type. */
+/** Mimics Deno: never reads `duplex`, sets no Content-Type, still streams. */
 class DuplexIgnoringRequest {
   readonly headers = new Headers();
 }
@@ -34,9 +34,9 @@ describe('request stream support probe', () => {
     expect(supportsRequestStreams()).toBe(false);
   });
 
-  it('reports no support when the engine never reads duplex', () => {
+  it('reports support when the engine never reads duplex but infers no Content-Type', () => {
     vi.stubGlobal('Request', DuplexIgnoringRequest);
-    expect(supportsRequestStreams()).toBe(false);
+    expect(supportsRequestStreams()).toBe(true);
   });
 
   it('caches the first result', () => {
