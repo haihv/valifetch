@@ -2,6 +2,8 @@
 
 Quick reference for AI coding agents (Claude Code, Copilot, Cursor, etc.) working in a project that uses valifetch.
 
+Full documentation: https://haihv.github.io/valifetch/
+
 ## What is valifetch?
 
 Type-safe HTTP client built on native `fetch` with [Valibot](https://valibot.dev) schema validation. It auto-parses JSON, validates request/response against schemas, and infers TypeScript types from those schemas.

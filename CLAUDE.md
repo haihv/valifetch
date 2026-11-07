@@ -19,6 +19,10 @@ npm run check                         # Biome check (lint + format + imports)
 npm run check:fix                     # Biome check with auto-fix
 npm run typecheck                     # tsc --noEmit
 npm run bench                         # run all benchmarks (bench/ directory)
+npm run docs:api                      # generate the API reference (docs/api/) from JSDoc via TypeDoc
+npm run docs:dev                      # generate the API reference, then serve the docs site locally
+npm run docs:build                    # generate the API reference, then build the site to docs/.vitepress/dist (fails on dead links)
+npm run docs:preview                  # serve the built docs site
 ```
 
 ## Architecture
@@ -57,6 +61,10 @@ valifetch.get(url, opts)
 ### Instance inheritance
 
 `extend()` creates a child instance that inherits parent options. Merged options (headers, hooks, etc.) are lazily computed on first access and cached as `_mergedOptions`. Hooks from parent and child are **concatenated** (parent runs first).
+
+### Docs site
+
+`docs/` is a VitePress site deployed to GitHub Pages by `.github/workflows/docs.yml` (`base: '/valifetch/'`). Hand-written pages live in `docs/guide/`, `docs/recipes/` and `docs/migration/`; `docs/api/` is **generated** (gitignored) by `scripts/generate-api-docs.mjs`, which runs TypeDoc (`typedoc.json`, plugins `typedoc-plugin-markdown` + `typedoc-vitepress-theme`) over the five entry points in `src/` and feeds `docs/api/typedoc-sidebar.json` into `docs/.vitepress/config.ts`. The repo-root `llms.txt` is copied into the built site by the `buildEnd` hook. `scripts/typedoc-minimatch-compat.mjs` is a preload that lets TypeDoc 0.28 run against the patched minimatch pinned in `package.json` `overrides`; `vitepress` is likewise overridden onto a patched `vite` 7 (the direct `vite` devDependency keeps vitest on vite 8). Keep option names in docs pages verified against `src/types/`; the build must stay free of dead links.
 
 ### Package exports
 

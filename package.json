@@ -74,6 +74,10 @@
     "check": "biome check .",
     "check:fix": "biome check --write .",
     "bench": "vitest bench",
+    "docs:api": "node scripts/generate-api-docs.mjs",
+    "docs:dev": "npm run docs:api && vitepress dev docs",
+    "docs:build": "npm run docs:api && vitepress build docs",
+    "docs:preview": "vitepress preview docs",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
     "version": "node scripts/sync-jsr-version.mjs && git add jsr.json",
     "prepublishOnly": "npm run build",
@@ -112,7 +116,13 @@
   },
   "overrides": {
     "esbuild": "^0.28.1",
-    "zod": "^4.6.7"
+    "zod": "^4.6.7",
+    "typedoc": {
+      "minimatch": "^11.0.5"
+    },
+    "vitepress": {
+      "vite": "^7.3.7"
+    }
   },
   "devDependencies": {
     "@biomejs/biome": "^2.6.6",
@@ -130,9 +140,14 @@
     "ofetch": "^1.5.1",
     "playwright": "^1.65.0",
     "tsup": "^9.0.0",
+    "typedoc": "^0.28.20",
+    "typedoc-plugin-markdown": "^4.14.1",
+    "typedoc-vitepress-theme": "^1.1.4",
     "typescript": "^6.0.3",
     "up-fetch": "^2.6.1",
     "valibot": "^1.5.0",
+    "vite": "^8.3.6",
+    "vitepress": "^1.6.4",
     "vitest": "^5.1.0"
   },
   "engines": {

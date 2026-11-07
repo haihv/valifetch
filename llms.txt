@@ -351,4 +351,5 @@ import type { ValifetchOptions } from 'valifetch/types'; // types only, zero run
 - npm: https://www.npmjs.com/package/valifetch
 - JSR: https://jsr.io/@haihv/valifetch
 - GitHub: https://github.com/haihv/valifetch
+- Documentation: https://haihv.github.io/valifetch/
 - Changelog: https://github.com/haihv/valifetch/blob/main/CHANGELOG.md

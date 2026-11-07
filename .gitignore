@@ -37,3 +37,8 @@ __screenshots__
 *.local.*
 # Claude Code agent worktrees
 .claude/worktrees/
+
+# Documentation site
+docs/.vitepress/cache
+docs/.vitepress/dist
+docs/api/

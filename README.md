@@ -9,6 +9,8 @@
 
 A type-safe HTTP client built on native `fetch` with [Valibot](https://valibot.dev) schema validation. Like [ky](https://github.com/sindresorhus/ky), but with built-in request/response validation.
 
+**Documentation: <https://haihv.github.io/valifetch/>**
+
 ## Features
 
 - **Native Fetch** - Zero dependencies on HTTP libraries, uses the native `fetch` API
