@@ -66,8 +66,10 @@ from your own users are untrusted.**
   include request headers.
 - **Bounded parsing of untrusted responses.**
   - The SSE parser buffers at most `sseMaxEventSize` UTF-16 code units (default 16 MiB) for one
-    unterminated event. Past that it cancels the stream and throws `PARSE_ERROR`, and it scans each
-    chunk in linear time. `sseMaxEventSize: Infinity` removes this bound; an invalid value falls
+    pending (unterminated) event, checked after each chunk. Past that it cancels the stream and
+    throws `PARSE_ERROR`; an event whose terminating blank line arrives in the same chunk is
+    delivered whatever its size, since it no longer needs buffering. It scans each chunk in
+    linear time. `sseMaxEventSize: Infinity` removes this bound; an invalid value falls
     back to the default. Leaving the `for await` loop early cancels the response body, so an
     abandoned stream does not keep its connection open.
   - A server `Retry-After` is parsed strictly (all-digit seconds or an HTTP-date; anything else is

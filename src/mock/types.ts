@@ -43,6 +43,8 @@ export type MockHandler = {
   /**
    * Register a fixture response that is consumed on the first matching request only.
    * Subsequent requests fall through to the next registered response (or the real `fetch` if none remain).
+   * Mock replies are produced by a `beforeRequest` hook outside the retry loop, so the `retry` option
+   * does not retry a mocked response; each call consumes one queued reply.
    * @param status - HTTP status code
    * @param body - Response body — always serialised via `JSON.stringify` (objects, arrays, strings, `null`).
    *   Pass `null` to produce a JSON `null` response. Omit entirely only for genuinely bodyless statuses

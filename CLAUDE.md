@@ -19,21 +19,26 @@ npm run check                         # Biome check (lint + format + imports)
 npm run check:fix                     # Biome check with auto-fix
 npm run typecheck                     # tsc --noEmit
 npm run bench                         # run all benchmarks (bench/ directory)
+npm run docs:api                      # generate the API reference (docs/api/) from JSDoc via TypeDoc
+npm run docs:dev                      # generate the API reference, then serve the docs site locally
+npm run docs:build                    # generate the API reference, then build the site to docs/.vitepress/dist (fails on dead links)
+npm run docs:preview                  # serve the built docs site
 ```
 
 ## Architecture
 
-Valifetch is a type-safe HTTP client built on native `fetch` with Valibot schema validation. It uses a **prototype-based instance model** — instances share a prototype with HTTP methods and only carry 1–2 own properties, keeping memory footprint minimal.
+Valifetch is a type-safe HTTP client built on native `fetch` with Valibot schema validation. It uses a **prototype-based instance model** — instances share a prototype with HTTP methods and only carry one to three small own properties (`opts`, plus `parent` and a lazily cached `merged` for an `extend()` child), keeping memory footprint minimal.
 
 ### Core pipeline
 
 ```
 valifetch.get(url, opts)
   → buildRequest()        src/core/request.ts     — URL construction, path params, body/schema validation
-  → executeRequest()      src/core/valifetch.ts    — fetch + retry loop, timeout, beforeRequest hooks; beforeRetry hooks run inside retry loop
+  → executeRequest()      src/core/valifetch.ts    — beforeRequest hooks (once), then fetch + retry loop, timeout; beforeRetry hooks run inside retry loop
+  → afterResponse hooks   src/core/hooks.ts        — run on every response (even 4xx/5xx) before the status check; may replace the Response
   → checkResponseStatus() src/core/response.ts     — async; throws ValifetchError on 4xx/5xx with parsed responseBody
   → parseJsonResponse()   src/core/response.ts     — JSON parse + optional Valibot schema validation
-  → afterResponse/afterParseResponse hooks
+  → afterParseResponse hooks
   → beforeError hooks (catches & transforms ValifetchError before throwing to caller)
 ```
 
@@ -56,7 +61,11 @@ valifetch.get(url, opts)
 
 ### Instance inheritance
 
-`extend()` creates a child instance that inherits parent options. Merged options (headers, hooks, etc.) are lazily computed on first access and cached as `_mergedOptions`. Hooks from parent and child are **concatenated** (parent runs first).
+`extend()` creates a child instance that inherits parent options. An instance's own properties are `opts`, plus `parent` for an `extend()` child; merged options (headers, hooks, etc.) are lazily computed on first access and cached in a `merged` own property. Hooks from parent and child are **concatenated** (parent runs first).
+
+### Docs site
+
+`docs/` is a VitePress site deployed to GitHub Pages by `.github/workflows/docs.yml` (`base: '/valifetch/'`); pull requests touching the docs inputs only build it (the deploy job is skipped). Hand-written pages live in `docs/guide/`, `docs/recipes/` and `docs/migration/`; `docs/api/` is **generated** (gitignored) by `scripts/generate-api-docs.mjs`, which runs TypeDoc (`typedoc.json`, plugins `typedoc-plugin-markdown` + `typedoc-vitepress-theme`) over the five entry points in `src/` and feeds `docs/api/typedoc-sidebar.json` into `docs/.vitepress/config.ts`. The repo-root `llms.txt` is copied into the built site by the `buildEnd` hook. `scripts/typedoc-minimatch-compat.mjs` is a preload that lets TypeDoc 0.28 run against the patched minimatch pinned in `package.json` `overrides`; `vitepress` is likewise overridden onto a patched `vite` 7 (the direct `vite` devDependency keeps vitest on vite 8). Keep option names in docs pages verified against `src/types/`; the build must stay free of dead links.
 
 ### Package exports
 
@@ -98,8 +107,8 @@ These choices are intentional — do not "fix" the asymmetries without a deliber
 - **`json` / `form` / `body`.** Structured bodies go through `json` (validated against `bodySchema`) or `form`; `body` is the raw escape hatch (string, `Blob`, `ArrayBuffer`, typed array, `ReadableStream`) sent as-is with no validation or `Content-Type` inference. Exactly one may be set per request — two or more throws a `TypeError`; none is accepted at instance level.
 - **`responseType` is per-call only.** It changes the call's return type, which cannot be typed at instance-creation time, so it is deliberately absent from `ValifetchBaseOptions` / `ValifetchInstanceOptions`.
 - **`ValifetchError.cause` is `unknown`.** Matches the standard `Error.cause`; accepts any thrown value without wrapping.
-- **Hook signatures stay ky-aligned and positional.** `beforeRequest(request, options)`, `afterResponse(request, options, response)`, `afterParseResponse(data, response, request)`, `beforeRetry(state)`, `beforeError(error)` — not unified into a single state-object signature. A throwing hook propagates that error as-is (no `HOOK_ERROR` wrapping); `beforeError` only ever sees `ValifetchError`s.
-- **Entry-point rule.** `valifetch` (`.`) exports the core runtime + core types; `valifetch/types` exports every public type (including `JwtRefreshOptions`, `MockCall`, `MockHandler`, `ValifetchMock`); `./error`, `./auth`, `./mock` are runtime subpaths. JSR publishes `.`, `./auth` and `./mock`; `./error` and `./types` stay npm-only because they only re-export symbols already in `.`.
+- **Hook signatures stay positional, following ky 1.x** (ky 2 moved to state objects). `beforeRequest(request, options)`, `afterResponse(request, options, response)`, `afterParseResponse(data, response, request)`, `beforeRetry(state)`, `beforeError(error)` — not unified into a single state-object signature. A throwing hook propagates that error as-is (no `HOOK_ERROR` wrapping); `beforeError` only ever sees `ValifetchError`s.
+- **Entry-point rule.** `valifetch` (`.`) exports the core runtime + core types; `valifetch/types` exports every public type (including `JwtRefreshOptions`, `MockCall`, `MockHandler`, `ValifetchMock`); `./error`, `./auth`, `./mock` are runtime subpaths. JSR publishes `.`, `./auth` and `./mock`; `./error` and `./types` stay npm-only because they only re-export symbols already in `.`, `./auth` or `./mock`.
 - **Counter semantics.** `RetryOptions.delay(attempt)` is 0-based (`delay(0)` = first retry); `BeforeRetryState.retryCount` and a `DebugEvent` retry `attempt` are both 1-based ("the retry about to be performed").
 
 ## Rules
@@ -108,7 +117,7 @@ These choices are intentional — do not "fix" the asymmetries without a deliber
 - **Docs must stay in sync with code.** Any change to public API, options, behaviour, or architecture must be reflected in `README.md` (and this file if architecture changes). Do not merge code changes without updating the relevant docs.
 - **`llms.txt` and `AGENTS.md` must stay in sync with code.** Any change to public API, options, error codes, hook signatures, auth helpers, or behaviour must also be reflected in both `llms.txt` and `AGENTS.md`. These are agent-facing docs — stale information causes agents to generate broken code. Update them in the same commit as the code change.
 - **Every exported symbol must have JSDoc.** This includes top-level exports and all members of exported types/classes (fields, methods, getters). Plain `//` comments do not count; use `/** */` blocks.
-- **JSR documentation score must stay at 100%.** Before opening or merging a PR, verify every new exported symbol has a JSDoc block. `jsr.json` exports `.`, `./auth` and `./mock`. This is safe only because those entry points have disjoint exported symbol sets and each starts with a `@module` JSDoc block (verified with `deno doc --json`: no symbol appears in more than one of them, 0 undocumented declarations; `npx jsr publish --dry-run --allow-dirty` succeeds). Do not add `./error` or `./types` to `jsr.json` — they only re-export symbols already exported from `.` (38 duplicated symbols), which drops the score below 100%. Before adding any new JSR entry point, re-run that duplicate check and keep its symbols disjoint from the others.
+- **JSR documentation score must stay at 100%.** Before opening or merging a PR, verify every new exported symbol has a JSDoc block. `jsr.json` exports `.`, `./auth` and `./mock`. This is safe only because those entry points have disjoint exported symbol sets and each starts with a `@module` JSDoc block (verified with `deno doc --json`: no symbol appears in more than one of them, 0 undocumented declarations; `npx jsr publish --dry-run --allow-dirty` succeeds). Do not add `./error` or `./types` to `jsr.json` — they only re-export symbols already exported from `.`, `./auth` or `./mock` (38 duplicated symbols), which drops the score below 100%. Before adding any new JSR entry point, re-run that duplicate check and keep its symbols disjoint from the others.
 - **Never embed issue tracker IDs in source code.** No Linear, Jira, or GitHub issue numbers in test descriptions, function names, comments, or any other code. Issue IDs belong in commit messages and PR descriptions only.
 - **Never merge a PR without explicit confirmation.** Do not call `gh pr merge` (or any equivalent) without the user explicitly saying to merge. Opening a PR is fine; merging is not.
 - **Never push to `main` without explicit confirmation.** Do not `git push` the main branch (or push a version-bump commit) without the user saying so. Always stop and confirm first.

@@ -1,0 +1,91 @@
+name: Docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - docs/**
+      - src/**
+      - README.md
+      - llms.txt
+      - package.json
+      - package-lock.json
+      - typedoc.json
+      - scripts/generate-api-docs.mjs
+      - scripts/typedoc-minimatch-compat.mjs
+      - .github/workflows/docs.yml
+  # Pull requests only build the site (no deploy) so a broken docs build is
+  # caught before merge.
+  pull_request:
+    branches: [main]
+    paths:
+      - docs/**
+      - src/**
+      - README.md
+      - llms.txt
+      - package.json
+      - package-lock.json
+      - typedoc.json
+      - scripts/generate-api-docs.mjs
+      - scripts/typedoc-minimatch-compat.mjs
+      - .github/workflows/docs.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Deploys share one queue and never cancel each other; PR builds get their own
+# group per branch so they neither block nor wait on a deploy.
+concurrency:
+  group: ${{ github.event_name == 'pull_request' && format('docs-pr-{0}', github.ref) || 'pages' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          # Full history so VitePress can compute "last updated" timestamps
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup Pages
+        if: github.event_name != 'pull_request'
+        uses: actions/configure-pages@v6
+
+      - name: Build documentation
+        run: npm run docs:build
+
+      - name: Upload Pages artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: docs/.vitepress/dist
+
+  deploy:
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
