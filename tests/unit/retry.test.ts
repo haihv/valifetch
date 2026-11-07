@@ -382,7 +382,11 @@ describe('core/retry', () => {
         status: 429,
         headers: { 'retry-after': '120' },
       });
-      expect(getRetryAfterDelay(response)).toBe(120_000);
+      expect(getRetryAfterDelay(response, Number.POSITIVE_INFINITY)).toBe(
+        120_000
+      );
+      // The default cap clamps the server-sent value.
+      expect(getRetryAfterDelay(response)).toBe(60_000);
     });
 
     it('parses a zero seconds value', () => {

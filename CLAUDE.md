@@ -45,7 +45,7 @@ valifetch.get(url, opts)
 | `src/core/hooks.ts`            | `beforeRequest`, `afterResponse`, `afterParseResponse`, `beforeRetry`, `beforeError` hook runners; re-exports `stop` |
 | `src/core/stop.ts`             | The `stop` sentinel (`Symbol.for('valifetch.stop')`) — a leaf module with no imports, so `src/types/hooks.ts` can reference it without a module cycle |
 | `src/errors/ValifetchError.ts` | Custom error class with typed error codes; `responseBody` field on `HTTP_ERROR`           |
-| `src/url/`                     | URL building and `:param` → value path replacement                                        |
+| `src/url/`                     | URL building and `:param` → value path replacement; enforces prefix containment (origin + path) and rejects `.`/`..` param values |
 | `src/validation/validate.ts`   | Thin wrapper around `valibot.safeParse`                                                   |
 | `src/types/`                   | All TypeScript types (options, hooks, instance, path-param inference) — no runtime code   |
 | `src/mock/`                    | `createMock()` — testing utility; intercepts via `beforeRequest` hook, no `globalThis.fetch` patching |
@@ -73,6 +73,9 @@ Integration tests live in `tests/integration/` and spin up a real `http.createSe
 - `prefixUrl` path joining — trailing-slash normalization and search-param encoding round-trips
 - `responseType: 'sse'` — real chunked `text/event-stream` response; verifies event type, data, and lastEventId
 - `Retry-After` header — server returns 429 with `Retry-After: 1`; client waits ≥ 900 ms before retry
+- Cross-origin redirect — `Authorization` / `Cookie` are dropped by native fetch when a redirect changes origin (`security.integration.test.ts`)
+
+Security regression tests live in `tests/unit/security.test.ts`; the threat model they back is documented in `SECURITY.md`. Option-merging code must assign user-supplied keys as own data properties (`setOwn` in `src/core/valifetch.ts`), never via `target[key] = value`, so a JSON-derived `__proto__` key cannot swap a prototype.
 
 Integration tests are not run in the pre-commit hook (too slow); they run in CI alongside unit tests.
 

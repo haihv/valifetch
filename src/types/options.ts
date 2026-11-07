@@ -81,6 +81,15 @@ export type RetryOptions = {
    */
   delay?: (attemptCount: number) => number;
   /**
+   * Upper bound in milliseconds for a server-sent `Retry-After` delay. Larger
+   * values (integer seconds or HTTP-date) are clamped to this, so a hostile or
+   * misconfigured server cannot stall the client. Pass `Infinity` to honour any
+   * value (still clamped to the ~24.8-day `setTimeout` limit).
+   *
+   * @default 60000
+   */
+  maxRetryAfter?: number;
+  /**
    * Custom retry predicate. Return `true` to retry even when `statusCodes`/`methods`
    * would not, `false` to never retry this failure, or `undefined` to defer to the
    * built-in status-code + method check. Always bounded by `limit`. Runs before
@@ -151,8 +160,14 @@ export type DebugEvent =
 
 /**
  * Controls structured debug logging of request lifecycle events.
- * - `true` — emits events via `console.debug('[valifetch]', event)`
- * - function — receives each `DebugEvent` directly for custom handling
+ * - `true` — logs a plain summary of each event via `console.debug('[valifetch]', summary)`:
+ *   `type`, `method`, `url`, request `headers`, plus `attempt`/`status`/`responseHeaders`
+ *   (response) or `attempt`/`delay`/`reason` (retry). Values of headers whose name
+ *   contains `auth`, `cookie`, `token`, `secret`, `key`, `session`, `password`,
+ *   `credential` or `signature` are replaced with `'[REDACTED]'`. The URL (including
+ *   its query string) is logged as-is.
+ * - function — receives each `DebugEvent` directly, with the live `Request`/`Response`
+ *   (headers unredacted); redacting secrets is then the function's responsibility
  */
 export type DebugOption = true | ((event: DebugEvent) => void);
 

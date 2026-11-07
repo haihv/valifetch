@@ -101,6 +101,13 @@ export async function parseJsonResponse<T extends GenericSchema>(
 }
 
 /**
+ * Largest pending (not yet terminated) SSE event the parser buffers, in UTF-16
+ * code units (1 MiB of ASCII). A stream that never sends a blank line would
+ * otherwise grow the buffer without bound.
+ */
+export const MAX_SSE_EVENT_SIZE = 1024 * 1024;
+
+/**
  * Parses a Server-Sent Events (SSE) response body into an `AsyncIterable<MessageEvent>`.
  *
  * Each SSE event block (separated by a blank line) is decoded according to the
@@ -110,16 +117,27 @@ export async function parseJsonResponse<T extends GenericSchema>(
  * - `id:` sets `lastEventId`
  * - `retry:` is parsed but not yielded (reconnect hint, not applicable to a one-shot fetch)
  * - Lines starting with `:` are comments and are ignored
- * - Handles `\n`, `\r`, and `\r\n` line endings per the SSE spec
+ * - Handles `\n`, `\r`, and `\r\n` line endings per the SSE spec, including a
+ *   `\r\n` pair split across two chunks
+ *
+ * A single event larger than `maxEventSize` cancels the stream and throws a
+ * `ValifetchError` with code `PARSE_ERROR`, bounding memory use against a
+ * hostile or broken server.
  *
  * Yields nothing and returns immediately when `body` is `null`
  * (e.g. a 204 No Content response).
  *
  * @param body - The raw `ReadableStream<Uint8Array>` from `response.body`, or `null`
+ * @param maxEventSize - Largest pending event to buffer, in UTF-16 code units (default {@link MAX_SSE_EVENT_SIZE})
+ * @param request - The originating request, attached to a size-limit error
+ * @param response - The response being parsed, attached to a size-limit error
  * @returns An `AsyncIterable<MessageEvent>` that yields one event per SSE frame
  */
 export async function* parseSSEResponse(
-  body: ReadableStream<Uint8Array> | null
+  body: ReadableStream<Uint8Array> | null,
+  maxEventSize: number = MAX_SSE_EVENT_SIZE,
+  request?: Request,
+  response?: Response
 ): AsyncIterable<MessageEvent> {
   if (!body) return;
 
@@ -134,6 +152,11 @@ export async function* parseSSEResponse(
     )
     .getReader();
   let buffer = '';
+  // Where the next `\n\n` search starts: everything before it was already
+  // scanned, so each chunk costs O(chunk) instead of O(buffer).
+  let scanFrom = 0;
+  // A chunk ending in `\r` may be the first half of a `\r\n` pair.
+  let pendingCR = false;
 
   const dispatchEvent = function* (block: string): Iterable<MessageEvent> {
     if (!block.trim()) return;
@@ -175,16 +198,34 @@ export async function* parseSSEResponse(
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      buffer += normalise(value);
+
+      let chunk: string = pendingCR ? `\r${value}` : value;
+      pendingCR = chunk.endsWith('\r');
+      if (pendingCR) chunk = chunk.slice(0, -1);
+      buffer += normalise(chunk);
 
       let boundary: number;
-      while ((boundary = buffer.indexOf('\n\n')) !== -1) {
+      while ((boundary = buffer.indexOf('\n\n', scanFrom)) !== -1) {
         const block = buffer.slice(0, boundary);
         buffer = buffer.slice(boundary + 2);
+        scanFrom = 0;
         yield* dispatchEvent(block);
+      }
+      // Back off one char: the buffer may end in the first `\n` of a boundary.
+      scanFrom = Math.max(0, buffer.length - 1);
+
+      if (buffer.length > maxEventSize) {
+        await reader.cancel();
+        throw new ValifetchError({
+          message: `SSE event exceeds the ${maxEventSize}-character limit`,
+          code: 'PARSE_ERROR',
+          request,
+          response,
+        });
       }
     }
 
+    if (pendingCR) buffer += '\n';
     // Flush any trailing event that wasn't followed by a blank line
     if (buffer.trim()) {
       yield* dispatchEvent(buffer);

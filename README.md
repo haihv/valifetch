@@ -239,6 +239,8 @@ const user = await valifetch.get('https://api.example.com/users/:id', {
 });
 ```
 
+Param values are percent-encoded with `encodeURIComponent`, so `/`, `?`, `#` and `\` in a value can never add path segments, a query string or a fragment. The values `.` and `..` cannot be encoded safely (the URL parser resolves dot segments, even percent-encoded ones), so they throw a `TypeError` before any request is sent. Params are looked up as own properties only, so `:constructor` or `:toString` without a matching param throws as missing rather than resolving from `Object.prototype`.
+
 ### POST with Body Validation
 
 ```typescript
@@ -363,6 +365,8 @@ for await (const event of events) {
 }
 ```
 
+The SSE parser buffers at most 1 MiB (1,048,576 UTF-16 code units) for a single not-yet-terminated event. A larger event cancels the stream and the iterator throws a `ValifetchError` with code `PARSE_ERROR`, so a server that never sends a blank line cannot exhaust memory. Use `responseType: 'stream'` to process larger events yourself.
+
 ### Create an Instance
 
 ```typescript
@@ -383,6 +387,8 @@ const user = await api.get('/users/1', {
   responseSchema: UserSchema,
 });
 ```
+
+With `prefixUrl` set, the request path is always joined *under* the prefix: the final URL keeps the prefix origin, and its path stays under the prefix path. Absolute or protocol-relative inputs (`https://evil.com`, `//evil.com`, `\\evil.com`) become path segments under the prefix rather than switching host, and a path that climbs above the prefix with `..` (including `%2e%2e`), such as `/../admin`, throws a `TypeError` before any request is sent. Without `prefixUrl`, the input must be a full URL and is used as-is. Validate user-controlled full URLs yourself (see [Security](#security)).
 
 ### Extend an Instance
 
@@ -546,6 +552,7 @@ const api = valifetch.create({
     methods: ['GET', 'PUT'], // Methods to retry (also guards network-error retries)
     statusCodes: [408, 429, 500, 502, 503, 504], // Status codes to retry
     delay: (attempt) => Math.min(1000 * 2 ** attempt, 30000), // Backoff
+    maxRetryAfter: 120_000, // Honour a server Retry-After of up to 2 minutes (default 60 s)
     // Custom predicate — overrides the statusCodes/methods verdict
     shouldRetry: async ({ reason, response }) => {
       // Network failures: retry POSTs too (this API is idempotent by request id)
@@ -567,13 +574,13 @@ const api2 = valifetch.create({ retry: 5 });
 const api3 = valifetch.create({ retry: false });
 ```
 
-**Defaults:** `limit: 2`, `methods: ['GET', 'PUT', 'HEAD', 'DELETE', 'OPTIONS']`, `statusCodes: [408, 413, 429, 500, 502, 503, 504]`, `delay(attempt) = 0.3 * 2 ** attempt` seconds plus up to 20% random jitter, capped at 30 s (≈0.3 s, 0.6 s, 1.2 s, …). `RetryOptions.delay(attempt)` is 0-based — `delay(0)` computes the first retry's delay.
+**Defaults:** `limit: 2`, `methods: ['GET', 'PUT', 'HEAD', 'DELETE', 'OPTIONS']`, `statusCodes: [408, 413, 429, 500, 502, 503, 504]`, `delay(attempt) = 0.3 * 2 ** attempt` seconds plus up to 20% random jitter, capped at 30 s (≈0.3 s, 0.6 s, 1.2 s, …), `maxRetryAfter: 60_000`. `RetryOptions.delay(attempt)` is 0-based — `delay(0)` computes the first retry's delay.
 
 Retry applies to both HTTP error responses (matching `statusCodes`) and network-level errors (e.g. `TypeError: Failed to fetch`). In both cases the same `methods` guard applies — non-idempotent methods like `POST` and `PATCH` are not retried by default to prevent duplicate submissions.
 
 **`shouldRetry(context)`** is a custom predicate consulted for every failed response and every network error. `context` is `{ request, retryCount, reason, response | error }` — `reason: 'status'` carries `response`, `reason: 'network'` carries `error`, and `retryCount` is 1-based (`1` = the first retry). Return `true` to retry even when `statusCodes` / `methods` would not, `false` to never retry this failure, or `undefined` to defer to the built-in status-code + method check. It may be async — the response is passed unconsumed, so `response.clone().json()` is safe. The predicate is always bounded by `limit`, is never consulted for a successful (`response.ok`) response, and runs *before* the `beforeRetry` hooks — returning `false` skips them entirely. A predicate that throws aborts the request with that error.
 
-When a retryable response includes a `Retry-After` header (e.g. on a 429), valifetch uses the server-prescribed delay instead of the exponential backoff formula. Both integer-seconds (`Retry-After: 120`) and HTTP-date formats are supported.
+When a retryable response includes a `Retry-After` header (e.g. on a 429), valifetch uses the server-prescribed delay instead of the exponential backoff formula. Both integer-seconds (`Retry-After: 120`) and HTTP-date formats are supported. The server value is clamped to `retry.maxRetryAfter` (default `60_000` ms), so a hostile or misconfigured server cannot stall the client with a huge `Retry-After`. Pass `maxRetryAfter: Infinity` to honour any value. Every retry sleep is also clamped to the `setTimeout` limit (2^31 − 1 ms), because larger values would overflow and fire immediately.
 
 ### Timeout & Cancellation
 
@@ -663,7 +670,9 @@ const data = await valifetch.get('https://api.example.com/large-file.json', {
 
 Enable structured lifecycle logging for development by passing `debug: true` (emits via `console.debug`) or a custom function.
 
-> **Warning:** `debug: true` logs raw `Request` and `Response` objects including headers (e.g. `Authorization`, cookies). Do not enable it in production.
+`debug: true` logs a plain summary per event (not the raw `Request`/`Response` objects): `{ type, method, url, headers }`, plus `attempt`, `status` and `responseHeaders` on `response` events and `attempt`, `delay` and `reason` on `retry` events. A header's value is replaced with `'[REDACTED]'` when its name contains `auth`, `cookie`, `token`, `secret`, `key`, `session`, `password`, `credential` or `signature`. That covers `Authorization`, `Cookie`, `Set-Cookie` and `X-Api-Key`. The URL, including its query string, is logged as-is, so keep secrets out of query strings.
+
+> **Warning:** a custom `debug` function receives the live `Request`/`Response` with headers unredacted. Redacting secrets before you log them is up to you.
 
 ```typescript
 // Emit all events to console.debug
@@ -935,6 +944,10 @@ A few naming and ergonomics choices are intentional and locked for stability. Th
 - Node.js >= 22.0.0 (uses native fetch)
 - valibot >= 1.0.0
 - TypeScript `moduleResolution: "node16"` (or `"bundler"`/`"nodenext"`) — required to resolve subpath imports like `valifetch/types`, `valifetch/error`, `valifetch/auth`, and `valifetch/mock`
+
+## Security
+
+See [SECURITY.md](./SECURITY.md) for supported versions, how to report a vulnerability privately, and the threat model: what valifetch guarantees (prefix containment, path-param encoding, header-injection rejection, redacted `debug: true` logs, bounded SSE buffering and `Retry-After`) and what stays your responsibility (validating user-controlled full URLs, SSRF policy, response size limits).
 
 ## Contributing
 

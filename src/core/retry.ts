@@ -10,8 +10,15 @@ export type NormalizedRetryOptions = Required<
   Pick<RetryOptions, 'shouldRetry'>;
 
 /**
+ * Largest delay `setTimeout` honours (2^31 - 1 ms, ~24.8 days). Larger values
+ * overflow and fire after ~1 ms, so delays are clamped to this instead.
+ */
+export const MAX_TIMER_DELAY = 2_147_483_647;
+
+/**
  * Default retry configuration: 2 retries on idempotent methods and common transient status codes,
- * with exponential backoff + 20% jitter, capped at 30 s.
+ * with exponential backoff + 20% jitter, capped at 30 s. A server-sent `Retry-After` is honoured
+ * up to 60 s.
  */
 export const DEFAULT_RETRY_OPTIONS: NormalizedRetryOptions = {
   limit: 2,
@@ -22,6 +29,7 @@ export const DEFAULT_RETRY_OPTIONS: NormalizedRetryOptions = {
     const jitter = base * 0.2 * Math.random();
     return Math.min((base + jitter) * 1000, 30000);
   },
+  maxRetryAfter: 60_000,
 };
 
 /**
@@ -130,7 +138,9 @@ export function shouldRetryNetworkError(
  * @param ms - Duration in milliseconds
  */
 export function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  return new Promise((resolve) =>
+    setTimeout(resolve, Math.min(ms, MAX_TIMER_DELAY))
+  );
 }
 
 /**
@@ -140,20 +150,29 @@ export function sleep(ms: number): Promise<void> {
  * - A non-negative integer (seconds): `Retry-After: 120` → 120 000 ms
  * - An HTTP-date: `Retry-After: Wed, 21 Oct 2015 07:28:00 GMT` → ms until that date (min 0)
  *
- * Returns `null` when the header is absent or cannot be parsed.
+ * The result is clamped to `maxRetryAfter` so a hostile or misconfigured server cannot stall
+ * the client with a huge value. Returns `null` when the header is absent or cannot be parsed.
  *
  * @param response - The HTTP response to inspect
+ * @param maxRetryAfter - Upper bound in milliseconds (default: {@link DEFAULT_RETRY_OPTIONS}`.maxRetryAfter`)
  * @returns Delay in milliseconds, or `null` if the header is absent or unparseable
  */
-export function getRetryAfterDelay(response: Response): number | null {
+export function getRetryAfterDelay(
+  response: Response,
+  maxRetryAfter: number = DEFAULT_RETRY_OPTIONS.maxRetryAfter
+): number | null {
   const value = response.headers.get('retry-after');
   if (value === null) return null;
 
   const seconds = parseInt(value, 10);
-  if (Number.isFinite(seconds) && seconds >= 0) return seconds * 1000;
+  if (Number.isFinite(seconds) && seconds >= 0) {
+    return Math.min(seconds * 1000, maxRetryAfter);
+  }
 
   const date = Date.parse(value);
-  if (Number.isFinite(date)) return Math.max(0, date - Date.now());
+  if (Number.isFinite(date)) {
+    return Math.min(Math.max(0, date - Date.now()), maxRetryAfter);
+  }
 
   return null;
 }
