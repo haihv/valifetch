@@ -1005,6 +1005,8 @@ See [SECURITY.md](https://github.com/haihv/valifetch/blob/main/SECURITY.md) for 
 
 Issues and PRs welcome!
 
+Tests run with `npm test` (unit + integration). A separate browser smoke suite exercises valifetch against the native `fetch` of Chromium, Firefox and WebKit via Playwright: run `npm run test:browser:install` once to download the browsers, then `npm run test:browser`.
+
 ## License
 
 [MIT](LICENSE)
