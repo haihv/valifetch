@@ -5,6 +5,66 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-11-07
+
+First stable release. The public API is now covered by semantic versioning; see [Versioning & Stability](https://github.com/haihv/valifetch/blob/main/README.md#versioning--stability) in the README for what counts as a breaking change. Upgrading from 0.8.0: read the **Security** and **Changed** sections below; every item marked **Breaking** turns input that used to be accepted (sometimes unsafely) into a `TypeError` or a different outcome.
+
+### Security
+
+- **Prefix containment.** With `prefixUrl` set, the final URL always keeps the prefix origin and its path stays under the prefix path. Absolute or protocol-relative inputs (`https://evil.com`, `//evil.com`, `\\evil.com`) become path segments under the prefix, and a path that climbs above it with `..` (including `%2e%2e`, `.%2E`, `%2E.`) throws a `TypeError` before any request is sent. **Behaviour change.**
+- **`prefixUrl` with a query string or fragment is rejected.** A `?` or `#` in `prefixUrl` swallowed the request path into the query (`/v1?k=1` + `/users` → `?k=1/users`); it now throws a `TypeError` whose message does not echo the URL. **Behaviour change.**
+- **Dot-segment path params are rejected.** A `params` value of `.` or `..` throws a `TypeError`: `encodeURIComponent` leaves dots as-is and the URL parser resolves dot segments, so such a value silently walked up the path. **Behaviour change.**
+- **Path params are read as own properties only.** `:constructor` or `:toString` without a matching param now throws as missing instead of sending a stringified `Object.prototype` function. **Behaviour change.**
+- **Prototype-pollution-safe option merging.** `create()` / `extend()` assign user-supplied option and header keys as own data properties, so a JSON-derived `__proto__` key can no longer swap an object's prototype.
+- **`debug: true` no longer logs secrets.** It now logs a plain summary (`type`, `method`, `url`, `headers`, plus `attempt`/`status`/`responseHeaders` or `attempt`/`delay`/`reason`) instead of the raw `Request`/`Response`, with sensitive header and URL query-parameter values replaced by `[REDACTED]` (names containing `auth`, `cookie`, `token`, `secret`, `key`, `session`, `pass`, `credential`, `sig`, `jwt`, `dpop`, `csrf`, `xsrf`, `otp`, `bearer` or `code`). A custom `debug` function still receives the live objects. **Behaviour change.**
+- **Bounded `Retry-After`.** A server `Retry-After` longer than the new `retry.maxRetryAfter` (default 60 s) is not retried, so a server can no longer stall the client for an arbitrary time. Unlike ky, which clamps the wait to `maxRetryAfter` and still retries, valifetch skips the retry and surfaces the response. **Behaviour change.**
+- **Strict `Retry-After` parsing.** Only all-digit seconds or an HTTP-date are honoured; values such as `1.5`, `1e9`, `0x10`, `-1` or `5abc` (previously read by `parseInt`) are ignored in favour of the normal backoff. **Behaviour change.**
+- **Retry sleeps are clamped** to 0..2^31 − 1 ms, so a huge delay no longer overflows `setTimeout` into an immediate retry, and a `NaN` delay becomes 0.
+- **Bounded SSE buffering.** The SSE parser caps the pending (unterminated) event at `sseMaxEventSize` (default 16 MiB), checked after each chunk, and throws `PARSE_ERROR` past it (an event terminated within the same chunk is delivered whatever its size), so a server that never sends a blank line cannot exhaust memory. Each chunk is now scanned in linear time. **Behaviour change.**
+- **`SECURITY.md`** documents supported versions, private vulnerability reporting and the threat model (what valifetch guarantees and what stays your responsibility).
+
+### Added
+
+- **`RetryOptions.maxRetryAfter`** — the longest server-sent `Retry-After`, in milliseconds, the client is willing to wait (default `60_000`; `Infinity` waits for any value; an invalid value falls back to the default). A longer delay is handled as if retries were exhausted. The check runs after `shouldRetry` and before `beforeRetry`, so no `beforeRetry` hook or `retry` debug event fires for it.
+- **`sseMaxEventSize` option** — largest pending (unterminated) SSE event buffered, in UTF-16 code units (default 16 MiB, 16,777,216; `Infinity` disables the cap). Allowed on `create()` / `extend()` and per call; the per-call value wins.
+- **JSR `auth` and `mock` entry points** — `jsr:@haihv/valifetch/auth` and `jsr:@haihv/valifetch/mock` are now published alongside the main entry, keeping the 100% documentation score. `./error` and `./types` stay npm-only because they only re-export symbols already in `.`, `./auth` or `./mock`.
+- **Documentation site** — a VitePress site with guides, recipes (auth, SSE, mocking, pagination, parallel requests, file upload), migration guides from ky and axios, and an API reference generated from JSDoc with TypeDoc, deployed to GitHub Pages by CI.
+- **Browser test suite** — Vitest browser-mode smoke tests against the native `fetch` of Chromium, Firefox and WebKit via Playwright (`npm run test:browser`), run in CI.
+- **Semver policy** — the README "Versioning & Stability" section (condensed in `llms.txt` and `AGENTS.md`) defines the public API and what is major, minor and patch, including which documented defaults are covered.
+
+### Changed
+
+- **Breaking:** a request path that resolves outside `prefixUrl` (`/../admin`, `/%2e%2e/admin`) throws a `TypeError`. Previously the URL parser silently resolved it above the prefix path.
+- **Breaking:** a `prefixUrl` containing `?` or `#` throws a `TypeError`. Put default query values in `searchParams`.
+- **Breaking:** a path param whose value is `.` or `..` throws a `TypeError`.
+- **Breaking:** path params are looked up as own properties only; a param resolved from `Object.prototype` now throws as missing.
+- **Breaking:** a retryable response whose `Retry-After` exceeds `retry.maxRetryAfter` (default 60 s) is no longer retried; it throws `HTTP_ERROR` (or is returned with `throwHttpErrors: false`). Previously any `Retry-After` was waited for. Pass `maxRetryAfter: Infinity` for the old behaviour.
+- **Breaking:** `Retry-After` parsing is strict; malformed values that `parseInt` used to accept are ignored and the normal backoff applies.
+- **Breaking:** a pending (unterminated) SSE event larger than 16 MiB now throws `PARSE_ERROR`; set `sseMaxEventSize: Infinity` to restore unbounded buffering.
+- **Breaking:** `debug: true` output changed from the raw `DebugEvent` (live `Request`/`Response`) to a plain, redacted summary object. Custom `debug` functions are unchanged.
+- **Breaking:** a `ReadableStream` request `body` throws a `TypeError` before calling `fetch` on runtimes that cannot stream request bodies (Firefox), instead of sending a corrupted body. Node 22+, Deno and Chromium-based browsers (over HTTP/2 or newer) still stream them.
+- A per-request or child-instance `retry` object replaces the instance `retry` object entirely; this was already the behaviour and is now documented (restate `maxRetryAfter` when you override `retry`).
+
+### Fixed
+
+- SSE: a `\r\n` pair split across two chunks no longer produces a spurious blank line, which could split one event into two.
+- SSE: a line ending in `\r` is processed as soon as its chunk arrives, so a CR-only server's events are no longer held back until the next chunk.
+- SSE: leaving the `for await` loop early (`break`, `return` or a throw) now cancels the response body and releases the connection instead of leaving it open.
+- The JSR main, `auth` and `mock` entries now pass `deno check`: URL search-param merging and the mock call recorder no longer iterate `URLSearchParams` / `Headers`, which Deno's bundled lib types without an iterator.
+- `valifetch/mock`: a `__proto__` request header is recorded as a plain own key instead of invoking the prototype setter.
+- `valifetch/mock`: runs of `*` in a URL pattern are collapsed before compiling, avoiding polynomial backtracking on a non-matching path.
+- Firefox: a `ReadableStream` request body was silently sent as the string `[object ReadableStream]`; it now throws a `TypeError` (see **Changed**).
+- Docs: README corrections — `delete()` and `options()` reject `json`/`form`/`body` like `get()`, the hook-signature note now says ky 1.x, and mocked responses are not retried by the `retry` option.
+
+### Maintenance
+
+- Bump dev dependencies to latest (Biome 2.6.6, Vitest and `@vitest/coverage-v8` 5.1, `@types/node` 26.6.6, axios 1.21, `@emnapi/*`) and override `zod` to `^4.6.7`; `npm audit` reports 0 vulnerabilities.
+- Benchmarks migrated to the Vitest 5 `bench.compare` API; README and `llms.txt` benchmark tables re-measured.
+- TypeScript stays on 6.0.3: tsup 9 builds declarations through the TypeScript compiler API, which TypeScript 7 no longer ships.
+- The `zod` 4 override also applies to the Codecov bundler plugin, which is written against zod 3: its custom option-validation messages (`invalid_type_error`) fall back to zod's default wording. Harmless here because the plugin options are static.
+- New `deno` CI job: `deno check` on the three JSR entry points, a Deno runtime smoke test (`tests/deno/smoke.ts`, also `npm run test:deno`) and `npx jsr publish --dry-run`.
+- CI hardening: job `timeout-minutes`, `persist-credentials: false` on every checkout, and a build-only docs workflow run on pull requests.
+
 ## [0.8.0] - 2026-08-21
 
 ### Added
@@ -20,7 +80,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Breaking: `extend()` now inherits/applies every instance option.** Previously the object form of `extend()` silently dropped child `dedupe`, `onDownloadProgress`, `searchParams`, and `priority`. ([#47](https://github.com/haihv/valifetch/pull/47))
 - **Instance-level `searchParams` is now applied.** Instance values are defaults; per-request `searchParams` merge on top, with the request winning per key. `extend()` merges parent and child `searchParams` the same way.
 - **Instance-level `onDownloadProgress` now works** (previously ignored when set via `create()`/`extend()`).
-- **Breaking: `form` is now request-only.** Removed from instance (`create()`/`extend()`) options, and no longer accepted on `get()`/`head()`. `json`/`form` remain available on `post`/`put`/`patch`/`delete`/`options`.
+- **Breaking: `form` is now request-only.** Removed from instance (`create()`/`extend()`) options, and no longer accepted on `get()`/`head()`. `json`/`form` remain available on `post`/`put`/`patch`/`delete`/`options` (the types already rejected them on `delete`/`options`; corrected in 1.0.0 docs).
 - **Breaking: `signal` (and `window`) removed from instance options** — request-only now. `priority` (`'high' | 'low' | 'auto'`) is now forwarded to `fetch` from both instance and per-request options.
 - **Breaking: deduplication key changed.** `dedupe: true` now keys on the fully-resolved URL (`prefixUrl` + path params + merged `searchParams`) plus method, scoped per instance (also for `create()` with no arguments — each such instance gets its own dedupe cache) — different search params or different instances no longer collide. `.cancel()` on a deduped promise aborts the shared request for every caller. ([#47](https://github.com/haihv/valifetch/pull/47))
 - **Breaking: `NormalizedOptions` (what hooks receive) now reflects what's actually present** — `method`, `headers: Headers`, `signal` (the composed signal: caller signal + `.cancel()` controller, not the caller's raw signal), and required `hooks`/`validateRequest`/`validateResponse`/`throwHttpErrors`, plus optional `responseType`, `responseSchema`, `bodySchema`, `paramsSchema`, `searchSchema`, `json`, `params`.

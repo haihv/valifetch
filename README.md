@@ -970,7 +970,7 @@ From 1.0.0, valifetch follows [Semantic Versioning](https://semver.org). The pub
 - Removing or renaming any export of the five subpaths (`.`, `./error`, `./types`, `./auth`, `./mock`), or removing a subpath.
 - Changing a hook signature (the positional arguments of `beforeRequest`, `afterResponse`, `afterParseResponse`, `beforeRetry`, `beforeError`) or hook ordering semantics (parent hooks run before child hooks; hooks run in array order).
 - Renaming an option, or changing an option's type so that previously valid input is rejected at compile time or at runtime.
-- Changing a documented default: retry limit `2`, retry statuses `[408, 413, 429, 500–504]`, retry-eligible methods, `throwHttpErrors: true`, no timeout unless `timeout` is set, and so on.
+- Changing a documented default: retry limit `2`, retry statuses `[408, 413, 429, 500–504]`, retry-eligible methods, `retry.maxRetryAfter` `60000` ms, `sseMaxEventSize` 16 MiB (16,777,216 UTF-16 code units), `throwHttpErrors: true`, no timeout unless `timeout` is set, and so on.
 - Removing or renaming a `ValifetchError` code, or changing which code a given failure produces (for example a failure that surfaced as `NETWORK_ERROR` now surfacing as `ABORT_ERROR`).
 - Changing the return type of an HTTP method, or the shape of a `ValifetchError` field.
 - Raising the minimum Node.js major (currently `>=22`). Dropping a Node.js version is a breaking change even when that version is end-of-life, so it only ships in a major release. This keeps `engines` a promise users can rely on within a major line.
