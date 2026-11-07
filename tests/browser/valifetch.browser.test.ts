@@ -161,11 +161,12 @@ describe(`browser smoke (${engine}) — native fetch`, () => {
     expect(echo.contentType).toBe('application/x-custom');
   });
 
-  // No engine supports a half-duplex streaming upload over the plain HTTP/1.1
-  // test server, but they fail differently, so each is asserted explicitly:
-  // - Chromium and WebKit reject the request (streaming uploads need HTTP/2+).
-  // - Firefox ignores the stream and sends its string form instead, which is
-  //   silent data corruption; asserted here so a fix or a change is noticed.
+  // No engine can stream a request body over the plain HTTP/1.1 test server,
+  // but they fail differently, so each is asserted explicitly:
+  // - Firefox cannot stream request bodies at all; valifetch detects this and
+  //   throws a TypeError instead of letting it send "[object ReadableStream]".
+  // - Chromium and WebKit attempt the upload and the network rejects it
+  //   (streaming uploads need HTTP/2 or newer).
   it("ReadableStream body: documents each engine's actual behaviour", async () => {
     const stream = new ReadableStream<Uint8Array>({
       start(controller) {
@@ -179,9 +180,7 @@ describe(`browser smoke (${engine}) — native fetch`, () => {
     });
 
     if (engine === 'firefox') {
-      const echo = (await request) as Echo;
-      expect(echo.body).toBe('[object ReadableStream]');
-      expect(echo.contentType).toContain('text/plain');
+      await expect(request).rejects.toThrow(TypeError);
     } else {
       await expect(request).rejects.toMatchObject({ code: 'NETWORK_ERROR' });
     }

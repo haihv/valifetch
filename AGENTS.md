@@ -76,7 +76,8 @@ await api.put('/blobs/1', {
   headers: { 'content-type': 'application/octet-stream' },
 });
 
-// ReadableStream — `duplex: 'half'` is added automatically
+// ReadableStream — `duplex: 'half'` is added automatically. Needs runtime support
+// (Node 22+, Chromium over HTTP/2+, Safari; not Firefox) — otherwise a TypeError is thrown
 await api.put('/blobs/1', {
   body: fileStream,
   headers: { 'content-type': 'application/octet-stream' },
@@ -274,7 +275,7 @@ try {
 | `searchSchema` | Validate query params |
 | `json` | JSON request body; request-only, not on `get()`/`head()` |
 | `form` | FormData / URLSearchParams / Record\<string, string\> (plain object values must be strings); request-only — not accepted on `create()`/`extend()`, and not on `get()`/`head()` |
-| `body` | Raw body (`RawBody` = string / Blob / ArrayBuffer / ArrayBufferView / ReadableStream\<Uint8Array\>) sent as-is — no validation, no `Content-Type` inference, `duplex: 'half'` added for streams; request-only — not accepted on `create()`/`extend()`, and not on `get()`/`head()` |
+| `body` | Raw body (`RawBody` = string / Blob / ArrayBuffer / ArrayBufferView / ReadableStream\<Uint8Array\>) sent as-is — no validation, no `Content-Type` inference, `duplex: 'half'` added for streams (TypeError where the runtime cannot stream request bodies, e.g. Firefox); request-only — not accepted on `create()`/`extend()`, and not on `get()`/`head()` |
 | `params` | Path param values; `encodeURIComponent`-encoded, own keys only; `.` / `..` throw a `TypeError` |
 | `searchParams` | Query string; instance value is a default, per-request value merges on top (request wins per key). Explicit `undefined`/`null` on a request key removes the instance default for that key. Instance defaults are appended to any query string already in the request path, not merged into it. |
 | `prefixUrl` | Base URL for the instance. The final URL always keeps the prefix origin and stays under the prefix path; a `..` / `%2e%2e` path that climbs above it throws a `TypeError`; a prefix containing `?` or `#` also throws a `TypeError` (use `searchParams`) |

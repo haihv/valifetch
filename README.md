@@ -319,7 +319,7 @@ Rules:
 - **No `Content-Type` inference.** Valifetch never sets one for a raw body — set it yourself. (The platform `Request` constructor still applies its own spec default for `string` and `Blob` bodies.)
 - **Mutually exclusive** with `json` and `form`; setting more than one throws a `TypeError`.
 - **Request-only**, and rejected on the bodyless methods (`get`, `head`, `delete`, `options`).
-- **`duplex: 'half'`** is added automatically for `ReadableStream` bodies, which the runtime requires.
+- **`duplex: 'half'`** is added automatically for `ReadableStream` bodies, which the runtime requires. Streaming request bodies need runtime support: Node 22+, Chromium-based browsers (over HTTP/2 or newer) and Safari; Firefox does not support them. Where the runtime cannot stream, valifetch throws a `TypeError` before calling `fetch` (instead of the browser silently sending `[object ReadableStream]`) — pass a `Blob`, `ArrayBuffer` or string there.
 - **Retries re-send the body.** The request is cloned before each attempt, so `Blob`, `ArrayBuffer`, and string bodies re-send identically. A `ReadableStream` body is teed on clone, which buffers the stream in memory — pass `retry: false` for large streamed uploads if that matters.
 
 ### Search Parameters
