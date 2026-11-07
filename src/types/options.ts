@@ -64,7 +64,9 @@ export type RetryContext = {
 );
 
 /**
- * Retry configuration
+ * Retry configuration. A per-request or child-instance `retry` value replaces
+ * the instance `retry` object entirely (fields, including `maxRetryAfter`, are
+ * not merged with the parent's); unset fields take the built-in defaults.
  */
 export type RetryOptions = {
   /** Max retry attempts (default: 2) */
@@ -81,10 +83,20 @@ export type RetryOptions = {
    */
   delay?: (attemptCount: number) => number;
   /**
-   * Upper bound in milliseconds for a server-sent `Retry-After` delay. Larger
-   * values (integer seconds or HTTP-date) are clamped to this, so a hostile or
-   * misconfigured server cannot stall the client. Pass `Infinity` to honour any
-   * value (still clamped to the ~24.8-day `setTimeout` limit).
+   * Longest server-sent `Retry-After` delay, in milliseconds, the client is
+   * willing to wait. When a retryable response asks for longer (integer seconds
+   * or HTTP-date), the request is NOT retried: the response is handled as if
+   * retries were exhausted (an `HTTP_ERROR` through `beforeError`, or returned
+   * as-is with `throwHttpErrors: false`). The check runs after `shouldRetry`
+   * says "retry" and before `beforeRetry`, so no `beforeRetry` hook or `retry`
+   * debug event fires for it. `Infinity` honours any value (the wait itself is
+   * still clamped to the ~24.8-day `setTimeout` limit); a non-number, `NaN` or
+   * negative value falls back to the default. A malformed `Retry-After` (not
+   * all-digit seconds, not an HTTP-date) is ignored in favour of `delay`.
+   *
+   * A per-request or child-instance `retry` value replaces the instance `retry`
+   * object entirely (fields are not merged), so restate `maxRetryAfter` there
+   * if you changed it.
    *
    * @default 60000
    */
@@ -162,10 +174,12 @@ export type DebugEvent =
  * Controls structured debug logging of request lifecycle events.
  * - `true` — logs a plain summary of each event via `console.debug('[valifetch]', summary)`:
  *   `type`, `method`, `url`, request `headers`, plus `attempt`/`status`/`responseHeaders`
- *   (response) or `attempt`/`delay`/`reason` (retry). Values of headers whose name
- *   contains `auth`, `cookie`, `token`, `secret`, `key`, `session`, `password`,
- *   `credential` or `signature` are replaced with `'[REDACTED]'`. The URL (including
- *   its query string) is logged as-is.
+ *   (response) or `attempt`/`delay`/`reason` (retry). Values of headers, and of URL
+ *   query parameters, whose name matches `auth`, `cookie`, `token`, `secret`, `key`,
+ *   `session`, `pass`, `credential`, `sig`, `jwt`, `dpop`, `csrf`, `xsrf`, `otp`,
+ *   `bearer` or `code` (case-insensitive substring) are replaced with `'[REDACTED]'`.
+ *   Matching is deliberately broad, so some harmless names are redacted too. The URL
+ *   path and fragment are logged as-is.
  * - function — receives each `DebugEvent` directly, with the live `Request`/`Response`
  *   (headers unredacted); redacting secrets is then the function's responsibility
  */
@@ -190,7 +204,11 @@ export type ValifetchBaseOptions = Omit<
   RequestInit,
   'body' | 'method' | 'window'
 > & {
-  /** Base URL prefix for all requests */
+  /**
+   * Base URL prefix for all requests. Resolved request paths must stay under it
+   * (a `..` escape throws a `TypeError`). Must not contain a query string or
+   * fragment (`?`/`#` throws a `TypeError`); use `searchParams` for defaults.
+   */
   prefixUrl?: string;
   /**
    * Request timeout in milliseconds.
@@ -245,6 +263,18 @@ export type ValifetchBaseOptions = Omit<
    * Pass `true` to emit via `console.debug`, or a function to handle events directly.
    */
   debug?: DebugOption;
+  /**
+   * Largest single Server-Sent Event the `responseType: 'sse'` parser buffers,
+   * in UTF-16 code units (one per ASCII character). A pending event that grows
+   * past it cancels the stream and throws a `PARSE_ERROR`, bounding memory
+   * against a server that never sends an event boundary. `Infinity` disables
+   * the cap; a non-number, `NaN` or negative value falls back to the default.
+   * Allowed at instance level (merged by `create`/`extend`) and per call; the
+   * per-call value wins. Ignored for every other `responseType`.
+   *
+   * @default 16777216 (16 MiB)
+   */
+  sseMaxEventSize?: number;
 };
 
 /**

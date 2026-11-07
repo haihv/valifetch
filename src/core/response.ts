@@ -101,11 +101,13 @@ export async function parseJsonResponse<T extends GenericSchema>(
 }
 
 /**
- * Largest pending (not yet terminated) SSE event the parser buffers, in UTF-16
- * code units (1 MiB of ASCII). A stream that never sends a blank line would
- * otherwise grow the buffer without bound.
+ * Default largest pending (not yet terminated) SSE event the parser buffers, in
+ * UTF-16 code units (16 MiB of ASCII). Generous because legitimate streams (e.g.
+ * AI responses) can carry a base64 image in one event; a stream that never sends
+ * a blank line would otherwise grow the buffer without bound. Override per
+ * instance or per call with the `sseMaxEventSize` option.
  */
-export const MAX_SSE_EVENT_SIZE = 1024 * 1024;
+export const MAX_SSE_EVENT_SIZE = 16 * 1024 * 1024;
 
 /**
  * Parses a Server-Sent Events (SSE) response body into an `AsyncIterable<MessageEvent>`.
@@ -118,11 +120,16 @@ export const MAX_SSE_EVENT_SIZE = 1024 * 1024;
  * - `retry:` is parsed but not yielded (reconnect hint, not applicable to a one-shot fetch)
  * - Lines starting with `:` are comments and are ignored
  * - Handles `\n`, `\r`, and `\r\n` line endings per the SSE spec, including a
- *   `\r\n` pair split across two chunks
+ *   `\r\n` pair split across two chunks. A chunk ending in `\r` terminates its
+ *   line immediately (no wait for the next chunk); a `\n` opening the next chunk
+ *   is then dropped as the second half of that `\r\n`
  *
  * A single event larger than `maxEventSize` cancels the stream and throws a
  * `ValifetchError` with code `PARSE_ERROR`, bounding memory use against a
- * hostile or broken server.
+ * hostile or broken server. Pass `Infinity` to disable the cap.
+ *
+ * Leaving the iteration early (`break`, `return`, or a thrown error in the loop
+ * body) cancels the underlying response body so the connection is released.
  *
  * Yields nothing and returns immediately when `body` is `null`
  * (e.g. a 204 No Content response).
@@ -155,8 +162,12 @@ export async function* parseSSEResponse(
   // Where the next `\n\n` search starts: everything before it was already
   // scanned, so each chunk costs O(chunk) instead of O(buffer).
   let scanFrom = 0;
-  // A chunk ending in `\r` may be the first half of a `\r\n` pair.
-  let pendingCR = false;
+  // A chunk ending in `\r` may be the first half of a `\r\n` pair. The `\r`
+  // already ended the line, so a `\n` opening the next chunk must be dropped
+  // rather than read as a second (blank) line, which would split the event.
+  let skipLeadingLF = false;
+  // Whether the stream was read to its end; otherwise it is cancelled on exit.
+  let finished = false;
 
   const dispatchEvent = function* (block: string): Iterable<MessageEvent> {
     if (!block.trim()) return;
@@ -197,11 +208,15 @@ export async function* parseSSEResponse(
   try {
     while (true) {
       const { done, value } = await reader.read();
-      if (done) break;
+      if (done) {
+        finished = true;
+        break;
+      }
 
-      let chunk: string = pendingCR ? `\r${value}` : value;
-      pendingCR = chunk.endsWith('\r');
-      if (pendingCR) chunk = chunk.slice(0, -1);
+      // TextDecoderStream never enqueues empty strings, so `value` is non-empty.
+      const chunk: string =
+        skipLeadingLF && value.startsWith('\n') ? value.slice(1) : value;
+      skipLeadingLF = chunk.endsWith('\r');
       buffer += normalise(chunk);
 
       let boundary: number;
@@ -215,7 +230,7 @@ export async function* parseSSEResponse(
       scanFrom = Math.max(0, buffer.length - 1);
 
       if (buffer.length > maxEventSize) {
-        await reader.cancel();
+        // The finally block cancels the stream.
         throw new ValifetchError({
           message: `SSE event exceeds the ${maxEventSize}-character limit`,
           code: 'PARSE_ERROR',
@@ -225,12 +240,15 @@ export async function* parseSSEResponse(
       }
     }
 
-    if (pendingCR) buffer += '\n';
     // Flush any trailing event that wasn't followed by a blank line
     if (buffer.trim()) {
       yield* dispatchEvent(buffer);
     }
   } finally {
+    // Early exit (consumer `break`, size limit, read error): cancel so the
+    // source body and its connection are released instead of left dangling.
+    // A cancel on an already-errored stream rejects; that error is moot here.
+    if (!finished) await reader.cancel().catch(() => undefined);
     reader.releaseLock();
   }
 }

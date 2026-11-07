@@ -18,8 +18,8 @@ valifetch wraps native `fetch` with:
 - Valibot schema validation on request body, response, path params, and search params
 - Full TypeScript inference from schemas
 - Retry with exponential backoff + `Retry-After` header support, timeout, hooks, deduplication, download progress
-- SSE (`responseType: 'sse'`) — returns `AsyncIterable<MessageEvent>` with built-in SSE frame parsing; a single event over 1 MiB cancels the stream and throws `PARSE_ERROR`
-- Security guarantees and caller responsibilities: see `SECURITY.md`
+- SSE (`responseType: 'sse'`) — returns `AsyncIterable<MessageEvent>` with built-in SSE frame parsing; a single pending event over `sseMaxEventSize` (default 16 MiB of UTF-16 code units) cancels the stream and throws `PARSE_ERROR`; `break`ing out of the loop cancels the response body
+- Security guarantees and caller responsibilities: see [SECURITY.md](https://github.com/haihv/valifetch/blob/main/SECURITY.md)
 
 ## Quick start
 
@@ -134,9 +134,9 @@ batch.cancel();
 | `body` | `RawBody` = string \| Blob \| ArrayBuffer \| ArrayBufferView \| ReadableStream\<Uint8Array\> | Raw body sent as-is — no validation, no `Content-Type` inference; request-only, not on `get()`/`head()`. Streams get `duplex: 'half'` automatically |
 | `params` | object | Path param values for `:name` replacement; values are `encodeURIComponent`-encoded, own keys only, and `.` / `..` throw a `TypeError` |
 | `searchParams` | object \| URLSearchParams | Query string; instance value is a default, per-request value merges on top (request wins per key). Explicit `undefined`/`null` on a request key removes the instance default for that key. Instance defaults are appended to any query string already in the request path, not merged into it. |
-| `prefixUrl` | string | Base URL. The final URL always keeps the prefix origin and stays under the prefix path; `https://evil.com` / `//evil.com` inputs become path segments, and a `..` (or `%2e%2e`) path that climbs above the prefix throws a `TypeError` |
+| `prefixUrl` | string | Base URL. The final URL always keeps the prefix origin and stays under the prefix path; `https://evil.com` / `//evil.com` inputs become path segments, and a `..` (or `%2e%2e`) path that climbs above the prefix throws a `TypeError`; a prefix containing `?` or `#` also throws a `TypeError` (use `searchParams`) |
 | `timeout` | number | Ms before TIMEOUT_ERROR (default: none — never times out; `0` also disables) |
-| `retry` | RetryOptions \| number \| false | Retry config — `{ limit, methods, statusCodes, delay, maxRetryAfter, shouldRetry(ctx) }` (defaults: `limit: 2`, `methods: ['GET','PUT','HEAD','DELETE','OPTIONS']`, `statusCodes: [408,413,429,500,502,503,504]`, `delay(attempt) = 0.3 * 2**attempt`s + 20% jitter, capped 30s, `maxRetryAfter: 60000` ms clamps a server `Retry-After`; `Infinity` honours any value) |
+| `retry` | RetryOptions \| number \| false | Retry config — `{ limit, methods, statusCodes, delay, maxRetryAfter, shouldRetry(ctx) }` (defaults: `limit: 2`, `methods: ['GET','PUT','HEAD','DELETE','OPTIONS']`, `statusCodes: [408,413,429,500,502,503,504]`, `delay(attempt) = 0.3 * 2**attempt`s + 20% jitter, capped 30s, `maxRetryAfter: 60000` ms). Retry-After parsing is strict: all-digit seconds after trimming, or an HTTP-date (must contain a letter); anything else (`1.5`, `1e9`, `0x10`, `-1`) is ignored and `delay` backoff applies. If the requested delay exceeds `retry.maxRetryAfter` (default `60_000` ms; `Infinity` = no cap; non-number/`NaN`/negative → default), the request is NOT retried: it is handled as if retries were exhausted (`HTTP_ERROR` through `beforeError`, or returned with `throwHttpErrors: false`). That check runs after `shouldRetry` and before `beforeRetry`, so no `beforeRetry` hook or `retry` debug event fires. Retry sleeps are clamped to 0..2^31 − 1 ms (`NaN` → 0). A per-request or `extend()` `retry` value replaces the instance `retry` object entirely (no field merge), so restate `maxRetryAfter` when overriding. |
 | `responseType` | `'json'` \| `'text'` \| `'blob'` \| `'arrayBuffer'` \| `'formData'` \| `'stream'` \| `'raw'` \| `'sse'` | Response format; per-call only, not on `create()`/`extend()` |
 | `validateResponse` | boolean | Validate response against `responseSchema` (default: true) |
 | `validateRequest` | boolean | Validate body/params/search schemas (default: true) |
@@ -145,7 +145,8 @@ batch.cancel();
 | `onDownloadProgress` | function | Progress callback `{ loaded, total, percent }`; not called for `responseType: 'stream' \| 'raw' \| 'sse'`; works at instance level too |
 | `priority` | `'high'` \| `'low'` \| `'auto'` | Forwarded to `fetch` unchanged |
 | `signal` | AbortSignal | Request-only — not on `create()`/`extend()` |
-| `debug` | `true` \| `(event: DebugEvent) => void` | Structured lifecycle logging (request, response, retry, cancel); `true` logs a summary with sensitive header values redacted |
+| `debug` | `true` \| `(event: DebugEvent) => void` | Structured lifecycle logging (request, response, retry, cancel); `true` logs a summary with sensitive header and query-parameter values redacted |
+| `sseMaxEventSize` | number | Largest single pending SSE event buffered for `responseType: 'sse'`, in UTF-16 code units (default 16 MiB = 16777216; `Infinity` = no cap; non-number/`NaN`/negative → default). Allowed on `create()`/`extend()` and per call (per call wins) |
 | `hooks` | object | `beforeRequest`, `afterResponse`, `afterParseResponse`, `beforeRetry`, `beforeError` arrays |
 
 ## Design notes (intentional, locked)
@@ -271,7 +272,7 @@ const user  = await api('/users', { method: 'POST', json: { name: 'Jane' } });
 
 ## Debug mode
 
-`debug: true` logs a plain summary per event: `{ type, method, url, headers }` plus `attempt`/`status`/`responseHeaders` (response) or `attempt`/`delay`/`reason` (retry). Header values are replaced with `'[REDACTED]'` when the name contains `auth`, `cookie`, `token`, `secret`, `key`, `session`, `password`, `credential` or `signature`. The URL (query string included) is logged as-is. A custom `debug` function receives the live, unredacted `Request`/`Response`, so redact before you log.
+`debug: true` logs a plain summary per event: `{ type, method, url, headers }` plus `attempt`/`status`/`responseHeaders` (response) or `attempt`/`delay`/`reason` (retry). Values of headers and of URL query parameters are replaced with `'[REDACTED]'` when the name contains (case-insensitive) `auth`, `cookie`, `token`, `secret`, `key`, `session`, `pass`, `credential`, `sig`, `jwt`, `dpop`, `csrf`, `xsrf`, `otp`, `bearer` or `code` — deliberately broad, so some harmless names are redacted too (e.g. `?access_token=S&X-Amz-Signature=S&code=S&page=2` logs only `page=2` unredacted). The live request is not modified; the URL path is logged as-is. A custom `debug` function receives the live, unredacted `Request`/`Response`, so redact before you log.
 
 ```typescript
 // debug: true → console.debug('[valifetch]', summary) for every lifecycle event

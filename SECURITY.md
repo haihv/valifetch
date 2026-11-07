@@ -37,7 +37,9 @@ from your own users are untrusted.**
   path stays under the prefix path. Inputs like `https://evil.com`, `//evil.com`, `\\evil.com` or
   `http:evil.com` become path segments under the prefix, not a new host. A path that climbs above
   the prefix with `..` (including the encoded forms `%2e%2e`, `.%2E` and `%2E.`) throws a
-  `TypeError` before any request is sent.
+  `TypeError` before any request is sent. A `prefixUrl` containing a query string or fragment
+  (`?` or `#`) also throws a `TypeError`, so a path can never be swallowed into the prefix query;
+  that error message does not echo the URL.
 - **Path-param encoding.** `params` values are encoded with `encodeURIComponent`, so `/`, `?`, `#`,
   `\` and `%` inside a value cannot add path segments, a query string, a fragment or a host. The
   values `.` and `..` cannot be encoded safely (URL parsers resolve dot segments), so they throw a
@@ -51,21 +53,36 @@ from your own users are untrusted.**
   sent. `basicAuth` base64-encodes its credentials, so they cannot split a header.
 - **Prototype-pollution-safe option merging.** `create()` / `extend()` merging assigns user-supplied
   keys as own data properties. A JSON-derived `__proto__` key in options or headers cannot change
-  any object's prototype or `Object.prototype`. valifetch never deep-merges user objects.
+  any object's prototype or `Object.prototype`. valifetch never deep-merges user objects. The
+  `valifetch/mock` call recorder keeps a `__proto__` request header as a plain own key too.
 - **No secrets in built-in logs.** `debug: true` logs a summary rather than the raw
-  `Request`/`Response`. It replaces with `[REDACTED]` the value of any header whose name contains
-  `auth`, `cookie`, `token`, `secret`, `key`, `session`, `password`, `credential` or `signature`.
+  `Request`/`Response`. It replaces with `[REDACTED]` the value of any header, and of any URL query
+  parameter, whose name contains (case-insensitive) `auth`, `cookie`, `token`, `secret`, `key`,
+  `session`, `pass`, `credential`, `sig`, `jwt`, `dpop`, `csrf`, `xsrf`, `otp`, `bearer` or
+  `code`. This covers `Authorization`, cookies, API keys, `?access_token=`, presigned-URL
+  signatures (`X-Amz-Signature`) and OAuth `?code=`. The match is deliberately broad and
+  over-redacts some harmless names. The request itself is never modified.
 - **No headers in errors.** A `ValifetchError` message and its `JSON.stringify` output never
   include request headers.
 - **Bounded parsing of untrusted responses.**
-  - The SSE parser buffers at most 1 MiB for one unterminated event. Past that it cancels the stream
-    and throws `PARSE_ERROR`, and it scans each chunk in linear time.
-  - A server `Retry-After` is clamped to `retry.maxRetryAfter` (default 60 s).
-  - Every retry sleep is clamped to the `setTimeout` limit, so a huge value never overflows into an
-    immediate retry.
+  - The SSE parser buffers at most `sseMaxEventSize` UTF-16 code units (default 16 MiB) for one
+    unterminated event. Past that it cancels the stream and throws `PARSE_ERROR`, and it scans each
+    chunk in linear time. `sseMaxEventSize: Infinity` removes this bound; an invalid value falls
+    back to the default. Leaving the `for await` loop early cancels the response body, so an
+    abandoned stream does not keep its connection open.
+  - A server `Retry-After` is parsed strictly (all-digit seconds or an HTTP-date; anything else is
+    ignored). A delay longer than `retry.maxRetryAfter` (default 60 s) is never waited for and never
+    shortened: the request is not retried and the error response is returned or thrown. A server
+    therefore cannot stall the client, and the client never retries before the server's requested
+    time. An invalid `maxRetryAfter` falls back to the default.
+  - Every retry sleep is clamped to 0..2^31 − 1 ms (the `setTimeout` limit), so a huge value never
+    overflows into an immediate retry and a `NaN` delay becomes 0.
   - Retries are always bounded by `retry.limit`, even with a `shouldRetry` predicate that always
     returns `true`.
-  - No regular expression applied to response data or URLs can backtrack catastrophically.
+  - In the core client, no regular expression applied to response data or URLs can backtrack
+    catastrophically. This claim does not cover the `valifetch/mock` test helper, whose `*`
+    wildcards compile to `.*` (consecutive `*` are collapsed to one, but patterns are test-author
+    code, not untrusted input).
 - **Credentials on redirects.** valifetch delegates redirects to the platform `fetch`. Per the
   Fetch standard, a runtime must drop `Authorization` when a redirect changes origin. On Node
   (undici), a test against a real server confirms this, and that `Cookie` is dropped too. On
@@ -84,8 +101,9 @@ from your own users are untrusted.**
   URLs through them.
 - **Hooks you write.** A `beforeRetry` or `afterResponse` hook that builds a new `Request` for a
   different URL also decides which headers go with it. valifetch does not strip them for you.
-- **Custom `debug` functions** receive the live, unredacted `Request`/`Response`. `debug: true` logs
-  the URL with its query string as-is, so keep secrets out of query strings.
+- **Custom `debug` functions** receive the live, unredacted `Request`/`Response`. `debug: true`
+  redacts only names matching its pattern, and logs the URL path as-is, so keep secrets out of
+  paths and out of oddly named query parameters.
 - **Param semantics.** Encoding stops a param from changing the URL structure. It does not stop an
   empty string (`/users/` instead of `/users/42`) or an unexpected ID. Validate params with
   `paramsSchema` (for example `v.pipe(v.string(), v.minLength(1))`).

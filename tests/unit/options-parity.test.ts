@@ -74,6 +74,36 @@ describe('instance/request option parity', () => {
       expect(requestSpy.mock.calls[0][1]?.priority).toBe('high');
     });
 
+    it('carries sseMaxEventSize from the child options', async () => {
+      const encoder = new TextEncoder();
+      fetchSpy.mockResolvedValueOnce(
+        new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller) {
+              controller.enqueue(encoder.encode('data: '));
+              controller.enqueue(encoder.encode('x'.repeat(64)));
+              controller.close();
+            },
+          }),
+          { headers: { 'content-type': 'text/event-stream' } }
+        )
+      );
+      const api = valifetch
+        .create({ prefixUrl: 'https://api.example.com' })
+        .extend({ sseMaxEventSize: 16 });
+
+      const events = await api.get<AsyncIterable<MessageEvent>>('/events', {
+        responseType: 'sse',
+      });
+      const consume = async (): Promise<void> => {
+        for await (const _event of events) {
+          // never reached: the pending event exceeds the cap
+        }
+      };
+
+      await expect(consume()).rejects.toMatchObject({ code: 'PARSE_ERROR' });
+    });
+
     it('ignores child keys explicitly set to undefined', async () => {
       const api = valifetch
         .create({ prefixUrl: 'https://api.example.com', timeout: 5000 })

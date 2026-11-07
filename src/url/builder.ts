@@ -34,7 +34,8 @@ function assertWithinPrefix(url: URL, prefix: URL): void {
 /**
  * Build a URL from parts, handling path params and search params.
  * With a `prefixUrl`, the result is guaranteed to stay on the prefix origin and
- * under the prefix path; a path that would escape it throws a `TypeError`.
+ * under the prefix path; a path that would escape it throws a `TypeError`, as
+ * does a `prefixUrl` containing a query string or fragment (`?` or `#`).
  */
 export function buildUrl(options: BuildUrlOptions): URL {
   const { prefixUrl, path, params, searchParams } = options;
@@ -46,6 +47,14 @@ export function buildUrl(options: BuildUrlOptions): URL {
   let url: URL;
 
   if (prefixUrl) {
+    // The path is joined by string concatenation, so a `?` or `#` in the prefix
+    // would swallow the path into the query/fragment (`/v1?k=1` + `/users` →
+    // `?k=1/users`). The message omits the URL: the query may carry secrets.
+    if (/[?#]/.test(prefixUrl)) {
+      throw new TypeError(
+        'prefixUrl must not contain a query string or fragment; use searchParams instead'
+      );
+    }
     // Ensure proper joining of prefix and path
     const base = prefixUrl.endsWith('/') ? prefixUrl.slice(0, -1) : prefixUrl;
     const pathPart = processedPath.startsWith('/')

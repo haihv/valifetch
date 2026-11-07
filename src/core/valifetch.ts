@@ -32,6 +32,7 @@ import {
 import {
   calculateRetryDelay,
   getRetryAfterDelay,
+  isValidLimit,
   normalizeRetryOptions,
   resolveRetryDecision,
   shouldRetry,
@@ -101,7 +102,9 @@ async function handleResponse<T>(
     case 'sse':
       return parseSSEResponse(
         response.body,
-        MAX_SSE_EVENT_SIZE,
+        isValidLimit(options.sseMaxEventSize)
+          ? options.sseMaxEventSize
+          : MAX_SSE_EVENT_SIZE,
         request,
         response
       ) as T;
@@ -137,16 +140,42 @@ async function handleResponse<T>(
   );
 }
 
-// Header names whose values never reach the console under `debug: true`.
-const SENSITIVE_HEADER =
-  /auth|cookie|token|secret|key|session|password|credential|signature/i;
+// Header and query-parameter names whose values never reach the console under
+// `debug: true`. Deliberately broad: over-redacting a harmless name is cheap,
+// leaking a signed-URL signature or OAuth `code` into logs is not.
+const SENSITIVE_NAME =
+  /auth|cookie|token|secret|key|session|pass|credential|sig|jwt|dpop|csrf|xsrf|otp|bearer|code/i;
+
+const REDACTED = '[REDACTED]';
 
 function redactHeaders(headers: Headers): Record<string, string> {
   const result: Record<string, string> = {};
   headers.forEach((value, key) =>
-    setOwn(result, key, SENSITIVE_HEADER.test(key) ? '[REDACTED]' : value)
+    setOwn(result, key, SENSITIVE_NAME.test(key) ? REDACTED : value)
   );
   return result;
+}
+
+/**
+ * Replace the values of sensitive query parameters in a URL string. Works on a
+ * copy so the live `Request` is never touched; returns the input unchanged when
+ * nothing matches, keeping its original encoding.
+ */
+function redactUrl(raw: string): string {
+  const url = new URL(raw);
+  const pairs: string[] = [];
+  let redacted = false;
+  url.searchParams.forEach((value, name) => {
+    const sensitive = SENSITIVE_NAME.test(name);
+    if (sensitive) redacted = true;
+    pairs.push(
+      `${encodeURIComponent(name)}=${sensitive ? REDACTED : encodeURIComponent(value)}`
+    );
+  });
+  if (!redacted) return raw;
+  // A non-empty searchParams implies the serialized URL has a `?`, and the
+  // first `?` always starts the query (the path cannot contain a raw `?`).
+  return `${raw.slice(0, raw.indexOf('?'))}?${pairs.join('&')}${url.hash}`;
 }
 
 /**
@@ -159,7 +188,7 @@ function summarizeDebugEvent(event: DebugEvent): Record<string, unknown> {
   const summary: Record<string, unknown> = {
     type: event.type,
     method: request.method,
-    url: request.url,
+    url: redactUrl(request.url),
     headers: redactHeaders(request.headers),
   };
   if (event.type === 'response') {
@@ -538,7 +567,17 @@ async function runRequest<T>(
         () => shouldRetry(method, response.status, attemptCount, retryOptions)
       ));
 
-    if (shouldRetryStatus) {
+    // A Retry-After beyond `maxRetryAfter` means "not worth waiting for": the
+    // response is handled as if retries were exhausted instead of retrying
+    // early (which would hammer a server that asked for a longer pause). The
+    // check sits after the retry decision so `beforeRetry` never sees a retry
+    // that will not happen.
+    const retryAfter = shouldRetryStatus ? getRetryAfterDelay(response) : null;
+
+    if (
+      shouldRetryStatus &&
+      (retryAfter === null || retryAfter <= retryOptions.maxRetryAfter)
+    ) {
       const outcome = await runBeforeRetryHooks(
         {
           request,
@@ -556,8 +595,7 @@ async function runRequest<T>(
         request = outcome;
         attemptCount++;
         const delay =
-          getRetryAfterDelay(response, retryOptions.maxRetryAfter) ??
-          calculateRetryDelay(attemptCount - 1, retryOptions);
+          retryAfter ?? calculateRetryDelay(attemptCount - 1, retryOptions);
         emitDebug(debug, {
           type: 'retry',
           request: requestToSend,

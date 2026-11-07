@@ -169,6 +169,8 @@ export function mergeOptions(
       requestOptions.retry !== undefined
         ? requestOptions.retry
         : instanceOptions.retry,
+    sseMaxEventSize:
+      requestOptions.sseMaxEventSize ?? instanceOptions.sseMaxEventSize,
   };
 }
 

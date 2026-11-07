@@ -18,7 +18,9 @@ function patternToRegex(pattern: string): RegExp {
   const escaped = pattern
     .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
     .replace(/:([a-zA-Z_][a-zA-Z0-9_]*)/g, '[^/]+')
-    .replace(/\*/g, '.*');
+    // Collapse runs of `*` first: adjacent `.*.*` groups backtrack polynomially
+    // on a non-matching path.
+    .replace(/\*+/g, '.*');
   return new RegExp(`^${escaped}$`);
 }
 
@@ -48,11 +50,9 @@ async function parseRequestBody(request: Request): Promise<unknown> {
 }
 
 function headersToRecord(headers: Headers): Record<string, string> {
-  const result: Record<string, string> = {};
-  headers.forEach((value, key) => {
-    result[key] = value;
-  });
-  return result;
+  // `Object.fromEntries` defines own properties, so a `__proto__` header is kept
+  // as data instead of invoking the prototype setter.
+  return Object.fromEntries(headers);
 }
 
 // Per the Fetch spec, these status codes must not carry a response body.
