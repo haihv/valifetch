@@ -23,7 +23,7 @@ type Options = {
   responseType?: 'json' | 'text' | 'blob' | 'arrayBuffer' | 'formData' | 'stream' | 'raw' | 'sse';
 
   // Configuration
-  prefixUrl?: string;
+  prefixUrl?: string; // Paths must stay under it; no `?` or `#` in the prefix
   timeout?: number; // ms
   retry?: RetryOptions | number | false;
   validateResponse?: boolean; // default: true
@@ -32,6 +32,7 @@ type Options = {
   dedupe?: boolean; // default: false
   onDownloadProgress?: (event: DownloadProgressEvent) => void;
   debug?: true | ((event: DebugEvent) => void);
+  sseMaxEventSize?: number; // Largest single SSE event buffered, in UTF-16 code units (default: 16 MiB)
 
   // Hooks
   hooks?: Hooks;
@@ -117,6 +118,7 @@ Rules for raw bodies:
 - **Mutually exclusive** with `json` and `form`.
 - **Request-only**, and rejected on the bodyless methods (`get`, `head`, `delete`, `options`).
 - **`duplex: 'half'`** is added automatically for `ReadableStream` bodies, which the runtime requires.
+- **Streaming needs runtime support.** `ReadableStream` request bodies work on Node 22+, Chromium-based browsers (over HTTP/2 or newer) and Safari; Firefox does not support them. Where the runtime cannot stream, valifetch throws a `TypeError` before calling `fetch` (instead of the browser silently sending `[object ReadableStream]`). Pass a `Blob`, `ArrayBuffer` or string there.
 - **Retries re-send the body.** The request is cloned before each attempt, so `Blob`, `ArrayBuffer` and string bodies re-send identically. A `ReadableStream` body is teed on clone, which buffers the stream in memory. Pass `retry: false` for large streamed uploads if that matters.
 
 ::: warning One body per request
@@ -137,6 +139,8 @@ const user = await valifetch.get('https://api.example.com/users/:id', {
 });
 ```
 
+Param values are percent-encoded with `encodeURIComponent`, so `/`, `?`, `#` and `\` in a value can never add path segments, a query string or a fragment. The values `.` and `..` cannot be encoded safely (the URL parser resolves dot segments, even percent-encoded ones), so they throw a `TypeError` before any request is sent. Params are looked up as own properties only, so `:constructor` or `:toString` without a matching param throws as missing rather than resolving from `Object.prototype`. A missing (or `null` / `undefined`) param throws an `Error` naming it.
+
 ## Search parameters
 
 ```ts
@@ -156,6 +160,24 @@ Instance-level `searchParams` are defaults that are merged with, and overridden 
 ## prefixUrl
 
 `prefixUrl` is joined to the request path with trailing and leading slashes normalised, so `prefixUrl: 'https://api.example.com/v1/'` plus `'/users'` gives `https://api.example.com/v1/users`.
+
+With `prefixUrl` set, the request path is always joined *under* the prefix: the final URL keeps the prefix origin, and its path stays under the prefix path.
+
+```ts
+const api = valifetch.create({ prefixUrl: 'https://api.example.com/v1' });
+
+await api.get('https://evil.com'); // -> https://api.example.com/v1/https://evil.com
+await api.get('/../admin'); // throws TypeError: resolves outside the prefix path
+await api.get('/%2e%2e/admin'); // throws TypeError too
+
+valifetch.create({ prefixUrl: 'https://api.example.com/v1?key=1' }).get('/users');
+// throws TypeError: prefixUrl must not contain a query string or fragment
+```
+
+- Absolute or protocol-relative inputs (`https://evil.com`, `//evil.com`, `\\evil.com`) become path segments under the prefix rather than switching host.
+- A path that climbs above the prefix with `..` (including `%2e%2e`) throws a `TypeError` before any request is sent.
+- A `prefixUrl` containing a query string or fragment (`?` or `#`) throws a `TypeError`, because the path would otherwise be swallowed into the query. Put default query values in `searchParams` instead.
+- Without `prefixUrl`, the input must be a full URL and is used as-is. Validate user-controlled full URLs yourself; see [Security](/guide/security).
 
 ## Timeout
 

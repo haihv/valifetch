@@ -62,6 +62,8 @@ const authApi = api.extend((options) => ({
 
 Options from the child are merged over the parent's: plain options set by the child win, while `headers` (merged per header name, case-insensitively, child wins) and `searchParams` combine with the parent's instead of replacing them. `debug` is inherited too, and a child can override it by passing its own value.
 
+`retry` is a plain option, so a child's (or a per-request) `retry` object **replaces** the parent's entirely rather than merging field by field; unset fields take the built-in defaults. See [Retry](/guide/retry#defaults).
+
 ### Hooks are concatenated
 
 Hooks from the parent and the child are **concatenated**, with the parent's hooks running first. A child never replaces a parent hook; it adds to the chain.

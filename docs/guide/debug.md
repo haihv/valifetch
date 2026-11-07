@@ -2,10 +2,6 @@
 
 Enable structured lifecycle logging for development by passing `debug: true` (emits via `console.debug`) or a custom function.
 
-::: danger Do not enable in production
-`debug: true` logs raw `Request` and `Response` objects, including headers such as `Authorization` and cookies.
-:::
-
 ```ts
 // Emit all events to console.debug
 const api = valifetch.create({ debug: true });
@@ -29,6 +25,29 @@ const api2 = valifetch.create({
   },
 });
 ```
+
+## What `debug: true` logs
+
+`debug: true` logs a plain, redacted summary per event, not the raw `Request` and `Response` objects:
+
+```ts
+console.debug('[valifetch]', {
+  type: 'response',
+  method: 'GET',
+  url: 'https://api.example.com/users?access_token=[REDACTED]',
+  headers: { authorization: '[REDACTED]', accept: 'application/json' },
+  attempt: 1, // response and retry events
+  status: 200, // response events
+  responseHeaders: { 'content-type': 'application/json' }, // response events
+  // retry events carry `attempt`, `delay` and `reason` instead
+});
+```
+
+The value of a header, or of a URL query parameter, is replaced with `'[REDACTED]'` when its name contains (case-insensitive) `auth`, `cookie`, `token`, `secret`, `key`, `session`, `pass`, `credential`, `sig`, `jwt`, `dpop`, `csrf`, `xsrf`, `otp`, `bearer` or `code`. That covers `Authorization`, `Cookie`, `Set-Cookie`, `X-Api-Key`, `?access_token=`, presigned-URL `X-Amz-Signature` and OAuth `?code=`. The match is deliberately broad, so some harmless names are redacted too. Only the logged summary is redacted; the request itself is unchanged. The URL path is logged as-is, so keep secrets out of paths.
+
+::: warning Custom functions see everything
+A custom `debug` function receives the live `Request` and `Response` with headers unredacted. Redacting secrets before you log them is up to you.
+:::
 
 ## Event types
 

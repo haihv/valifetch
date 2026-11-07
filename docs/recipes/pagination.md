@@ -79,7 +79,7 @@ async function* listRepos(org: string): AsyncGenerator<Repo> {
 }
 ```
 
-The `next` URL is absolute and already carries its query string, so pass it straight to `valifetch.get` without a `prefixUrl`. If you use an instance with a `prefixUrl`, strip the origin first.
+The `next` URL is absolute and already carries its query string, so pass it straight to `valifetch.get` without a `prefixUrl`. If you use an instance with a `prefixUrl`, strip the origin and the prefix path first: valifetch joins the input under the prefix, so a full URL would become a path segment, and a path that leaves the prefix path throws a `TypeError`.
 
 ::: warning Trust the next URL only from the API you called
 A `Link` header is server-controlled. If your requests carry credentials, check that the next URL stays on the expected origin before following it.

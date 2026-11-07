@@ -7,6 +7,8 @@ import valifetch from 'valifetch';
 import { bearerAuth, basicAuth, jwtRefresh } from 'valifetch/auth';
 ```
 
+On Deno or other JSR consumers, import from `jsr:@haihv/valifetch/auth`.
+
 ## bearerAuth
 
 Reads the token on every request, so a rotated token is picked up automatically. If the getter returns `null` or `undefined`, no header is set.

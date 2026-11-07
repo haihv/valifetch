@@ -28,7 +28,7 @@ There is no `{ data, status, headers }` wrapper. When you need the status or hea
 
 | axios | valifetch | Notes |
 |---|---|---|
-| `baseURL` | `prefixUrl` | |
+| `baseURL` | `prefixUrl` | An absolute request URL does not override it: the path is always joined under the prefix, and a `..` escape throws a `TypeError`. Use a separate instance (or the default `valifetch`) for full URLs |
 | `url` + `method` | the method function (`get`, `post`, ...) or `api(url, { method })` on a `callable()` instance | |
 | `params` | `searchParams` | |
 | `data` (object) | `json` | Optionally validated by `bodySchema` |
@@ -57,7 +57,7 @@ There is no `{ data, status, headers }` wrapper. When you need the status or hea
 | `axios.all([...])` | `api.all([...])` | Typed tuple, cancellable |
 | (none) | `responseSchema`, `bodySchema`, `paramsSchema`, `searchSchema` | Validation |
 | (none) | `params` with `:name` path segments | |
-| (none) | `retry`, `dedupe`, `debug`, `priority` | |
+| (none) | `retry`, `dedupe`, `debug`, `priority`, `sseMaxEventSize` | |
 | `paramsSerializer`, `proxy`, `httpAgent` / `httpsAgent`, `maxRedirects`, `maxContentLength`, `decompress` | none | Node-specific transport options are not exposed; valifetch uses the global `fetch` |
 
 ## Interceptors become hooks
@@ -148,7 +148,7 @@ See [Errors](/guide/errors) for the full table.
 
 ## Retry
 
-axios has no built-in retry; it is usually added with a plugin. valifetch retries by default: 2 retries on idempotent methods for `[408, 413, 429, 500, 502, 503, 504]` and on network errors, with exponential backoff and `Retry-After` support. Set `retry: false` to turn it off. See [Retry](/guide/retry).
+axios has no built-in retry; it is usually added with a plugin. valifetch retries by default: 2 retries on idempotent methods for `[408, 413, 429, 500, 502, 503, 504]` and on network errors, with exponential backoff and `Retry-After` support (a `Retry-After` longer than `retry.maxRetryAfter`, default 60 s, is not retried). Set `retry: false` to turn it off. See [Retry](/guide/retry).
 
 ## Cancellation
 

@@ -62,6 +62,8 @@ async function streamCompletion(prompt: string): Promise<string> {
 
 The model name and chunk shape belong to the provider's API; adjust them to the service you call. The pattern is the same for any provider that streams JSON over SSE.
 
+The `break` on `[DONE]` is safe: leaving the `for await` loop early (`break`, `return` or a throw) cancels the response body, so the connection is released even if the server keeps the stream open.
+
 ## Cancelling a stream
 
 Pass an `AbortSignal` to stop a stream from the outside, or call `.cancel()` on the request promise before it resolves.
@@ -89,5 +91,6 @@ try {
 ## Things to know
 
 - `timeout` is cleared as soon as the response headers arrive, so it does not cut off a long-lived stream. Use a signal to stop one.
+- A single event is capped at `sseMaxEventSize` UTF-16 code units (default 16 MiB). A larger one cancels the stream and throws a `PARSE_ERROR`. Raise it (or pass `Infinity`) for providers that send very large events; see [Responses](/guide/responses#event-size-limit).
 - `onDownloadProgress` and `afterParseResponse` do not run for `'sse'`. The caller owns the body.
 - Retries apply to establishing the connection (a failed status or network error), not to an interrupted stream. Resuming from `lastEventId` is up to you.

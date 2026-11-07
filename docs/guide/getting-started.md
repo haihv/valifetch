@@ -24,7 +24,11 @@ In Deno you can also import directly:
 
 ```ts
 import valifetch from 'jsr:@haihv/valifetch';
+import { bearerAuth } from 'jsr:@haihv/valifetch/auth';
+import { createMock } from 'jsr:@haihv/valifetch/mock';
 ```
+
+The JSR package publishes the main entry plus the `auth` and `mock` subpaths. `valifetch/error` and `valifetch/types` are npm-only; on JSR, import `ValifetchError` and the types from the main entry. See [Subpath imports](/guide/subpath-imports).
 
 ## Requirements
 
@@ -82,7 +86,7 @@ valifetch.options(url, options);
 ```
 
 ::: warning Bodyless methods
-`head()` always resolves `void` and does not accept `responseSchema` or `responseType`. `get()` and `head()` do not accept `json`, `form` or `body`. The type signatures of `delete()` and `options()` currently reuse the bodyless option type as well, so they reject those options too; send bodies with `post`, `put` or `patch`.
+`head()` always resolves `void` and does not accept `responseSchema` or `responseType`. `get()` and `head()` do not accept `json`, `form` or `body`. `delete()` and `options()` use the same bodyless option type as `get()`, so they reject those options too; send bodies with `post`, `put` or `patch`.
 :::
 
 ## Configure once, reuse everywhere

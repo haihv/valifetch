@@ -38,7 +38,7 @@ const response = await valifetch.get('https://example.com', {
 });
 ```
 
-Parsing failures for `json`, `text`, `blob`, `arrayBuffer` and `formData` reject with a `PARSE_ERROR`.
+Parsing failures for `json`, `text`, `blob`, `arrayBuffer` and `formData` reject with a `PARSE_ERROR`. For `'sse'`, an event larger than `sseMaxEventSize` makes the iterator throw a `PARSE_ERROR` (see below).
 
 ## Server-sent events
 
@@ -55,6 +55,27 @@ for await (const event of events) {
 ```
 
 Per the frame protocol, `event:` sets the event type, `data:` lines are joined into `event.data`, `id:` sets `lastEventId`, lines starting with `:` are comments and are ignored, and `retry:` is parsed but not yielded. It is a reconnect hint that does not apply to a one-shot fetch.
+
+`\n`, `\r` and `\r\n` line endings are all handled, including a `\r\n` pair split across two chunks. A line ending in `\r` is processed as soon as its chunk arrives, so a CR-only server's events are never held back waiting for the next chunk.
+
+Leaving the loop early (`break`, `return` or a throw) cancels the response body, which releases the connection.
+
+### Event size limit
+
+The parser buffers at most `sseMaxEventSize` UTF-16 code units (default 16 MiB, 16,777,216) for a single not-yet-terminated event. The default is generous because real streams (for example AI responses carrying a base64 image) can put megabytes in one event. A larger pending event cancels the stream and the iterator throws a `ValifetchError` with code `PARSE_ERROR`, so a server that never sends a blank line cannot exhaust memory.
+
+```ts
+// Instance-wide cap
+const api = valifetch.create({ sseMaxEventSize: 1024 * 1024 });
+
+// Per call (the per-call value wins); Infinity disables the cap
+const events = await api.get('/stream', {
+  responseType: 'sse',
+  sseMaxEventSize: Infinity,
+});
+```
+
+A non-number, `NaN` or negative value falls back to the default. The option is ignored for every other `responseType`.
 
 See [SSE and AI streaming](/recipes/sse-streaming) for a complete example.
 

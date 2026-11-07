@@ -46,7 +46,15 @@ The package uses code splitting internally, so code shared between entry points 
 **Entry-point rule:** `valifetch` (`.`) exports the core runtime plus the core types you need day to day. `valifetch/types` is the superset: every public type, including the less common ones like `JwtRefreshOptions`, `MockCall`, `MockHandler` and `ValifetchMock`. `./error`, `./auth` and `./mock` are runtime subpaths.
 
 ::: info JSR
-On JSR only the main entry (`.`) is published. `valifetch/auth` and `valifetch/mock` are npm-only for now, to keep the single-entry-point 100% documentation score.
+On JSR, `.`, `./auth` and `./mock` are published:
+
+```ts
+import valifetch, { ValifetchError } from 'jsr:@haihv/valifetch';
+import { bearerAuth } from 'jsr:@haihv/valifetch/auth';
+import { createMock } from 'jsr:@haihv/valifetch/mock';
+```
+
+`./error` and `./types` are npm-only, because they only re-export symbols already exported from `.`, and re-exporting the same symbol from several JSR entry points duplicates it and lowers the documentation score. On JSR, import `ValifetchError` and the types from `jsr:@haihv/valifetch`.
 :::
 
 ## Module resolution

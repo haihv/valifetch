@@ -89,7 +89,7 @@ const api = valifetch.create({
 
 ## beforeRetry
 
-`(state) => Request | typeof stop | void`. `state` is a `BeforeRetryState`: the [`RetryContext`](/guide/retry#shouldretry) plus `options`. Runs before each retry is scheduled, and only for failures that are retryable under your `retry` config (status codes, methods and limit, or a `shouldRetry` verdict). Return `stop` to abort retrying and treat the original failure as final; return a new `Request` to replace the request for all remaining attempts; return nothing to proceed with the normal backoff. Hooks run in order; returning `stop` short-circuits the rest.
+`(state) => Request | typeof stop | void`. `state` is a `BeforeRetryState`: the [`RetryContext`](/guide/retry#shouldretry) plus `options`. Runs before each retry is scheduled, and only for failures that are retryable under your `retry` config (status codes, methods and limit, or a `shouldRetry` verdict). Return `stop` to abort retrying and treat the original failure as final; return a new `Request` to replace the request for all remaining attempts; return nothing to proceed with the normal backoff. Hooks run in order; returning `stop` short-circuits the rest. It does not run when a `Retry-After` header asks for longer than `retry.maxRetryAfter`, because that response is not retried; see [Retry](/guide/retry#maxretryafter).
 
 ## beforeError
 

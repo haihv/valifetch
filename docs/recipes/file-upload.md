@@ -35,6 +35,8 @@ await api.put('/blobs/abc', {
 });
 ```
 
+Streaming request bodies need runtime support: Node 22+, Chromium-based browsers (over HTTP/2 or newer) and Safari. Firefox does not support them, and there valifetch throws a `TypeError` before calling `fetch` rather than letting the browser silently send `[object ReadableStream]`. Pass a `Blob`, `ArrayBuffer` or string on such runtimes.
+
 Retries re-send the body. A `ReadableStream` is teed on clone, which buffers it in memory, so pass `retry: false` for large streamed uploads. PUT is retried by default and POST is not; see [Retry](/guide/retry).
 
 ## Progress
@@ -73,5 +75,5 @@ await api.put('/blobs/abc', {
 ```
 
 ::: warning Caveats of the streaming approach
-The count is bytes handed to `fetch`, not bytes acknowledged by the server. Streaming request bodies are not supported by every browser or protocol version (some require HTTP/2 or HTTP/3), and you lose the `Content-Length` header, which some servers require. Test it against your target runtimes and servers.
+The count is bytes handed to `fetch`, not bytes acknowledged by the server. Streaming request bodies are not supported by every browser or protocol version (Firefox has no support, where valifetch throws a `TypeError`; Chromium requires HTTP/2 or newer), and you lose the `Content-Length` header, which some servers require. Test it against your target runtimes and servers.
 :::

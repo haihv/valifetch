@@ -61,6 +61,8 @@ await valifetch.get('https://api.example.com/users/:id', {
 
 The helper types `ExtractPathParams`, `PathParamsRecord` and `HasPathParams` are exported from `valifetch` and `valifetch/types`.
 
+Values are percent-encoded, and `.` / `..` throw a `TypeError`; see [Requests](/guide/requests#path-parameters). Encoding stops a param from changing the URL structure, but not an empty string or an unexpected ID, so validate untrusted params with `paramsSchema` (for example `v.pipe(v.string(), v.minLength(1))`).
+
 ## Search parameter validation
 
 ```ts

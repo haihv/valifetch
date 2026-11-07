@@ -11,6 +11,7 @@ const api = valifetch.create({
     methods: ['GET', 'PUT'], // Methods to retry (also guards network-error retries)
     statusCodes: [408, 429, 500, 502, 503, 504], // Status codes to retry
     delay: (attempt) => Math.min(1000 * 2 ** attempt, 30000), // Backoff in ms
+    maxRetryAfter: 120_000, // Wait for a server Retry-After of up to 2 minutes (default 60 s)
     // Custom predicate: overrides the statusCodes/methods verdict
     shouldRetry: async ({ reason, response }) => {
       // Network failures: retry POSTs too (this API is idempotent by request id)
@@ -40,12 +41,34 @@ const api3 = valifetch.create({ retry: false });
 | `methods` | `['GET', 'PUT', 'HEAD', 'DELETE', 'OPTIONS']` |
 | `statusCodes` | `[408, 413, 429, 500, 502, 503, 504]` |
 | `delay(attempt)` | `0.3 * 2 ** attempt` seconds plus up to 20% random jitter, capped at 30 s (about 0.3 s, 0.6 s, 1.2 s, ...) |
+| `maxRetryAfter` | `60_000` (ms) |
 
 Non-idempotent methods such as `POST` and `PATCH` are not retried by default, to prevent duplicate submissions. The same `methods` guard applies to network-error retries.
 
+::: warning Overriding `retry` replaces the whole object
+A per-request or child-instance (`extend()`) `retry` value **replaces** the instance `retry` object entirely. Its fields are not merged with the parent's, and any field you leave out takes the built-in default. Restate `maxRetryAfter` (or any other field you customised) when you override `retry`.
+
+```ts
+const api = valifetch.create({ retry: { limit: 5, maxRetryAfter: 120_000 } });
+
+// limit is 1 and maxRetryAfter is back to the 60 s default for this call
+await api.get('/users', { retry: { limit: 1 } });
+```
+:::
+
 ## Retry-After
 
-When a retryable response includes a `Retry-After` header (for example on a 429), valifetch uses the server-prescribed delay instead of the exponential backoff formula. Both integer seconds (`Retry-After: 120`) and HTTP-date formats are supported.
+When a retryable response includes a `Retry-After` header (for example on a 429), valifetch waits the server-prescribed delay instead of the exponential backoff formula.
+
+Parsing is strict. The value is delay-seconds only when it is all digits after trimming (`Retry-After: 120`); otherwise it must be an HTTP-date (`Retry-After: Wed, 21 Oct 2015 07:28:00 GMT`; a past date means retry now). Anything else (`1.5`, `1e9`, `0x10`, `-1`, `5abc`) is ignored and the normal `delay` backoff applies.
+
+### maxRetryAfter
+
+If the requested delay is longer than `retry.maxRetryAfter` (default `60_000` ms), valifetch does **not** retry. Retrying early would hammer a server that asked for a pause, and waiting would stall the client. The response is handled as if retries were exhausted: it throws an `HTTP_ERROR` through `beforeError`, or is returned as-is with `throwHttpErrors: false`.
+
+- The check runs after `shouldRetry` decides to retry and before `beforeRetry`, so no `beforeRetry` hook or `retry` debug event fires.
+- `maxRetryAfter: Infinity` waits for any value. A non-number, `NaN` or negative value falls back to the default.
+- Every retry sleep is clamped to the range 0 to 2^31 − 1 ms (the `setTimeout` limit, past which the timer would overflow and fire immediately), and a `NaN` delay becomes 0.
 
 ## shouldRetry
 

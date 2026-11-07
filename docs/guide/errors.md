@@ -40,7 +40,7 @@ try {
 | `ErrorCode` | Thrown when | Fields populated |
 |---|---|---|
 | `HTTP_ERROR` | Response status is non-2xx and `throwHttpErrors` is `true` | `request`, `response`, `responseBody` (parsed JSON, or text if not JSON) |
-| `PARSE_ERROR` | Reading or parsing the response body fails (`json`, `text`, `blob`, `arrayBuffer` or `formData`) | `request`, `response`, `cause` (raw thrown value); `responseBody` = the unparseable raw text, JSON reads only |
+| `PARSE_ERROR` | Reading or parsing the response body fails (`json`, `text`, `blob`, `arrayBuffer` or `formData`), or an SSE event exceeds `sseMaxEventSize` (thrown by the iterator) | `request`, `response`, `cause` (raw thrown value); `responseBody` = the unparseable raw text, JSON reads only |
 | `VALIDATION_ERROR` | A Valibot schema fails (`bodySchema`, `paramsSchema`, `searchSchema` or `responseSchema`) | `validation: { target, issues, input }`; `request`/`response` are only set when `target === 'response'` |
 | `TIMEOUT_ERROR` | The configured `timeout` elapses before a response | `request`, `cause` |
 | `ABORT_ERROR` | `.cancel()` or a caller `AbortSignal` aborts the request | `request`, `cause` |
@@ -91,7 +91,16 @@ const api = valifetch.create({
 
 ## Errors that are not ValifetchErrors
 
-A hook or a `shouldRetry` predicate that throws propagates its own error as-is, without wrapping, and aborts the request. Passing more than one of `json`, `form` and `body` throws a `TypeError` before any request is made.
+A hook or a `shouldRetry` predicate that throws propagates its own error as-is, without wrapping, and aborts the request.
+
+Invalid input is rejected before any request is made, with a plain `TypeError` (or `Error`) rather than a `ValifetchError`, so `beforeError` does not see it:
+
+- More than one of `json`, `form` and `body` on a request (`TypeError`).
+- A path that resolves outside `prefixUrl`, for example `/../admin` (`TypeError`).
+- A `prefixUrl` containing a query string or fragment (`TypeError`).
+- A path param whose value is `.` or `..` (`TypeError`), or a missing / `null` / `undefined` path param (`Error`).
+- A `ReadableStream` `body` on a runtime that cannot stream request bodies, such as Firefox (`TypeError`).
+- A header name or value containing CR, LF or NUL (`TypeError`, from the platform `Headers` class).
 
 ## Standalone import
 

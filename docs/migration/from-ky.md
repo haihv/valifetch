@@ -44,7 +44,7 @@ const user2 = await valifetch.get<User>('https://api.example.com/users/1');
 
 | ky | valifetch | Notes |
 |---|---|---|
-| `prefixUrl` (ky 1) / `prefix` (ky 2) | `prefixUrl` | |
+| `prefixUrl` (ky 1) / `prefix` (ky 2) | `prefixUrl` | Paths always stay under it: absolute inputs become path segments, a `..` escape throws a `TypeError`, and a prefix with `?` or `#` throws |
 | `searchParams` | `searchParams` | Same name. Instance values merge with per-request values; `undefined` / `null` removes a key |
 | `json` | `json` | Optionally validated by `bodySchema` |
 | `body` (string, `Blob`, stream, `FormData`, ...) | `body` for raw payloads, `form` for `FormData` / `URLSearchParams` | `json`, `form` and `body` are mutually exclusive |
@@ -53,7 +53,8 @@ const user2 = await valifetch.get<User>('https://api.example.com/users/1');
 | `retry: number` / `retry: { limit, methods, statusCodes }` | `retry: number` / `retry: { limit, methods, statusCodes }` | Same names |
 | `retry.delay(attemptCount)` | `retry.delay(attempt)` | 0-based; returns milliseconds |
 | `retry.shouldRetry` | `retry.shouldRetry` | See [Retry](/guide/retry#shouldretry) for the context shape |
-| `retry.backoffLimit`, `retry.jitter`, `retry.maxRetryAfter`, `retry.retryOnTimeout`, `retry.afterStatusCodes` | none | valifetch caps the default backoff at 30 s, adds 20% jitter, and honours `Retry-After` |
+| `retry.maxRetryAfter` | `retry.maxRetryAfter` | A `Retry-After` longer than it is not retried; valifetch defaults to `60_000` ms. See [Retry](/guide/retry#maxretryafter) |
+| `retry.backoffLimit`, `retry.jitter`, `retry.retryOnTimeout`, `retry.afterStatusCodes` | none | valifetch caps the default backoff at 30 s, adds 20% jitter, and honours `Retry-After` |
 | `throwHttpErrors: boolean` | `throwHttpErrors: boolean` | valifetch does not accept a function |
 | `hooks` | `hooks` | See below |
 | `onDownloadProgress` | `onDownloadProgress` | Event is `{ loaded, total, percent }` |
@@ -62,7 +63,7 @@ const user2 = await valifetch.get<User>('https://api.example.com/users/1');
 | `totalTimeout`, `maxResponseSize`, `parseJson`, `stringifyJson`, `fetch`, `context` | none | |
 | (none) | `responseSchema`, `bodySchema`, `paramsSchema`, `searchSchema` | Validation |
 | (none) | `params` with `:name` path segments | |
-| (none) | `dedupe`, `debug`, `priority` | |
+| (none) | `dedupe`, `debug`, `priority`, `sseMaxEventSize` | |
 
 ## Hooks
 
