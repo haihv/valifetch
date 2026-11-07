@@ -19,7 +19,7 @@ valifetch wraps native `fetch` with:
 - Valibot schema validation on request body, response, path params, and search params
 - Full TypeScript inference from schemas
 - Retry with exponential backoff + `Retry-After` header support, timeout, hooks, deduplication, download progress
-- SSE (`responseType: 'sse'`) — returns `AsyncIterable<MessageEvent>` with built-in SSE frame parsing; a single pending event over `sseMaxEventSize` (default 16 MiB of UTF-16 code units) cancels the stream and throws `PARSE_ERROR`; `break`ing out of the loop cancels the response body
+- SSE (`responseType: 'sse'`) — returns `AsyncIterable<MessageEvent>` with built-in SSE frame parsing; a single pending event over `sseMaxEventSize` (default 16 MiB of UTF-16 code units) cancels the stream and throws `PARSE_ERROR` (checked after each chunk; an event terminated within the same chunk is delivered whatever its size); `break`ing out of the loop cancels the response body
 - Security guarantees and caller responsibilities: see [SECURITY.md](https://github.com/haihv/valifetch/blob/main/SECURITY.md)
 
 ## Quick start
@@ -157,7 +157,7 @@ batch.cancel();
 - `responseType` is per-call only (not on `create()`/`extend()`) because it changes the return type.
 - `ValifetchError.cause` is `unknown` (matches the standard `Error.cause`); any thrown value can be passed through.
 - Hook signatures are positional, following ky 1.x (ky 2 moved to state objects): `beforeRequest(request, options)`, `afterResponse(request, options, response)`, `afterParseResponse(data, response, request)`, `beforeRetry(state)`, `beforeError(error)` — not unified into one state object. A throwing hook propagates that error as-is (no `HOOK_ERROR` wrapping) and aborts the request. `beforeError` only ever sees `ValifetchError`s.
-- Entry-point rule: `valifetch` (`.`) exports the core runtime + core types; `valifetch/types` exports every public type (including `JwtRefreshOptions`, `MockCall`, `MockHandler`, `ValifetchMock`); `./error`, `./auth`, `./mock` are runtime subpaths. JSR publishes `.`, `./auth` and `./mock` (`jsr:@haihv/valifetch/auth`, `jsr:@haihv/valifetch/mock`); `./error` and `./types` are npm-only because they re-export symbols already in `.`.
+- Entry-point rule: `valifetch` (`.`) exports the core runtime + core types; `valifetch/types` exports every public type (including `JwtRefreshOptions`, `MockCall`, `MockHandler`, `ValifetchMock`); `./error`, `./auth`, `./mock` are runtime subpaths. JSR publishes `.`, `./auth` and `./mock` (`jsr:@haihv/valifetch/auth`, `jsr:@haihv/valifetch/mock`); `./error` and `./types` are npm-only because they only re-export symbols already in `.`, `./auth` or `./mock`.
 - `options(url, requestOptions)` — the HTTP-verb method is named `options` deliberately; its parameter is internally named `requestOptions`.
 - `retry.shouldRetry(ctx)` receives `{ request, retryCount, reason, response | error }` (`reason: 'status'` → `response`, `'network'` → `error`, `retryCount` 1-based). Return `true` to retry even when `statusCodes`/`methods` would not, `false` to never retry this failure, `undefined` to defer to the built-in check. May be async; always bounded by `limit`; never consulted for an ok response; runs before `beforeRetry` (returning `false` skips those hooks); throwing aborts the request with that error. The context type is `RetryContext`, also the base of `BeforeRetryState`.
 - Counter semantics: `RetryOptions.delay(attempt)` is 0-based (`delay(0)` = first retry); `BeforeRetryState.retryCount` and a `DebugEvent` retry `attempt` are both 1-based ("the retry about to be performed").
@@ -344,7 +344,7 @@ import type { ValifetchOptions } from 'valifetch/types'; // types only, zero run
 - Major: removing/renaming any export of `.`, `./error`, `./types`, `./auth`, `./mock` (or a subpath); changing hook signatures/ordering; option renames or type changes that reject previously valid input; changing documented defaults (retry limit 2, retry statuses 408/413/429/500-504, `throwHttpErrors: true`, no default timeout); removing/renaming a `ValifetchError` code or changing which code a failure yields; changing HTTP method return types; raising the minimum Node.js (>=22) even if EOL; narrowing the valibot peer range (>=1.0.0).
 - Minor: new options/exports/hook types/subpaths; widening accepted input; new `ValifetchError` codes (keep a `default` branch when switching on `error.code`); stricter types that catch real runtime errors; raising the minimum TypeScript version (releases from the last ~2 years are supported).
 - Patch: bug fixes, perf, docs. Fixing behaviour that contradicted the docs is a patch.
-- Internal (not covered): undocumented APIs, `_`-prefixed names such as `_mergedOptions`, `dist/` layout, error message wording (match `error.code`).
+- Internal (not covered): undocumented APIs (e.g. the `opts`/`parent`/`merged` instance properties), `_`-prefixed names, `dist/` layout, error message wording (match `error.code`).
 - Deprecations: `@deprecated` JSDoc + CHANGELOG note at least one minor before removal in the next major.
 
 ## Links

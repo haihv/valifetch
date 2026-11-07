@@ -38,7 +38,7 @@ const response = await valifetch.get('https://example.com', {
 });
 ```
 
-Parsing failures for `json`, `text`, `blob`, `arrayBuffer` and `formData` reject with a `PARSE_ERROR`. For `'sse'`, an event larger than `sseMaxEventSize` makes the iterator throw a `PARSE_ERROR` (see below).
+Parsing failures for `json`, `text`, `blob`, `arrayBuffer` and `formData` reject with a `PARSE_ERROR`. For `'sse'`, a pending (unterminated) event larger than `sseMaxEventSize` makes the iterator throw a `PARSE_ERROR` (see below).
 
 ## Server-sent events
 
@@ -62,7 +62,7 @@ Leaving the loop early (`break`, `return` or a throw) cancels the response body,
 
 ### Event size limit
 
-The parser buffers at most `sseMaxEventSize` UTF-16 code units (default 16 MiB, 16,777,216) for a single not-yet-terminated event. The default is generous because real streams (for example AI responses carrying a base64 image) can put megabytes in one event. A larger pending event cancels the stream and the iterator throws a `ValifetchError` with code `PARSE_ERROR`, so a server that never sends a blank line cannot exhaust memory.
+The parser buffers at most `sseMaxEventSize` UTF-16 code units (default 16 MiB, 16,777,216) for a single not-yet-terminated event. The default is generous because real streams (for example AI responses carrying a base64 image) can put megabytes in one event. The cap is checked after each chunk against the pending (unterminated) event only: an event whose terminating blank line arrives in the same chunk is delivered whatever its size. A pending event larger than the cap cancels the stream and the iterator throws a `ValifetchError` with code `PARSE_ERROR`, so a server that never sends a blank line cannot exhaust memory.
 
 ```ts
 // Instance-wide cap

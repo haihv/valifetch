@@ -124,9 +124,12 @@ export const MAX_SSE_EVENT_SIZE = 16 * 1024 * 1024;
  *   line immediately (no wait for the next chunk); a `\n` opening the next chunk
  *   is then dropped as the second half of that `\r\n`
  *
- * A single event larger than `maxEventSize` cancels the stream and throws a
- * `ValifetchError` with code `PARSE_ERROR`, bounding memory use against a
- * hostile or broken server. Pass `Infinity` to disable the cap.
+ * After each chunk, once every complete event in it has been dispatched, a
+ * pending (unterminated) event longer than `maxEventSize` cancels the stream
+ * and throws a `ValifetchError` with code `PARSE_ERROR`, bounding memory use
+ * against a hostile or broken server. An event whose terminating blank line
+ * arrives in the same chunk is delivered whatever its size. Pass `Infinity`
+ * to disable the cap.
  *
  * Leaving the iteration early (`break`, `return`, or a thrown error in the loop
  * body) cancels the underlying response body so the connection is released.

@@ -53,7 +53,7 @@ const user2 = await valifetch.get<User>('https://api.example.com/users/1');
 | `retry: number` / `retry: { limit, methods, statusCodes }` | `retry: number` / `retry: { limit, methods, statusCodes }` | Same names |
 | `retry.delay(attemptCount)` | `retry.delay(attempt)` | 0-based; returns milliseconds |
 | `retry.shouldRetry` | `retry.shouldRetry` | See [Retry](/guide/retry#shouldretry) for the context shape |
-| `retry.maxRetryAfter` | `retry.maxRetryAfter` | A `Retry-After` longer than it is not retried; valifetch defaults to `60_000` ms. See [Retry](/guide/retry#maxretryafter) |
+| `retry.maxRetryAfter` | `retry.maxRetryAfter` | Behaviour differs: ky clamps the wait to `maxRetryAfter` and still retries; valifetch skips the retry and surfaces the response (an `HTTP_ERROR`, or the response with `throwHttpErrors: false`). valifetch defaults to `60_000` ms. See [Retry](/guide/retry#maxretryafter) |
 | `retry.backoffLimit`, `retry.jitter`, `retry.retryOnTimeout`, `retry.afterStatusCodes` | none | valifetch caps the default backoff at 30 s, adds 20% jitter, and honours `Retry-After` |
 | `throwHttpErrors: boolean` | `throwHttpErrors: boolean` | valifetch does not accept a function |
 | `hooks` | `hooks` | See below |

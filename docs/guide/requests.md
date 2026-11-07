@@ -118,7 +118,7 @@ Rules for raw bodies:
 - **Mutually exclusive** with `json` and `form`.
 - **Request-only**, and rejected on the bodyless methods (`get`, `head`, `delete`, `options`).
 - **`duplex: 'half'`** is added automatically for `ReadableStream` bodies, which the runtime requires.
-- **Streaming needs runtime support.** `ReadableStream` request bodies work on Node 22+, Chromium-based browsers (over HTTP/2 or newer) and Safari; Firefox does not support them. Where the runtime cannot stream, valifetch throws a `TypeError` before calling `fetch` (instead of the browser silently sending `[object ReadableStream]`). Pass a `Blob`, `ArrayBuffer` or string there.
+- **Streaming needs runtime support.** `ReadableStream` request bodies work on Node 22+, Deno and Chromium-based browsers (over HTTP/2 or newer); Firefox does not support them, and other engines vary. Where the runtime cannot stream (detected by the engine stringifying the stream into a `text/plain` body), valifetch throws a `TypeError` before calling `fetch` (instead of the browser silently sending `[object ReadableStream]`). Pass a `Blob`, `ArrayBuffer` or string there.
 - **Retries re-send the body.** The request is cloned before each attempt, so `Blob`, `ArrayBuffer` and string bodies re-send identically. A `ReadableStream` body is teed on clone, which buffers the stream in memory. Pass `retry: false` for large streamed uploads if that matters.
 
 ::: warning One body per request

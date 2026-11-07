@@ -35,7 +35,7 @@ await api.put('/blobs/abc', {
 });
 ```
 
-Streaming request bodies need runtime support: Node 22+, Chromium-based browsers (over HTTP/2 or newer) and Safari. Firefox does not support them, and there valifetch throws a `TypeError` before calling `fetch` rather than letting the browser silently send `[object ReadableStream]`. Pass a `Blob`, `ArrayBuffer` or string on such runtimes.
+Streaming request bodies need runtime support: Node 22+, Deno and Chromium-based browsers (over HTTP/2 or newer) stream them; other engines vary. Firefox does not support them, and there valifetch throws a `TypeError` before calling `fetch` rather than letting the browser silently send `[object ReadableStream]`. Pass a `Blob`, `ArrayBuffer` or string on such runtimes.
 
 Retries re-send the body. A `ReadableStream` is teed on clone, which buffers it in memory, so pass `retry: false` for large streamed uploads. PUT is retried by default and POST is not; see [Retry](/guide/retry).
 

@@ -28,7 +28,7 @@ import { bearerAuth } from 'jsr:@haihv/valifetch/auth';
 import { createMock } from 'jsr:@haihv/valifetch/mock';
 ```
 
-The JSR package publishes the main entry plus the `auth` and `mock` subpaths. `valifetch/error` and `valifetch/types` are npm-only; on JSR, import `ValifetchError` and the types from the main entry. See [Subpath imports](/guide/subpath-imports).
+The JSR package publishes the main entry plus the `auth` and `mock` subpaths. `valifetch/error` and `valifetch/types` are npm-only; on JSR, import `ValifetchError` and the core types from the main entry, `JwtRefreshOptions` from the `auth` subpath, and `MockCall`, `MockHandler` and `ValifetchMock` from the `mock` subpath. See [Subpath imports](/guide/subpath-imports).
 
 ## Requirements
 

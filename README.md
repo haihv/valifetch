@@ -377,7 +377,7 @@ for await (const event of events) {
 }
 ```
 
-The SSE parser buffers at most `sseMaxEventSize` UTF-16 code units (default 16 MiB, 16,777,216) for a single not-yet-terminated event. The default is generous because real streams (for example AI responses carrying a base64 image) can put megabytes in one event. A larger pending event cancels the stream and the iterator throws a `ValifetchError` with code `PARSE_ERROR`, so a server that never sends a blank line cannot exhaust memory. Set `sseMaxEventSize` on `create()` / `extend()` or per call (the per-call value wins); `Infinity` disables the cap, and a non-number, `NaN` or negative value falls back to the default.
+The SSE parser buffers at most `sseMaxEventSize` UTF-16 code units (default 16 MiB, 16,777,216) for a single not-yet-terminated event. The default is generous because real streams (for example AI responses carrying a base64 image) can put megabytes in one event. The cap is checked after each chunk against the pending (unterminated) event only: an event whose terminating blank line arrives in the same chunk is delivered whatever its size. A pending event larger than the cap cancels the stream and the iterator throws a `ValifetchError` with code `PARSE_ERROR`, so a server that never sends a blank line cannot exhaust memory. Set `sseMaxEventSize` on `create()` / `extend()` or per call (the per-call value wins); `Infinity` disables the cap, and a non-number, `NaN` or negative value falls back to the default.
 
 A line ending in `\r` is processed as soon as its chunk arrives, so a CR-only server's events are never held back waiting for the next chunk. Leaving the loop early (`break`, `return` or a throw) cancels the response body, which releases the connection.
 
@@ -598,7 +598,7 @@ Retry applies to both HTTP error responses (matching `statusCodes`) and network-
 
 When a retryable response includes a `Retry-After` header (e.g. on a 429), valifetch waits the server-prescribed delay instead of the exponential backoff formula. Parsing is strict: the value is delay-seconds only when it is all digits after trimming (`Retry-After: 120`), otherwise it must be an HTTP-date (`Retry-After: Wed, 21 Oct 2015 07:28:00 GMT`; a past date means retry now). Anything else (`1.5`, `1e9`, `0x10`, `-1`, `5abc`) is ignored and the normal `delay` backoff applies.
 
-If the requested delay is longer than `retry.maxRetryAfter` (default `60_000` ms), valifetch does **not** retry, same as ky: retrying early would hammer a server that asked for a pause, and waiting would stall the client. The response is handled as if retries were exhausted, so it throws an `HTTP_ERROR` through `beforeError` (or is returned with `throwHttpErrors: false`). This check runs after `shouldRetry` decides to retry and before `beforeRetry`, so no `beforeRetry` hook or `retry` debug event fires. Pass `maxRetryAfter: Infinity` to wait for any value; a non-number, `NaN` or negative `maxRetryAfter` falls back to the default. Every retry sleep is clamped to the range 0 to 2^31 − 1 ms (the `setTimeout` limit, past which the timer would overflow and fire immediately), and a `NaN` delay becomes 0.
+If the requested delay is longer than `retry.maxRetryAfter` (default `60_000` ms), valifetch does **not** retry: retrying early would hammer a server that asked for a pause, and waiting would stall the client. The response is handled as if retries were exhausted, so it throws an `HTTP_ERROR` through `beforeError` (or is returned with `throwHttpErrors: false`). This check runs after `shouldRetry` decides to retry and before `beforeRetry`, so no `beforeRetry` hook or `retry` debug event fires. Pass `maxRetryAfter: Infinity` to wait for any value; a non-number, `NaN` or negative `maxRetryAfter` falls back to the default. Every retry sleep is clamped to the range 0 to 2^31 − 1 ms (the `setTimeout` limit, past which the timer would overflow and fire immediately), and a `NaN` delay becomes 0.
 
 ### Timeout & Cancellation
 
@@ -944,7 +944,7 @@ import type {
 
 The package uses code splitting internally, so shared code between entry points is only loaded once.
 
-**Entry-point rule:** `valifetch` (`.`) exports the core runtime plus the core types you need day-to-day; `valifetch/types` is the superset — every public type, including the less-common ones like `JwtRefreshOptions`, `MockCall`, `MockHandler`, and `ValifetchMock`. `./error`, `./auth`, and `./mock` are runtime subpaths. On JSR, `.`, `./auth` and `./mock` are published; `./error` and `./types` are npm-only because they only re-export symbols already exported from `.`, and re-exporting the same symbol from several JSR entry points duplicates it and lowers the documentation score (see [API Design Decisions](#api-design-decisions)).
+**Entry-point rule:** `valifetch` (`.`) exports the core runtime plus the core types you need day-to-day; `valifetch/types` is the superset — every public type, including the less-common ones like `JwtRefreshOptions`, `MockCall`, `MockHandler`, and `ValifetchMock`. `./error`, `./auth`, and `./mock` are runtime subpaths. On JSR, `.`, `./auth` and `./mock` are published; `./error` and `./types` are npm-only because they only re-export symbols already exported from `.`, `./auth` or `./mock`, and re-exporting the same symbol from several JSR entry points duplicates it and lowers the documentation score (see [API Design Decisions](#api-design-decisions)).
 
 ## API Design Decisions
 
@@ -955,7 +955,7 @@ A few naming and ergonomics choices are intentional and locked for stability. Th
 - **`responseType` is per-call only.** `responseType` lives on the per-request options, not on `create()` / `extend()` instance options. It changes the **return type** of a call (`'blob'` → `Blob`, `'sse'` → `AsyncIterable<MessageEvent>`, etc.), which cannot be expressed at instance-creation time without losing type safety. Set it on each call instead.
 - **`ValifetchError.cause` is `unknown`.** Matching the standard `Error.cause`, the `cause` option accepts any thrown value, not just an `Error`, so non-`Error` throws pass through without wrapping.
 - **Hook signatures stay positional, following ky 1.x.** (ky 2 moved to state-object arguments; valifetch deliberately does not.) `beforeRequest(request, options)`, `afterResponse(request, options, response)`, `afterParseResponse(data, response, request)`, `beforeRetry(state)`, `beforeError(error)` are not being unified into a single state-object signature — matching ky's conventions is deliberate, and a hook that throws propagates that error as-is (never wrapped) to abort the request. `beforeError` only ever sees `ValifetchError`s.
-- **Entry-point rule.** `valifetch` (`.`) is the core runtime + core types; `valifetch/types` is the superset of every public type; `./error`, `./auth`, `./mock` are runtime subpaths. JSR publishes `.`, `./auth` and `./mock` (disjoint symbol sets); `./error` and `./types` are npm-only because they re-export symbols already in `.`.
+- **Entry-point rule.** `valifetch` (`.`) is the core runtime + core types; `valifetch/types` is the superset of every public type; `./error`, `./auth`, `./mock` are runtime subpaths. JSR publishes `.`, `./auth` and `./mock` (disjoint symbol sets); `./error` and `./types` are npm-only because they only re-export symbols already in `.`, `./auth` or `./mock`.
 - **`options(url, requestOptions)`.** The HTTP-verb method is deliberately named `options` (matching the OPTIONS HTTP verb); its parameter is internally named `requestOptions` to avoid colliding with the method name.
 - **Retry counters use different bases on purpose.** `RetryOptions.delay(attempt)` is 0-based (`delay(0)` computes the first retry's delay). `BeforeRetryState.retryCount` and the `attempt` field on a `DebugEvent` of type `'retry'` are both 1-based — they describe "the retry about to be performed," which reads more naturally in hook/log code than a 0-based count would.
 
@@ -989,7 +989,7 @@ From 1.0.0, valifetch follows [Semantic Versioning](https://semver.org). The pub
 
 ### Internal and undocumented
 
-Anything undocumented, or whose name starts with `_` (for example `_mergedOptions`), is internal and not covered by semver. The same applies to the `dist/` file layout, chunk names, and the exact wording of error messages (match on `error.code`, not `error.message`).
+Anything undocumented (for example the `opts`, `parent` and `merged` properties an instance carries), or whose name starts with `_`, is internal and not covered by semver. The same applies to the `dist/` file layout, chunk names, and the exact wording of error messages (match on `error.code`, not `error.message`).
 
 ### Deprecation process
 

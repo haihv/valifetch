@@ -54,7 +54,7 @@ import { bearerAuth } from 'jsr:@haihv/valifetch/auth';
 import { createMock } from 'jsr:@haihv/valifetch/mock';
 ```
 
-`./error` and `./types` are npm-only, because they only re-export symbols already exported from `.`, and re-exporting the same symbol from several JSR entry points duplicates it and lowers the documentation score. On JSR, import `ValifetchError` and the types from `jsr:@haihv/valifetch`.
+`./error` and `./types` are npm-only, because they only re-export symbols already exported from `.`, `./auth` or `./mock`, and re-exporting the same symbol from several JSR entry points duplicates it and lowers the documentation score. On JSR, import `ValifetchError` and the core types from `jsr:@haihv/valifetch`, `JwtRefreshOptions` from `jsr:@haihv/valifetch/auth`, and `MockCall`, `MockHandler` and `ValifetchMock` from `jsr:@haihv/valifetch/mock`.
 :::
 
 ## Module resolution

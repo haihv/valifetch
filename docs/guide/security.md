@@ -15,7 +15,7 @@ A summary; SECURITY.md has the exact rules.
 - **No header injection.** Header names and values containing CR, LF or NUL are rejected by the platform `Headers` class with a `TypeError` before the request is sent.
 - **Prototype-pollution-safe merging.** `create()` / `extend()` assign user-supplied keys as own data properties, so a JSON-derived `__proto__` key cannot change a prototype.
 - **No secrets in built-in logs.** [`debug: true`](/guide/debug) logs a summary with sensitive header and query-parameter values replaced by `[REDACTED]`.
-- **Bounded parsing of untrusted responses.** The SSE parser caps a single event at [`sseMaxEventSize`](/guide/responses#server-sent-events) (default 16 MiB). `Retry-After` is parsed strictly, and a delay longer than [`retry.maxRetryAfter`](/guide/retry#retry-after) (default 60 s) is not retried rather than waited for. Retries are always bounded by `retry.limit`.
+- **Bounded parsing of untrusted responses.** The SSE parser caps the pending (unterminated) event at [`sseMaxEventSize`](/guide/responses#server-sent-events) (default 16 MiB). `Retry-After` is parsed strictly, and a delay longer than [`retry.maxRetryAfter`](/guide/retry#retry-after) (default 60 s) is not retried rather than waited for. Retries are always bounded by `retry.limit`.
 
 ## What is your responsibility
 
