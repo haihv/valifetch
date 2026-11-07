@@ -349,3 +349,11 @@ import { bearerAuth, basicAuth, jwtRefresh } from 'valifetch/auth'; // auth hook
 import { createMock } from 'valifetch/mock';             // testing mock (test files only)
 import type { ValifetchOptions } from 'valifetch/types'; // types only
 ```
+
+## Versioning
+
+- Major: removing/renaming any export of `.`, `./error`, `./types`, `./auth`, `./mock` (or a subpath); changing hook signatures/ordering; option renames or type changes that reject previously valid input; changing documented defaults (retry limit 2, retry statuses 408/413/429/500-504, `throwHttpErrors: true`, no default timeout); removing/renaming a `ValifetchError` code or changing which code a failure yields; changing HTTP method return types; raising the minimum Node.js (>=22) even if EOL; narrowing the valibot peer range (>=1.0.0).
+- Minor: new options/exports/hook types/subpaths; widening accepted input; new `ValifetchError` codes (keep a `default` branch when switching on `error.code`); stricter types that catch real runtime errors; raising the minimum TypeScript version (releases from the last ~2 years are supported).
+- Patch: bug fixes, perf, docs. Fixing behaviour that contradicted the docs is a patch.
+- Internal (not covered): undocumented APIs, `_`-prefixed names such as `_mergedOptions`, `dist/` layout, error message wording (match `error.code`).
+- Deprecations: `@deprecated` JSDoc + CHANGELOG note at least one minor before removal in the next major.
