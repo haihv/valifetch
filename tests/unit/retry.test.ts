@@ -382,6 +382,7 @@ describe('core/retry', () => {
         status: 429,
         headers: { 'retry-after': '120' },
       });
+      // Returned unclamped: the retry loop compares it to `maxRetryAfter`.
       expect(getRetryAfterDelay(response)).toBe(120_000);
     });
 

@@ -40,12 +40,12 @@ valifetch.get(url, opts)
 | ------------------------------ | ----------------------------------------------------------------------------------------- |
 | `src/core/valifetch.ts`        | Instance creation (`create`, `extend`, `callable`), HTTP method dispatch, options merging, dedupe (keyed on the fully-resolved URL + method, scoped per instance) |
 | `src/core/request.ts`          | Builds `Request` object; validates request body/params/search against schemas; handles `json`, `form` and raw `body` bodies |
-| `src/core/response.ts`         | Status checking (async, attaches `responseBody`), JSON parsing, schema validation, SSE frame parsing |
-| `src/core/retry.ts`            | Exponential backoff with jitter; default 2 retries on `[408, 413, 429, 500–504]`; `resolveRetryDecision` consults the optional `retry.shouldRetry` predicate before falling back to the built-in status/method check |
+| `src/core/response.ts`         | Status checking (async, attaches `responseBody`), JSON parsing, schema validation, SSE frame parsing (bounded by `sseMaxEventSize`, cancels the body on early exit) |
+| `src/core/retry.ts`            | Exponential backoff with jitter; default 2 retries on `[408, 413, 429, 500–504]`; `resolveRetryDecision` consults the optional `retry.shouldRetry` predicate before falling back to the built-in status/method check; `getRetryAfterDelay` parses `Retry-After` strictly and returns it unclamped — the retry loop in `valifetch.ts` skips the retry when it exceeds `maxRetryAfter` (validated in `normalizeRetryOptions`) |
 | `src/core/hooks.ts`            | `beforeRequest`, `afterResponse`, `afterParseResponse`, `beforeRetry`, `beforeError` hook runners; re-exports `stop` |
 | `src/core/stop.ts`             | The `stop` sentinel (`Symbol.for('valifetch.stop')`) — a leaf module with no imports, so `src/types/hooks.ts` can reference it without a module cycle |
 | `src/errors/ValifetchError.ts` | Custom error class with typed error codes; `responseBody` field on `HTTP_ERROR`           |
-| `src/url/`                     | URL building and `:param` → value path replacement                                        |
+| `src/url/`                     | URL building and `:param` → value path replacement; enforces prefix containment (origin + path) and rejects `.`/`..` param values |
 | `src/validation/validate.ts`   | Thin wrapper around `valibot.safeParse`                                                   |
 | `src/types/`                   | All TypeScript types (options, hooks, instance, path-param inference) — no runtime code   |
 | `src/mock/`                    | `createMock()` — testing utility; intercepts via `beforeRequest` hook, no `globalThis.fetch` patching |
@@ -73,6 +73,11 @@ Integration tests live in `tests/integration/` and spin up a real `http.createSe
 - `prefixUrl` path joining — trailing-slash normalization and search-param encoding round-trips
 - `responseType: 'sse'` — real chunked `text/event-stream` response; verifies event type, data, and lastEventId
 - `Retry-After` header — server returns 429 with `Retry-After: 1`; client waits ≥ 900 ms before retry
+- Cross-origin redirect — `Authorization` / `Cookie` are dropped by native fetch when a redirect changes origin (`security.integration.test.ts`)
+- `Retry-After` over `maxRetryAfter` — 429 with `Retry-After: 120` and `maxRetryAfter: 50` is not retried (`security.integration.test.ts`)
+- SSE CR-only latency and early `break` — a `\r\r`-terminated event is yielded before the next chunk; `break` closes the server connection (`security.integration.test.ts`)
+
+Security regression tests live in `tests/unit/security.test.ts`; the threat model they back is documented in `SECURITY.md`. Option-merging code must assign user-supplied keys as own data properties (`setOwn` in `src/core/valifetch.ts`), never via `target[key] = value`, so a JSON-derived `__proto__` key cannot swap a prototype.
 
 Integration tests are not run in the pre-commit hook (too slow); they run in CI alongside unit tests.
 

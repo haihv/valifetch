@@ -14,7 +14,28 @@ export type BuildUrlOptions = {
 };
 
 /**
- * Build a URL from parts, handling path params and search params
+ * Throw when a resolved URL left the `prefixUrl` it was joined onto. The join
+ * always yields the prefix origin, but the URL parser resolves `..` segments
+ * (including `%2e%2e`), so a path such as `/../admin` could climb above the
+ * prefix path. The prefix pathname carries a trailing slash, so `/v1` never
+ * matches a sibling such as `/v10`.
+ */
+function assertWithinPrefix(url: URL, prefix: URL): void {
+  if (
+    url.origin !== prefix.origin ||
+    !url.pathname.startsWith(prefix.pathname)
+  ) {
+    throw new TypeError(
+      `Request path "${url.pathname}" resolves outside the prefixUrl path "${prefix.pathname}"`
+    );
+  }
+}
+
+/**
+ * Build a URL from parts, handling path params and search params.
+ * With a `prefixUrl`, the result is guaranteed to stay on the prefix origin and
+ * under the prefix path; a path that would escape it throws a `TypeError`, as
+ * does a `prefixUrl` containing a query string or fragment (`?` or `#`).
  */
 export function buildUrl(options: BuildUrlOptions): URL {
   const { prefixUrl, path, params, searchParams } = options;
@@ -26,12 +47,21 @@ export function buildUrl(options: BuildUrlOptions): URL {
   let url: URL;
 
   if (prefixUrl) {
+    // The path is joined by string concatenation, so a `?` or `#` in the prefix
+    // would swallow the path into the query/fragment (`/v1?k=1` + `/users` →
+    // `?k=1/users`). The message omits the URL: the query may carry secrets.
+    if (/[?#]/.test(prefixUrl)) {
+      throw new TypeError(
+        'prefixUrl must not contain a query string or fragment; use searchParams instead'
+      );
+    }
     // Ensure proper joining of prefix and path
     const base = prefixUrl.endsWith('/') ? prefixUrl.slice(0, -1) : prefixUrl;
     const pathPart = processedPath.startsWith('/')
       ? processedPath
       : `/${processedPath}`;
     url = new URL(base + pathPart);
+    assertWithinPrefix(url, new URL(`${base}/`));
   } else {
     // Path must be absolute URL if no prefix
     url = new URL(processedPath);

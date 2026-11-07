@@ -144,7 +144,7 @@ const api = valifetch.create({
 
 `shouldRetry(ctx)` receives `{ request, retryCount, reason, response | error }` (`reason: 'status'` → `response`, `'network'` → `error`, `retryCount` 1-based). Return `true` to retry even when `statusCodes`/`methods` would not, `false` to never retry this failure, `undefined` to defer to the built-in status-code + method check. May be async; always bounded by `limit`; never consulted for an ok response; runs before `beforeRetry` (returning `false` skips those hooks); a throwing predicate aborts the request with that error. The context type is `RetryContext`, also the base of `BeforeRetryState`.
 
-When a retryable response includes a `Retry-After` header (e.g. on a 429), valifetch automatically uses the server-prescribed delay instead of the exponential backoff formula. Both integer-seconds (`Retry-After: 120`) and HTTP-date formats are supported.
+When a retryable response includes a `Retry-After` header (e.g. on a 429), valifetch waits the server-prescribed delay instead of the exponential backoff formula. Retry-After parsing is strict: all-digit seconds after trimming, or an HTTP-date (must contain a letter); anything else (`1.5`, `1e9`, `0x10`, `-1`) is ignored and `delay` backoff applies. If the requested delay exceeds `retry.maxRetryAfter` (default `60_000` ms; `Infinity` = no cap; non-number/`NaN`/negative → default), the request is NOT retried: it is handled as if retries were exhausted (`HTTP_ERROR` through `beforeError`, or returned with `throwHttpErrors: false`). That check runs after `shouldRetry` and before `beforeRetry`, so no `beforeRetry` hook or `retry` debug event fires. Retry sleeps are clamped to 0..2^31 − 1 ms (`NaN` → 0). A per-request or `extend()` `retry` value replaces the instance `retry` object entirely (no field merge), so restate `maxRetryAfter` when overriding.
 
 ### Interrupt retry or transform errors
 
@@ -201,6 +201,8 @@ for await (const event of events) {
 const stream = await api.get('/events', { responseType: 'stream' });
 const reader = stream.getReader();
 ```
+
+A single pending SSE event (no blank line yet) over `sseMaxEventSize` UTF-16 code units (default 16 MiB = 16,777,216) cancels the stream and makes the iterator throw `ValifetchError` `PARSE_ERROR`. Set `sseMaxEventSize` on `create()`/`extend()` or per call (per call wins); `Infinity` disables the cap; a non-number/`NaN`/negative value falls back to the default. A `\r`-terminated line is handled as soon as its chunk arrives. Breaking out of `for await` cancels the response body (releases the connection).
 
 ### Parallel requests
 
@@ -273,11 +275,11 @@ try {
 | `json` | JSON request body; request-only, not on `get()`/`head()` |
 | `form` | FormData / URLSearchParams / Record\<string, string\> (plain object values must be strings); request-only — not accepted on `create()`/`extend()`, and not on `get()`/`head()` |
 | `body` | Raw body (`RawBody` = string / Blob / ArrayBuffer / ArrayBufferView / ReadableStream\<Uint8Array\>) sent as-is — no validation, no `Content-Type` inference, `duplex: 'half'` added for streams; request-only — not accepted on `create()`/`extend()`, and not on `get()`/`head()` |
-| `params` | Path param values |
+| `params` | Path param values; `encodeURIComponent`-encoded, own keys only; `.` / `..` throw a `TypeError` |
 | `searchParams` | Query string; instance value is a default, per-request value merges on top (request wins per key). Explicit `undefined`/`null` on a request key removes the instance default for that key. Instance defaults are appended to any query string already in the request path, not merged into it. |
-| `prefixUrl` | Base URL for the instance |
+| `prefixUrl` | Base URL for the instance. The final URL always keeps the prefix origin and stays under the prefix path; a `..` / `%2e%2e` path that climbs above it throws a `TypeError`; a prefix containing `?` or `#` also throws a `TypeError` (use `searchParams`) |
 | `timeout` | Ms until TIMEOUT_ERROR (default: none — never times out; `0` also disables) |
-| `retry` | `{ limit, statusCodes, methods, delay, shouldRetry(ctx) }` or just a number. Defaults: `limit: 2`, `methods: ['GET','PUT','HEAD','DELETE','OPTIONS']`, `statusCodes: [408,413,429,500,502,503,504]`, `delay(attempt) = 0.3 * 2**attempt`s + 20% jitter, capped 30s |
+| `retry` | `{ limit, statusCodes, methods, delay, maxRetryAfter, shouldRetry(ctx) }` or just a number. Defaults: `limit: 2`, `methods: ['GET','PUT','HEAD','DELETE','OPTIONS']`, `statusCodes: [408,413,429,500,502,503,504]`, `delay(attempt) = 0.3 * 2**attempt`s + 20% jitter, capped 30s, `maxRetryAfter: 60000` ms (a longer server `Retry-After` is not retried — see Retry above). Overriding `retry` per request or in `extend()` replaces the whole object |
 | `responseType` | `'json'` (default) \| `'text'` \| `'blob'` \| `'arrayBuffer'` \| `'formData'` \| `'stream'` \| `'raw'` \| `'sse'`; per-call only, not on `create()`/`extend()` |
 | `validateResponse` | Validate response against `responseSchema` (default: `true`) |
 | `validateRequest` | Validate body/params/search schemas (default: `true`) |
@@ -285,12 +287,16 @@ try {
 | `throwHttpErrors` | Default `true`; set `false` to handle non-2xx manually |
 | `priority` | `'high'` \| `'low'` \| `'auto'` — forwarded to `fetch` unchanged |
 | `signal` | `AbortSignal`; request-only — not accepted on `create()`/`extend()` |
-| `debug` | `true` (console.debug) or `(event: DebugEvent) => void` — lifecycle logging |
+| `debug` | `true` (console.debug of a summary; values of headers and URL query parameters whose name contains `auth`/`cookie`/`token`/`secret`/`key`/`session`/`pass`/`credential`/`sig`/`jwt`/`dpop`/`csrf`/`xsrf`/`otp`/`bearer`/`code` become `'[REDACTED]'`; URL path logged as-is) or `(event: DebugEvent) => void` (live, unredacted `Request`/`Response`) — lifecycle logging |
+| `sseMaxEventSize` | Largest pending SSE event for `responseType: 'sse'`, UTF-16 code units (default 16 MiB; `Infinity` = no cap); instance-level or per call |
 | `hooks` | `{ beforeRequest, afterResponse, afterParseResponse, beforeRetry, beforeError }` |
 
 ## What NOT to do
 
 - Don't call `.json()` on the result — valifetch parses JSON automatically
+- Don't build paths from user input with string templates (`` `/files/${name}` ``) — use `params` so the value is encoded, and validate it with `paramsSchema`
+- Don't pass a user-controlled full URL (or a user-controlled `prefixUrl`) to an instance that carries auth hooks — valifetch does not restrict which host a full URL targets; see [SECURITY.md](https://github.com/haihv/valifetch/blob/main/SECURITY.md)
+- Don't log the raw `Request` from a custom `debug` function — its headers are unredacted
 - Don't use `responseType: 'stream'` or `'sse'` then also set `responseSchema` — they're incompatible
 - Don't set more than one of `json` / `form` / `body` on the same request — it throws a `TypeError` (a plain `TypeError`, not a `ValifetchError`)
 - Don't expect a `Content-Type` to be inferred for `body` — valifetch never sets one for raw bodies; set it yourself

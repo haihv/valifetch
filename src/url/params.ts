@@ -7,7 +7,10 @@ VALID_PARAM_CHAR[95] = 1; // _
 
 /**
  * Replace `:param` placeholders in a path with URL-encoded values.
- * Throws if a required parameter is missing or `null`/`undefined`.
+ * Throws if a required parameter is missing or `null`/`undefined`, and throws a
+ * `TypeError` for the values `.` and `..`: `encodeURIComponent` leaves dots
+ * as-is and the WHATWG URL parser resolves dot segments (even percent-encoded
+ * ones), so such a value would silently walk up the path.
  * @param path - Path string with `:param` placeholders
  * @param params - Map of parameter names to values
  * @returns Path with placeholders replaced by encoded values
@@ -42,7 +45,9 @@ export function replacePathParams(
       continue;
     }
 
-    if (!(paramName in params)) {
+    // Own keys only: `in` would resolve `:constructor` / `:toString` from
+    // Object.prototype and send the stringified function instead of throwing.
+    if (!Object.hasOwn(params, paramName)) {
       throw new Error(`Missing required path parameter: ${paramName}`);
     }
 
@@ -54,9 +59,13 @@ export function replacePathParams(
     }
 
     // Avoid unnecessary String() call
-    const encoded = encodeURIComponent(
-      typeof value === 'string' ? value : String(value)
-    );
+    const raw = typeof value === 'string' ? value : String(value);
+    if (raw === '.' || raw === '..') {
+      throw new TypeError(
+        `Path parameter "${paramName}" cannot be a "." or ".." path segment`
+      );
+    }
+    const encoded = encodeURIComponent(raw);
     result += path.slice(position, colonPosition) + encoded;
     position = nameEnd;
   }

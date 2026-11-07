@@ -24,6 +24,7 @@ import {
 import { buildRequest, HOOK_KEYS, type RequestOptions } from './request';
 import {
   checkResponseStatus,
+  MAX_SSE_EVENT_SIZE,
   parseJsonResponse,
   parseSSEResponse,
   wrapResponseWithProgress,
@@ -31,6 +32,7 @@ import {
 import {
   calculateRetryDelay,
   getRetryAfterDelay,
+  isValidLimit,
   normalizeRetryOptions,
   resolveRetryDecision,
   shouldRetry,
@@ -98,7 +100,14 @@ async function handleResponse<T>(
     case 'raw':
       return response as T;
     case 'sse':
-      return parseSSEResponse(response.body) as T;
+      return parseSSEResponse(
+        response.body,
+        isValidLimit(options.sseMaxEventSize)
+          ? options.sseMaxEventSize
+          : MAX_SSE_EVENT_SIZE,
+        request,
+        response
+      ) as T;
     case 'text':
       data = (await read('text', trackedResponse.text())) as T;
       break;
@@ -131,10 +140,73 @@ async function handleResponse<T>(
   );
 }
 
+// Header and query-parameter names whose values never reach the console under
+// `debug: true`. Deliberately broad: over-redacting a harmless name is cheap,
+// leaking a signed-URL signature or OAuth `code` into logs is not.
+const SENSITIVE_NAME =
+  /auth|cookie|token|secret|key|session|pass|credential|sig|jwt|dpop|csrf|xsrf|otp|bearer|code/i;
+
+const REDACTED = '[REDACTED]';
+
+function redactHeaders(headers: Headers): Record<string, string> {
+  const result: Record<string, string> = {};
+  headers.forEach((value, key) =>
+    setOwn(result, key, SENSITIVE_NAME.test(key) ? REDACTED : value)
+  );
+  return result;
+}
+
+/**
+ * Replace the values of sensitive query parameters in a URL string. Works on a
+ * copy so the live `Request` is never touched; returns the input unchanged when
+ * nothing matches, keeping its original encoding.
+ */
+function redactUrl(raw: string): string {
+  const url = new URL(raw);
+  const pairs: string[] = [];
+  let redacted = false;
+  url.searchParams.forEach((value, name) => {
+    const sensitive = SENSITIVE_NAME.test(name);
+    if (sensitive) redacted = true;
+    pairs.push(
+      `${encodeURIComponent(name)}=${sensitive ? REDACTED : encodeURIComponent(value)}`
+    );
+  });
+  if (!redacted) return raw;
+  // A non-empty searchParams implies the serialized URL has a `?`, and the
+  // first `?` always starts the query (the path cannot contain a raw `?`).
+  return `${raw.slice(0, raw.indexOf('?'))}?${pairs.join('&')}${url.hash}`;
+}
+
+/**
+ * Plain summary of a debug event for `console.debug`. Logging the live
+ * `Request`/`Response` would print every header verbatim (Node's inspector
+ * shows them), leaking `Authorization`, cookies and API keys into logs.
+ */
+function summarizeDebugEvent(event: DebugEvent): Record<string, unknown> {
+  const { request } = event;
+  const summary: Record<string, unknown> = {
+    type: event.type,
+    method: request.method,
+    url: redactUrl(request.url),
+    headers: redactHeaders(request.headers),
+  };
+  if (event.type === 'response') {
+    summary.attempt = event.attempt;
+    summary.status = event.response.status;
+    summary.responseHeaders = redactHeaders(event.response.headers);
+  } else if (event.type === 'retry') {
+    summary.attempt = event.attempt;
+    summary.delay = event.delay;
+    summary.reason = event.reason;
+  }
+  return summary;
+}
+
 function emitDebug(debug: DebugOption | undefined, event: DebugEvent): void {
   if (!debug) return;
   if (debug === true) {
-    console.debug('[valifetch]', event);
+    console.debug('[valifetch]', summarizeDebugEvent(event));
   } else {
     debug(event);
   }
@@ -495,7 +567,17 @@ async function runRequest<T>(
         () => shouldRetry(method, response.status, attemptCount, retryOptions)
       ));
 
-    if (shouldRetryStatus) {
+    // A Retry-After beyond `maxRetryAfter` means "not worth waiting for": the
+    // response is handled as if retries were exhausted instead of retrying
+    // early (which would hammer a server that asked for a longer pause). The
+    // check sits after the retry decision so `beforeRetry` never sees a retry
+    // that will not happen.
+    const retryAfter = shouldRetryStatus ? getRetryAfterDelay(response) : null;
+
+    if (
+      shouldRetryStatus &&
+      (retryAfter === null || retryAfter <= retryOptions.maxRetryAfter)
+    ) {
       const outcome = await runBeforeRetryHooks(
         {
           request,
@@ -513,8 +595,7 @@ async function runRequest<T>(
         request = outcome;
         attemptCount++;
         const delay =
-          getRetryAfterDelay(response) ??
-          calculateRetryDelay(attemptCount - 1, retryOptions);
+          retryAfter ?? calculateRetryDelay(attemptCount - 1, retryOptions);
         emitDebug(debug, {
           type: 'retry',
           request: requestToSend,
@@ -746,6 +827,25 @@ function mergeHooks(parent?: Hooks, child?: Hooks): Hooks | undefined {
   return merged as Hooks;
 }
 
+/**
+ * Assign as an own data property. Plain `target[key] = value` with a
+ * JSON-derived `"__proto__"` key would invoke the `__proto__` setter and swap
+ * the target's prototype (or silently drop the value); defining the property
+ * matches object-spread semantics instead.
+ */
+function setOwn(
+  target: Record<string, unknown>,
+  key: string,
+  value: unknown
+): void {
+  Object.defineProperty(target, key, {
+    value,
+    writable: true,
+    enumerable: true,
+    configurable: true,
+  });
+}
+
 function copyHeaders(
   source: HeadersInit,
   target: Record<string, string>
@@ -753,14 +853,13 @@ function copyHeaders(
   // Header names are case-insensitive: lowercase every key so a parent's
   // `Content-Type` and a child's `content-type` collapse to a single entry.
   if (source instanceof Headers) {
-    source.forEach((value, key) => {
-      target[key.toLowerCase()] = value;
-    });
+    // Headers already yields lowercased names.
+    source.forEach((value, key) => setOwn(target, key, value));
   } else if (Array.isArray(source)) {
-    for (const [key, value] of source) target[key.toLowerCase()] = value;
+    for (const [key, value] of source) setOwn(target, key.toLowerCase(), value);
   } else {
     for (const [key, value] of Object.entries(source)) {
-      target[key.toLowerCase()] = value;
+      setOwn(target, key.toLowerCase(), value);
     }
   }
 }
@@ -791,7 +890,7 @@ function mergeOptions(
     if (key === 'hooks' || key === 'headers' || key === 'searchParams')
       continue;
     const value = child[key];
-    if (value !== undefined) result[key] = value;
+    if (value !== undefined) setOwn(result, key, value);
   }
 
   const mergedHooks = mergeHooks(parent.hooks, child.hooks);
