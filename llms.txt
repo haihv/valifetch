@@ -353,4 +353,6 @@ import type { ValifetchOptions } from 'valifetch/types'; // types only, zero run
 - JSR: https://jsr.io/@haihv/valifetch
 - GitHub: https://github.com/haihv/valifetch
 - Documentation: https://haihv.github.io/valifetch/
+- Docs index for agents: https://haihv.github.io/valifetch/llms.txt (every page as Markdown: append `.md` to its URL)
+- Full docs in one file: https://haihv.github.io/valifetch/llms-full.txt
 - Changelog: https://github.com/haihv/valifetch/blob/main/CHANGELOG.md

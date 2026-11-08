@@ -58,7 +58,14 @@
       }
     }
   },
-  "files": ["dist", "README.md", "CHANGELOG.md", "LICENSE"],
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "llms.txt",
+    "AGENTS.md"
+  ],
   "sideEffects": false,
   "scripts": {
     "build": "tsup",
@@ -110,7 +117,7 @@
   "bugs": {
     "url": "https://github.com/haihv/valifetch/issues"
   },
-  "homepage": "https://github.com/haihv/valifetch#readme",
+  "homepage": "https://haihv.github.io/valifetch/",
   "peerDependencies": {
     "valibot": ">=1.0.0"
   },

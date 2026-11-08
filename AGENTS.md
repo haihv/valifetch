@@ -2,7 +2,7 @@
 
 Quick reference for AI coding agents (Claude Code, Copilot, Cursor, etc.) working in a project that uses valifetch.
 
-Full documentation: https://haihv.github.io/valifetch/
+Full documentation: https://haihv.github.io/valifetch/ (agent-friendly: [llms.txt](https://haihv.github.io/valifetch/llms.txt), [llms-full.txt](https://haihv.github.io/valifetch/llms-full.txt), or append `.md` to any page URL)
 
 ## What is valifetch?
 
