@@ -247,7 +247,8 @@ export default defineConfig({
     },
 
     footer: {
-      message: 'Released under the MIT License.',
+      message:
+        'Released under the MIT License. Built with <a href="https://claude.com/claude-code">Claude Code</a>.',
       copyright: 'Copyright (c) haihv',
     },
   },

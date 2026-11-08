@@ -1016,3 +1016,7 @@ Tests run with `npm test` (unit + integration). A separate browser smoke suite e
 ## License
 
 [MIT](LICENSE)
+
+---
+
+Built with [Claude Code](https://claude.com/claude-code).
