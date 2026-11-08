@@ -6,6 +6,10 @@ description: "Install valifetch and make your first type-safe, Valibot-validated
 
 valifetch is a type-safe HTTP client built on native `fetch` with [Valibot](https://valibot.dev) schema validation. It is like [ky](https://github.com/sindresorhus/ky), but with built-in request and response validation.
 
+::: tip Try it live
+[Open the demo in StackBlitz](https://stackblitz.com/github/haihv/valifetch/tree/main/examples/demo?file=src%2Fmain.ts) to run valifetch in your browser, no install needed. It shows response validation, request-body validation and typed errors against a real API.
+:::
+
 ## Installation
 
 ::: code-group

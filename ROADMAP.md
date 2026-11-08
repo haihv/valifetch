@@ -74,7 +74,6 @@ All additive or tooling-only, so none needs a major release.
 - **TypeScript 7** — move the toolchain once tsup (or a replacement such as tsdown) can build declarations without the TypeScript compiler API that TypeScript 7 no longer ships.
 - **Remove the TypeDoc minimatch shim** (`scripts/typedoc-minimatch-compat.mjs` and the `typedoc` → `minimatch` override) once TypeDoc supports minimatch 11.
 - **VitePress 2** — upgrade the docs site, which drops the `vitepress` → `vite` override.
-- **Valibot ecosystem listing** — get valifetch listed in the Valibot ecosystem docs.
 
 ---
 

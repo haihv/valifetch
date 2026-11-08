@@ -6,10 +6,13 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![CI](https://github.com/haihv/valifetch/actions/workflows/ci.yml/badge.svg)](https://github.com/haihv/valifetch/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/haihv/valifetch/graph/badge.svg)](https://codecov.io/gh/haihv/valifetch)
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz_small.svg)](https://stackblitz.com/github/haihv/valifetch/tree/main/examples/demo?file=src%2Fmain.ts)
 
 A type-safe HTTP client built on native `fetch` with [Valibot](https://valibot.dev) schema validation. Like [ky](https://github.com/sindresorhus/ky), but with built-in request/response validation.
 
 **Documentation: <https://haihv.github.io/valifetch/>**
+
+**Try it live:** [open the demo in StackBlitz](https://stackblitz.com/github/haihv/valifetch/tree/main/examples/demo?file=src%2Fmain.ts). It runs in your browser and shows response validation, request-body validation and typed errors against a real API. The source is in [`examples/demo`](examples/demo).
 
 For AI agents: [`llms.txt`](https://haihv.github.io/valifetch/llms.txt) indexes the docs, [`llms-full.txt`](https://haihv.github.io/valifetch/llms-full.txt) bundles them in one file, and every page is available as Markdown by appending `.md` to its URL. The npm package also ships `llms.txt` and `AGENTS.md`.
 
