@@ -39,13 +39,19 @@ jobs:
       - name: Build package
         run: npm run build
 
-      # npm trusted publishing: npm exchanges this job's OIDC token
-      # (id-token: write) for a short-lived publish token, so no NPM_TOKEN
-      # secret is needed. Requires npm >= 11.5.1 and the trusted publisher
-      # configured on npmjs.com for haihv/valifetch, workflow publish.yml.
-      # Provenance is attached automatically.
-      - name: Publish to npm
-        run: npm publish --access public
+      # npm trusted publishing with staged releases: npm exchanges this job's
+      # OIDC token (id-token: write) for a short-lived token, so no NPM_TOKEN
+      # secret is needed. The trusted publisher on npmjs.com (haihv/valifetch,
+      # publish.yml) may only stage, so the version is not public until a
+      # maintainer approves it with 2FA: `npm stage list valifetch`, then
+      # `npm stage approve <stage-id>`, or on npmjs.com. Provenance is
+      # attached automatically. npm is pinned because `npm stage` is newer
+      # than the npm bundled with some Node 24 releases.
+      - name: Update npm
+        run: npm install -g npm@11.21.2
+
+      - name: Stage npm release
+        run: npm stage publish --access public
 
       - name: Publish to JSR
         run: npx jsr publish --allow-dirty
