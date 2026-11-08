@@ -23,14 +23,15 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: '24'
           registry-url: 'https://registry.npmjs.org'
-          cache: npm
+          # No dependency cache in the release job: a restored cache is an
+          # input this job cannot vouch for, and it publishes with OIDC.
 
       - name: Install dependencies
         run: npm ci
@@ -38,10 +39,13 @@ jobs:
       - name: Build package
         run: npm run build
 
+      # npm trusted publishing: npm exchanges this job's OIDC token
+      # (id-token: write) for a short-lived publish token, so no NPM_TOKEN
+      # secret is needed. Requires npm >= 11.5.1 and the trusted publisher
+      # configured on npmjs.com for haihv/valifetch, workflow publish.yml.
+      # Provenance is attached automatically.
       - name: Publish to npm
-        run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public
 
       - name: Publish to JSR
         run: npx jsr publish --allow-dirty
@@ -62,7 +66,7 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           body: ${{ steps.changelog.outputs.notes }}
           draft: false
