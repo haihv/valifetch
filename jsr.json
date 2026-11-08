@@ -1,6 +1,6 @@
 {
   "name": "@haihv/valifetch",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Type-safe HTTP client built on native fetch with Valibot schema validation",
   "license": "MIT",
   "exports": {
