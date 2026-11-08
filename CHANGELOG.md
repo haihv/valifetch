@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **`HTTP_ERROR` message without a status text.** Over HTTP/2 and HTTP/3, which have no reason phrase, the message ended with a stray `: ` (`Request failed with status 404: `). It now ends at the status code (`Request failed with status 404`); a non-empty `statusText` is still appended.
 
+### Documentation
+
+- **Shorter README.** The README is now a landing page: features linking to their docs pages, install, a quick start and links. The full reference lives on the [documentation site](https://haihv.github.io/valifetch/), and the versioning policy moved to its [Versioning page](https://haihv.github.io/valifetch/guide/versioning). The package still ships `llms.txt` and `AGENTS.md` as the offline reference for agents.
+
 ## [1.0.0] - 2026-11-07
 
 First stable release. The public API is now covered by semantic versioning; see [Versioning & Stability](https://github.com/haihv/valifetch/blob/main/README.md#versioning--stability) in the README for what counts as a breaking change. Upgrading from 0.8.0: read the **Security** and **Changed** sections below; every item marked **Breaking** turns input that used to be accepted (sometimes unsafely) into a `TypeError` or a different outcome.
