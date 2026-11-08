@@ -1,3 +1,7 @@
+---
+description: "Configure valifetch retries: exponential backoff with jitter, status codes, methods, Retry-After handling, maxRetryAfter and a custom shouldRetry predicate."
+---
+
 # Retry
 
 valifetch retries failed requests with exponential backoff and jitter. Retry applies to both HTTP error responses (matching `statusCodes`) and network-level errors (for example `TypeError: Failed to fetch`).

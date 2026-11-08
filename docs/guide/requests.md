@@ -1,3 +1,7 @@
+---
+description: "Every valifetch request option: HTTP methods, json, form and raw bodies, path params, search params, headers, timeout, signals and download progress."
+---
+
 # Requests
 
 ## Options at a glance

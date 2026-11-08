@@ -1,3 +1,7 @@
+---
+description: "Why valifetch names and shapes its API the way it does: searchParams vs params, json/form/body, per-call responseType and positional hooks."
+---
+
 # API design decisions
 
 A few naming and ergonomics choices are intentional and locked for stability. They are documented here so the asymmetries do not read as accidental.

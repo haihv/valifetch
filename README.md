@@ -11,6 +11,8 @@ A type-safe HTTP client built on native `fetch` with [Valibot](https://valibot.d
 
 **Documentation: <https://haihv.github.io/valifetch/>**
 
+For AI agents: [`llms.txt`](https://haihv.github.io/valifetch/llms.txt) indexes the docs, [`llms-full.txt`](https://haihv.github.io/valifetch/llms-full.txt) bundles them in one file, and every page is available as Markdown by appending `.md` to its URL. The npm package also ships `llms.txt` and `AGENTS.md`.
+
 ## Features
 
 - **Native Fetch** - Zero dependencies on HTTP libraries, uses the native `fetch` API

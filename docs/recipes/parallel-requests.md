@@ -1,3 +1,7 @@
+---
+description: "Run valifetch requests in parallel with all() and allSettled(): tuple-typed results and cancellation of the whole batch."
+---
+
 # Parallel requests
 
 Every instance has `all()` and `allSettled()`. They are sugar over `Promise.all` and `Promise.allSettled` with two additions: element types are preserved as a tuple, and the result is cancellable.

@@ -1,3 +1,7 @@
+---
+description: "Validate response bodies, JSON request bodies, path params and search params with Valibot schemas, with full TypeScript type inference."
+---
+
 # Validation
 
 valifetch validates four things with [Valibot](https://valibot.dev) schemas:

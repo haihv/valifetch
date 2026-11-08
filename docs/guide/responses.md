@@ -1,3 +1,7 @@
+---
+description: "Choose how valifetch reads a response with responseType: JSON, text, Blob, ArrayBuffer, FormData, a stream, the raw Response, or server-sent events."
+---
+
 # Responses
 
 `responseType` controls how the response body is read and what the call resolves to. It is set per request (see [API design decisions](/guide/api-design-decisions)).

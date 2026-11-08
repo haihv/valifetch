@@ -1,3 +1,7 @@
+---
+description: "Consume server-sent events and AI token streams, such as OpenAI-style chat completions, with valifetch responseType sse as an async iterable."
+---
+
 # SSE and AI streaming
 
 `responseType: 'sse'` resolves to an `AsyncIterable<MessageEvent>`. valifetch parses the server-sent events frame protocol for you, so there is no manual chunk decoding.

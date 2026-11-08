@@ -1,3 +1,7 @@
+---
+description: "Turn on valifetch debug mode for structured request lifecycle logging, with sensitive headers and query parameters redacted automatically."
+---
+
 # Debug mode
 
 Enable structured lifecycle logging for development by passing `debug: true` (emits via `console.debug`) or a custom function.

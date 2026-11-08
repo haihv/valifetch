@@ -1,3 +1,7 @@
+---
+description: "Intercept the valifetch request lifecycle with beforeRequest, afterResponse, afterParseResponse, beforeRetry and beforeError hooks."
+---
+
 # Hooks
 
 Hooks are interceptors you register under the `hooks` option, as arrays of functions. There are five:

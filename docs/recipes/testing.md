@@ -1,3 +1,7 @@
+---
+description: "Mock valifetch requests in Vitest or Jest with createMock() from valifetch/mock: fixture responses, call inspection, no global fetch patching."
+---
+
 # Mocking in tests
 
 The `valifetch/mock` subpath provides `createMock()`, a lightweight mock that intercepts requests through the `beforeRequest` hook. It does not patch `globalThis.fetch`, and it works in Vitest and Jest. Import it in test files only. On Deno or other JSR consumers, import from `jsr:@haihv/valifetch/mock`.

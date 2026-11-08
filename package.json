@@ -58,7 +58,14 @@
       }
     }
   },
-  "files": ["dist", "README.md", "CHANGELOG.md", "LICENSE"],
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "llms.txt",
+    "AGENTS.md"
+  ],
   "sideEffects": false,
   "scripts": {
     "build": "tsup",
@@ -110,7 +117,7 @@
   "bugs": {
     "url": "https://github.com/haihv/valifetch/issues"
   },
-  "homepage": "https://github.com/haihv/valifetch#readme",
+  "homepage": "https://haihv.github.io/valifetch/",
   "peerDependencies": {
     "valibot": ">=1.0.0"
   },
@@ -122,6 +129,9 @@
     },
     "vitepress": {
       "vite": "^7.3.7"
+    },
+    "vitepress-plugin-llms": {
+      "minimatch": "^11.0.5"
     }
   },
   "devDependencies": {
@@ -148,6 +158,7 @@
     "valibot": "^1.5.0",
     "vite": "^8.3.6",
     "vitepress": "^1.6.4",
+    "vitepress-plugin-llms": "^1.14.0",
     "vitest": "^5.1.0"
   },
   "engines": {

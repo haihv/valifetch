@@ -1,3 +1,7 @@
+---
+description: "Import only what you need from valifetch, valifetch/auth, valifetch/mock, valifetch/error and valifetch/types for minimal, tree-shaken bundles."
+---
+
 # Subpath imports and tree-shaking
 
 valifetch is fully tree-shakeable. For minimal bundle size, import just what you need.

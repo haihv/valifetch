@@ -1,3 +1,7 @@
+---
+description: "Upload files with valifetch: multipart FormData, raw Blob, ArrayBuffer and ReadableStream bodies, and why fetch has no upload progress."
+---
+
 # File upload
 
 ## Multipart upload

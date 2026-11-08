@@ -1,3 +1,7 @@
+---
+description: "valifetch follows semantic versioning from 1.0.0: what counts as a breaking change, which defaults are covered, and how deprecations work."
+---
+
 # Versioning and stability
 
 From 1.0.0, valifetch follows [semantic versioning](https://semver.org). The versioning and stability policy, including what counts as a breaking change, which documented defaults are covered, and how deprecations are handled, is maintained in the repository README:

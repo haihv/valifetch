@@ -1,3 +1,7 @@
+---
+description: "Migrate from ky to valifetch: option and hook mapping for ky 1.x and 2.x, parsed-data return values and Valibot validation."
+---
+
 # Migrating from ky
 
 valifetch is deliberately close to [ky](https://github.com/sindresorhus/ky): both wrap native `fetch`, both have instances, retries and hooks. The biggest differences are that valifetch **returns parsed data** instead of a response promise with `.json()`, and that it **validates** with Valibot.

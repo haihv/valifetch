@@ -1,3 +1,7 @@
+---
+description: "valifetch security policy: supported versions, private vulnerability reporting and the threat model behind its hardening."
+---
+
 # Security
 
 The security policy is in the repository:

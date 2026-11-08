@@ -1,5 +1,8 @@
 ---
 layout: home
+title: valifetch
+titleTemplate: "Type-safe fetch HTTP client with Valibot validation"
+description: "valifetch is a type-safe HTTP client for TypeScript built on native fetch, with Valibot validation, retries, hooks, timeouts and SSE streaming. Like ky, with schemas."
 
 hero:
   name: valifetch
@@ -71,4 +74,4 @@ If the server returns something that does not match the schema, the call rejects
 
 ## For AI agents
 
-A condensed, agent-oriented summary of the API is available at [`/valifetch/llms.txt`](/valifetch/llms.txt).
+A condensed, agent-oriented summary of the API is available at [`llms.txt`](/llms.txt).

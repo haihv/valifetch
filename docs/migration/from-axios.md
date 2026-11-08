@@ -1,3 +1,7 @@
+---
+description: "Migrate from axios to valifetch: native fetch instead of XHR, parsed bodies instead of response wrappers, interceptors to hooks, and validation."
+---
+
 # Migrating from axios
 
 axios and valifetch differ at the root: valifetch is built on native `fetch`, resolves to the **parsed body** rather than a response wrapper, and validates with Valibot.

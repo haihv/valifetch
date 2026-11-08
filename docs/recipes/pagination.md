@@ -1,3 +1,7 @@
+---
+description: "Paginate APIs with valifetch: cursor-based and Link-header pagination with async generators, every page validated by a Valibot schema."
+---
+
 # Pagination
 
 Two common shapes: a cursor in the response body, and a `Link` header. Both are plain loops, and both keep every page validated.

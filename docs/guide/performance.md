@@ -1,3 +1,7 @@
+---
+description: "valifetch benchmark results against ky, ofetch and axios on Node.js 24, and the cost of schema validation."
+---
+
 # Performance
 
 Benchmarked with Vitest's [benchmark API](https://vitest.dev/guide/benchmarking) on Node.js 24, with `fetch` mocked to eliminate network variance. Run `npm run bench` in the repository to reproduce on your machine.
