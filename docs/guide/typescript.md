@@ -1,3 +1,7 @@
+---
+description: "How valifetch infers TypeScript types from Valibot schemas, typed path params, and the public types exported from valifetch/types."
+---
+
 # TypeScript
 
 valifetch infers types from your Valibot schemas.

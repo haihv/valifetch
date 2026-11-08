@@ -1,3 +1,7 @@
+---
+description: "Create configured valifetch instances with create() and extend(): shared prefixUrl, headers, hooks and retry, with lightweight prototype-based inheritance."
+---
+
 # Instances
 
 The default export, `valifetch`, is itself an instance. You create configured instances with `create()` and derive new ones with `extend()`.

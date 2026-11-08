@@ -1,5 +1,8 @@
 ---
 layout: home
+title: valifetch
+titleTemplate: "Type-safe fetch HTTP client with Valibot validation"
+description: "valifetch is a type-safe HTTP client for TypeScript built on native fetch, with Valibot validation, retries, hooks, timeouts and SSE streaming. Like ky, with schemas."
 
 hero:
   name: valifetch

@@ -1,3 +1,7 @@
+---
+description: "Handle valifetch failures with ValifetchError: typed codes for HTTP, validation, parse, timeout, abort and network errors, plus the parsed response body."
+---
+
 # Errors
 
 Every failure that valifetch itself detects is thrown as a `ValifetchError`, an `Error` subclass with a typed `code`. See the generated [`ValifetchError` reference](/api/index/classes/ValifetchError).

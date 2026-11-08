@@ -1,3 +1,7 @@
+---
+description: "Add bearer token, HTTP basic or JWT refresh authentication to valifetch with the bearerAuth, basicAuth and jwtRefresh hooks from valifetch/auth."
+---
+
 # Authentication
 
 The `valifetch/auth` subpath ships three `beforeRequest` hook factories for the most common auth patterns. They are zero-cost if unused (tree-shaken out entirely) and each returns a plain `BeforeRequestHook`, so they compose freely with any other hooks.

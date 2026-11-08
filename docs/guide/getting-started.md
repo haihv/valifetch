@@ -1,3 +1,7 @@
+---
+description: "Install valifetch and make your first type-safe, Valibot-validated request with native fetch in Node.js, Deno, Bun or the browser."
+---
+
 # Getting started
 
 valifetch is a type-safe HTTP client built on native `fetch` with [Valibot](https://valibot.dev) schema validation. It is like [ky](https://github.com/sindresorhus/ky), but with built-in request and response validation.
