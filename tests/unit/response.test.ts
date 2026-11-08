@@ -90,6 +90,38 @@ describe('core/response', () => {
         ).rejects.toThrow(ValifetchError);
       });
 
+      it('should include the status text in the message when present', async () => {
+        const response = new Response(null, {
+          status: 404,
+          statusText: 'Not Found',
+        });
+
+        const error = await checkResponseStatus(
+          response,
+          createRequest(),
+          true
+        ).catch((e: unknown) => e);
+
+        expect((error as ValifetchError).message).toBe(
+          'Request failed with status 404: Not Found'
+        );
+      });
+
+      it('should end the message at the status code when the status text is empty', async () => {
+        // HTTP/2 and HTTP/3 responses carry no reason phrase
+        const response = new Response(null, { status: 404 });
+
+        const error = await checkResponseStatus(
+          response,
+          createRequest(),
+          true
+        ).catch((e: unknown) => e);
+
+        expect((error as ValifetchError).message).toBe(
+          'Request failed with status 404'
+        );
+      });
+
       it('should include correct error code', async () => {
         const response = new Response('Not Found', {
           status: 404,

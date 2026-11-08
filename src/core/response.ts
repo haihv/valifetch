@@ -51,8 +51,10 @@ export async function checkResponseStatus(
 ): Promise<void> {
   if (!response.ok && throwHttpErrors) {
     const responseBody = await parseErrorBody(response);
+    // HTTP/2 and HTTP/3 have no reason phrase, so statusText is often empty
+    const reason = response.statusText ? `: ${response.statusText}` : '';
     throw new ValifetchError({
-      message: `Request failed with status ${response.status}: ${response.statusText}`,
+      message: `Request failed with status ${response.status}${reason}`,
       code: 'HTTP_ERROR',
       request,
       response,

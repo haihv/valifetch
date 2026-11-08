@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **`HTTP_ERROR` message without a status text.** Over HTTP/2 and HTTP/3, which have no reason phrase, the message ended with a stray `: ` (`Request failed with status 404: `). It now ends at the status code (`Request failed with status 404`); a non-empty `statusText` is still appended.
+
 ## [1.0.0] - 2026-11-07
 
 First stable release. The public API is now covered by semantic versioning; see [Versioning & Stability](https://github.com/haihv/valifetch/blob/main/README.md#versioning--stability) in the README for what counts as a breaking change. Upgrading from 0.8.0: read the **Security** and **Changed** sections below; every item marked **Breaking** turns input that used to be accepted (sometimes unsafely) into a `TypeError` or a different outcome.
