@@ -71,4 +71,4 @@ If the server returns something that does not match the schema, the call rejects
 
 ## For AI agents
 
-A condensed, agent-oriented summary of the API is available at [`/valifetch/llms.txt`](/valifetch/llms.txt).
+A condensed, agent-oriented summary of the API is available at [`llms.txt`](/llms.txt).
