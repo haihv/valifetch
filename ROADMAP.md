@@ -1,7 +1,8 @@
 # Roadmap
 
-This document tracks the milestones on the path to **v1.0.0 (stable)**.
-Shipped milestones are marked ✅; planned milestones may still shift.
+This document tracks valifetch's milestones. **v1.0.0 (stable)** has shipped; the API is now
+covered by semantic versioning (see the README "Versioning & Stability" section).
+Shipped milestones are marked ✅; planned items may still shift.
 
 ---
 
@@ -50,22 +51,34 @@ Shipped milestones are marked ✅; planned milestones may still shift.
 
 ---
 
-## 🚧 Planned
-
 ### v1.0.0 — Stable Release
 
-**Theme:** Production confidence. API locked under semver. v0.8.0 is the last minor release before 1.0 — no further breaking changes are planned.
+**Theme:** Production confidence. API locked under semver.
 
-- **Documentation site** (VitePress) — full API reference generated from JSDoc, migration guides, and recipes for common patterns (auth, SSE, mocking, pagination).
-- **Browser compatibility** — Playwright smoke tests against Chrome, Firefox, and Safari to guard against regressions on browser-native `fetch` behaviour.
-- **Security audit** — review hook composition for prototype pollution, `prefixUrl` for open-redirect / SSRF, and header merging for injection vectors.
-- **Semver policy** — document what constitutes a breaking change (hook signatures, option types, error codes, subpath exports).
-- **JSR subpath entries (`auth`, `mock`)** — evaluate publishing them on JSR without dropping the 100% documentation score.
-- **`createMock({ strict, prefixUrl })` options** — evaluate stricter mock matching and a `prefixUrl`-scoped mock instance.
+- ✅ **Security audit** — prefix containment (`..` / `%2e%2e` escapes and a `prefixUrl` with `?` / `#` throw a `TypeError`), own-key path params with `.` / `..` rejected, prototype-pollution-safe option and header merging, redacted `debug: true` logging (headers and query parameters), strict and bounded `Retry-After` (new `retry.maxRetryAfter`, default 60 s), clamped retry sleeps, a bounded SSE parser (new `sseMaxEventSize`, default 16 MiB) that cancels the body on early exit, and `SECURITY.md` with the threat model.
+- ✅ **Semver policy** — the README "Versioning & Stability" section defines the public API and what is major, minor and patch (hook signatures, option types, documented defaults, error codes, subpath exports), condensed in `llms.txt` and `AGENTS.md`.
+- ✅ **JSR subpath entries (`auth`, `mock`)** — published as `jsr:@haihv/valifetch/auth` and `jsr:@haihv/valifetch/mock` with the 100% documentation score kept; `./error` and `./types` stay npm-only.
+- ✅ **Browser compatibility** — Vitest browser-mode smoke tests against Chromium, Firefox and WebKit via Playwright, in CI. Surfaced that Firefox cannot stream request bodies; a `ReadableStream` body now throws a `TypeError` there instead of being silently corrupted.
+- ✅ **Documentation site** (VitePress) — guides, recipes (auth, SSE, mocking, pagination, parallel requests, file upload), migration guides from ky and axios, and an API reference generated from JSDoc with TypeDoc.
+- Deferred: **`createMock({ strict, prefixUrl })` options** — evaluated and moved to post-1.0. Both are additive, so they can land in a minor release.
 
 ---
 
-## Out of scope (pre-1.0)
+## 🚧 Planned
+
+### Post-1.0
+
+All additive or tooling-only, so none needs a major release.
+
+- **`createMock({ strict, prefixUrl })` options** — stricter mock matching and a `prefixUrl`-scoped mock instance.
+- **TypeScript 7** — move the toolchain once tsup (or a replacement such as tsdown) can build declarations without the TypeScript compiler API that TypeScript 7 no longer ships.
+- **Remove the TypeDoc minimatch shim** (`scripts/typedoc-minimatch-compat.mjs` and the `typedoc` → `minimatch` override) once TypeDoc supports minimatch 11.
+- **VitePress 2** — upgrade the docs site, which drops the `vitepress` → `vite` override.
+- **Valibot ecosystem listing** — get valifetch listed in the Valibot ecosystem docs.
+
+---
+
+## Out of scope
 
 These were considered and explicitly deferred or rejected:
 

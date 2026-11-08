@@ -4,11 +4,11 @@
 
 | Version | Supported |
 | ------- | --------- |
-| 1.x     | Yes, once 1.0 is released |
-| 0.8.x   | Yes, the current pre-1.0 line |
-| < 0.8   | No. Upgrade to the latest 0.8.x |
+| 1.x     | Yes |
+| 0.x     | No. Upgrade to the latest 1.x |
 
-Fixes ship in a new patch release of every supported line.
+As of the 1.0.0 release, 0.x (including 0.8.x) no longer receives fixes. Security fixes ship in a
+new 1.x release.
 
 ## Reporting a vulnerability
 
